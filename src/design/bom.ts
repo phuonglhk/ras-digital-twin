@@ -12,17 +12,19 @@ export interface BomRow {
 export function bom(components: Component[]): BomRow[] {
   const rows = new Map<string, BomRow>();
   for (const c of components) {
+    if (c.virtual) continue;
     const item = c.system === "khung" && c.type === "Ống thẳng" ? "Thép hộp khung" : c.type;
-    const spec = c.dn ? `DN${c.dn}` : "—",
-      unit = c.type === "Dây chằng cột" ? "cái" : c.length !== undefined ? "m" : "cái",
+    const spec = c.spec ?? (c.dn ? `DN${c.dn}` : "—"),
+      unit = c.unit ?? (c.type === "Dây chằng cột" ? "cái" : c.length !== undefined ? "m" : "cái"),
       key = [c.system, item, spec].join("|");
     const row = rows.get(key) ?? { key, system: c.system, item, spec, unit, quantity: 0, note: "", ids: [] };
+    if (c.system === "Phòng lọc") row.note = "Chưa nhập đơn giá; nhập theo báo giá địa phương";
     row.quantity += c.type === "Dây chằng cột" ? (c.count ?? 1) : (c.length ?? c.count ?? 1);
     row.ids.push(c.id);
     rows.set(key, row);
   }
   for (const row of rows.values())
-    if (row.unit === "m" && row.item === "Ống thẳng")
+    if (row.unit === "m" && (row.item === "Ống thẳng" || row.item === "Ống nối cân bằng"))
       row.note = `Dự trù 5%: ${Math.ceil((row.quantity * 1.05) / 4)} cây 4 m`;
   for (const system of ["cấp", "tràn", "xả cặn", "ống chính", "ống đứng cấp", "ống đứng thoát"] as const) {
     const pipes = components.filter(
@@ -52,6 +54,7 @@ export type Currency = "USD" | "VND";
 export type Prices = Record<string, number>;
 // Giá ống và phụ kiện là ví dụ có thể sửa, không phải báo giá; hộp lấy giữa khoảng FOB tham khảo.
 export function defaultPrice(row: BomRow): number {
+  if (row.system === "Phòng lọc") return 0;
   if (row.item === "Hộp nuôi") return 6.4;
   if (row.unit === "m") return row.system === "khung" ? 2 : 1;
   if (row.item === "Lỗ định lượng") return 0;

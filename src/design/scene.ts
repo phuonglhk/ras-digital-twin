@@ -10,6 +10,10 @@ const color: Record<System, number> = {
   "ống đứng cấp": 0x17578d,
   "ống đứng thoát": 0x315b40,
   "ống chính": 0x254961,
+  "ống chính trên cao": 0x8d9699,
+  "ống thả": 0xe7eae7,
+  mương: 0x7d8581,
+  "Phòng lọc": 0x7d8581,
   khung: 0x687681,
 };
 export class DesignScene {
@@ -39,6 +43,11 @@ export class DesignScene {
   private frameCount = 0;
   private lowDetail = false;
   private flush = false;
+  private showCodes = true;
+  private showDoors = true;
+  private assemblyTier: number | null = null;
+  private codeAtlas?: THREE.CanvasTexture;
+  private closedTier: { rack: number; tier: number; block: number } | null = null;
   onPick: (id: string) => void = () => {};
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -125,6 +134,8 @@ export class DesignScene {
       m.dispose();
     }
     this.meshes = [];
+    this.codeAtlas?.dispose();
+    this.codeAtlas = undefined;
   }
   setDoor(open: boolean) {
     this.doorOpen = open;
@@ -135,6 +146,10 @@ export class DesignScene {
     this.rebuild();
     if (this.one) this.overview();
   }
+  setClosedTier(value: { rack: number; tier: number; block: number } | null) {
+    this.closedTier = value;
+    this.rebuild();
+  }
   update(
     d: RackDesign,
     components: Component[],
@@ -142,6 +157,9 @@ export class DesignScene {
     exploded: boolean,
     one: boolean,
     selected: string[],
+    showCodes = true,
+    showDoors = true,
+    assemblyTier: number | null = null,
   ) {
     const changed = this.design !== d;
     this.design = d;
@@ -151,6 +169,9 @@ export class DesignScene {
     this.exploded = exploded;
     this.one = one;
     this.selected = new Set(selected);
+    this.showCodes = showCodes;
+    this.showDoors = showDoors;
+    this.assemblyTier = assemblyTier;
     this.rebuild();
     if (changed) this.overview();
   }
@@ -196,6 +217,15 @@ export class DesignScene {
         new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, rotation)),
         new THREE.Vector3(sx, sy, sz),
       );
+    if (this.layers.has("khung"))
+      for (const name of ["Sỏi đệm", "Gạch bê tông", "Bệ bê tông đổ"]) {
+        const pieces = items.filter((c) => c.type === name && c.size);
+        add(
+          new THREE.BoxGeometry(1, 1, 1),
+          mat(name === "Sỏi đệm" ? 0x756b58 : 0x959894),
+          pieces.map((c) => ({ id: c.id, matrix: matrix(...c.position, ...c.size!) })),
+        );
+      }
     if (this.layers.has("tràn")) {
       const sleeves = items.filter((c) => c.type === "Ống bọc khía chân");
       const sleeveMaterial = mat(0x74bca4, true);
@@ -299,7 +329,7 @@ export class DesignScene {
         0.002,
         Math.min(
           d.height - 0.045,
-          d.overflowHeight - 0.02 - d.drainHeaderDn / 2000 - rimSlope(d) * d.cols * (d.length + d.gap),
+          d.overflowHeight - d.availableHead - d.drainHeaderDn / 2000 - rimSlope(d) * (d.length + d.gap),
         ),
       );
       const notchCenters = [-d.width / 2 + 0.08, d.width / 2];
@@ -342,24 +372,124 @@ export class DesignScene {
             hole.absarc((dw * (i + 1)) / 6, (dh * (j + 1)) / 3, 0.009, 0, Math.PI * 2, true);
             doorShape.holes.push(hole);
           }
-      const angle = this.doorOpen ? -Math.PI * 0.48 : 0;
-      add(
-        new THREE.ShapeGeometry(doorShape, 8),
-        mat(0xd7b333),
-        boxes.map((b) => ({
-          id: b.id,
-          matrix: new THREE.Matrix4().compose(
-            new THREE.Vector3(
+      const angle = this.doorOpen && d.doorStyle === "ban-le" ? -Math.PI * 0.48 : 0;
+      if (this.showDoors)
+        add(
+          new THREE.ShapeGeometry(doorShape, 8),
+          mat(d.doorStyle === "ngan-keo" ? 0xf4f5ef : 0xd7b333),
+          boxes.map((b) => ({
+            id: b.id,
+            matrix: new THREE.Matrix4().compose(
+              new THREE.Vector3(
+                b.position[0] - dw / 2,
+                b.position[1] + d.height * 0.125,
+                b.position[2] +
+                  (b.reversed ? d.width / 2 : -d.width / 2) +
+                  (d.doorStyle === "ngan-keo" && this.doorOpen ? (b.reversed ? 0.1 : -0.1) : 0),
+              ),
+              new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle * (b.reversed ? -1 : 1)),
+              new THREE.Vector3(1, 1, 1),
+            ),
+          })),
+        );
+      if (this.showDoors) part(-dw / 2, d.height / 2, -d.width / 2, 0.012, dh, 0.02, 0x909a9a);
+      if (this.showCodes && this.showDoors && boxes.length) {
+        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+          columns = 8,
+          rows = Math.ceil(characters.length / columns),
+          atlas = document.createElement("canvas");
+        atlas.width = columns * 64;
+        atlas.height = rows * 64;
+        const ctx = atlas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, atlas.width, atlas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = "bold 48px sans-serif";
+          [...characters].forEach((ch, i) =>
+            ctx.fillText(ch, (i % columns) * 64 + 32, Math.floor(i / columns) * 64 + 34),
+          );
+          const texture = new THREE.CanvasTexture(atlas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          this.codeAtlas = texture;
+          const codeMatrix = (
+            b: Component,
+            offset: number,
+            width: number,
+            height: number,
+            depth: number,
+            front: number,
+          ) => {
+            const sign = b.reversed ? 1 : -1,
+              rotation = new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(0, 1, 0),
+                angle * (b.reversed ? -1 : 1),
+              );
+            const origin = new THREE.Vector3(
               b.position[0] - dw / 2,
               b.position[1] + d.height * 0.125,
-              b.position[2] + (b.reversed ? d.width / 2 : -d.width / 2),
-            ),
-            new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle * (b.reversed ? -1 : 1)),
-            new THREE.Vector3(1, 1, 1),
-          ),
-        })),
-      );
-      part(-dw / 2, d.height / 2, -d.width / 2, 0.012, dh, 0.02, 0x909a9a);
+              b.position[2] + sign * (d.width / 2 + (d.doorStyle === "ngan-keo" && this.doorOpen ? 0.1 : 0)),
+            );
+            const point = new THREE.Vector3(dw / 2 + offset, d.height * (0.58 - 0.125), sign * front)
+              .applyQuaternion(rotation)
+              .add(origin);
+            return new THREE.Matrix4().compose(point, rotation, new THREE.Vector3(width, height, depth));
+          };
+          add(
+            new THREE.BoxGeometry(1, 1, 1),
+            mat(0x10262b),
+            boxes.map((b) => ({
+              id: b.id,
+              matrix: codeMatrix(b, 0, Math.min(d.length * 0.65, 0.18), 0.055, 0.008, 0.008),
+            })),
+          );
+          for (let index = 0; index < characters.length; index++)
+            for (const reversed of [false, true]) {
+              const glyph = characters[index],
+                placements = boxes
+                  .filter((b) => Boolean(b.reversed) === reversed)
+                  .flatMap((b) =>
+                    [...(b.code ?? "")].flatMap((ch, k) =>
+                      ch === glyph
+                        ? [
+                            {
+                              id: b.id,
+                              matrix: codeMatrix(
+                                b,
+                                (reversed ? 1 : -1) * (k - ((b.code?.length ?? 1) - 1) / 2) * 0.026,
+                                0.026,
+                                0.045,
+                                1,
+                                0.014,
+                              ),
+                            },
+                          ]
+                        : [],
+                    ),
+                  );
+              if (!placements.length) continue;
+              const geometry = new THREE.PlaneGeometry(1, 1),
+                uv = geometry.attributes.uv,
+                col = index % columns,
+                row = Math.floor(index / columns);
+              for (let i = 0; i < uv.count; i++) {
+                const u = uv.getX(i),
+                  v = uv.getY(i);
+                uv.setXY(i, (col + u) / columns, 1 - (row + 1 - v) / rows);
+              }
+              if (!reversed) geometry.rotateY(Math.PI);
+              const material = new THREE.MeshStandardMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                emissive: 0x777777,
+              });
+              add(geometry, material, placements);
+            }
+        }
+      }
       if (!this.lowDetail || this.one || d.stacking === "xep-chong")
         for (const x of [-0.4, 0.4])
           for (const z of [-0.38, 0.38])
@@ -409,15 +539,20 @@ export class DesignScene {
           this.animation.push((t) => {
             boxes.forEach((b, i) => {
               const phase = (t * (0.7 + d.flow * 0.2) + i * 0.17) % 1;
+              const stopped =
+                !!this.closedTier &&
+                b.rack === this.closedTier.rack &&
+                b.tier === this.closedTier.tier &&
+                b.block === this.closedTier.block;
               drops.setMatrixAt(
                 i,
                 matrix(
                   b.position[0],
                   b.position[1] + d.height - 0.02 - phase * (d.height - d.overflowHeight),
                   b.position[2] + (b.reversed ? 1 : -1) * (d.width / 2 - 0.08),
-                  1,
-                  1,
-                  1,
+                  stopped ? 0 : 1,
+                  stopped ? 0 : 1,
+                  stopped ? 0 : 1,
                 ),
               );
             });
@@ -488,10 +623,67 @@ export class DesignScene {
       "ống đứng cấp",
       "ống đứng thoát",
       "ống chính",
+      "ống chính trên cao",
+      "ống thả",
+      "mương",
     ] as System[]) {
-      const layer: Layer = system.startsWith("ống") ? "ống đứng" : (system as Layer);
+      const layer: Layer = system.startsWith("ống") || system === "mương" ? "ống đứng" : (system as Layer);
       if (!this.layers.has(layer)) continue;
-      const pipes = items.filter((c) => c.system === system && c.end && c.length);
+      const pipes = items.filter((c) => c.system === system && c.end && c.length && !c.virtual);
+      if (system === "mương") {
+        const trenchParts = (side: number) =>
+          pipes.map((c) => {
+            const a = new THREE.Vector3(...c.position),
+              b = new THREE.Vector3(...c.end!),
+              dx = b.x - a.x,
+              dz = b.z - a.z;
+            const yaw = -Math.atan2(dz, dx),
+              length = Math.hypot(dx, dz),
+              mid = a.clone().add(b).multiplyScalar(0.5);
+            mid.x += Math.sin(yaw) * side * (d.trenchWidth / 2 - 0.01);
+            mid.z += Math.cos(yaw) * side * (d.trenchWidth / 2 - 0.01);
+            const height = side === 0 ? 0.02 : d.trenchDepth;
+            return {
+              id: c.id,
+              matrix: new THREE.Matrix4().compose(
+                mid,
+                new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)),
+                new THREE.Vector3(length, height, side === 0 ? d.trenchWidth : 0.02),
+              ),
+            };
+          });
+        for (const side of [-1, 0, 1]) add(new THREE.BoxGeometry(1, 1, 1), mat(0x858986), trenchParts(side));
+        if (this.layers.has("nước")) {
+          add(new THREE.BoxGeometry(1, 1, 1), mat(0x3c9eb5, true), trenchParts(0));
+          const droplets = add(
+            new THREE.SphereGeometry(0.018, 6, 4),
+            mat(0xaffaff),
+            pipes.map((c) => ({ id: c.id, matrix: matrix(...c.position, 1, 1, 1) })),
+          );
+          if (droplets)
+            this.animation.push((t) => {
+              pipes.forEach((c, i) => {
+                const speed = (c.flow ?? 0) / 60000 / (d.trenchWidth * d.trenchDepth),
+                  phase = ((t * speed) / (c.length ?? 1) + i * 0.13) % 1,
+                  a = c.position,
+                  b = c.end!;
+                droplets.setMatrixAt(
+                  i,
+                  matrix(
+                    a[0] + (b[0] - a[0]) * phase,
+                    a[1] + (b[1] - a[1]) * phase + 0.015,
+                    a[2] + (b[2] - a[2]) * phase,
+                    1,
+                    1,
+                    1,
+                  ),
+                );
+              });
+              droplets.instanceMatrix.needsUpdate = true;
+            });
+        }
+        continue;
+      }
       const entries = pipes.map((c) => {
         const a = new THREE.Vector3(...c.position),
           b = new THREE.Vector3(...c.end!);
@@ -512,7 +704,13 @@ export class DesignScene {
           ),
         };
       });
-      const pipeMesh = add(new THREE.CylinderGeometry(1, 1, 1, this.lowDetail ? 5 : 8), mat(color[system]), entries);
+      const systemColor =
+        d.plumbing === "ong-tren-cao" && system === "ống đứng thoát"
+          ? 0xe9eeee
+          : d.plumbing === "ong-tren-cao" && system === "ống đứng cấp"
+            ? 0x8d9699
+            : color[system];
+      const pipeMesh = add(new THREE.CylinderGeometry(1, 1, 1, this.lowDetail ? 5 : 8), mat(systemColor), entries);
       if (pipeMesh && this.one && this.flush && d.stacking === "xep-chong" && system === "tràn") {
         const moving = pipes.flatMap((c, i) => (c.dn === 21 && (c.source || !c.network) ? [i] : []));
         this.animation.push((t) => {
@@ -526,7 +724,18 @@ export class DesignScene {
         });
       }
       if (this.layers.has("nước") && system !== "khung") {
-        const flowing = pipes.filter((c) => (c.flow ?? 0) + (this.flush ? (c.flushFlow ?? 0) : 0) > 0 && c.dn);
+        const flowing = pipes.filter(
+          (c) =>
+            (c.flow ?? 0) + (this.flush ? (c.flushFlow ?? 0) : 0) > 0 &&
+            c.dn &&
+            !(
+              this.closedTier &&
+              c.rack === this.closedTier.rack &&
+              c.tier === this.closedTier.tier &&
+              c.block === this.closedTier.block &&
+              (c.system === "cấp" || c.system === "tràn")
+            ),
+        );
         const particles = add(
           this.lowDetail ? new THREE.TetrahedronGeometry(0.012) : new THREE.SphereGeometry(0.012, 6, 4),
           mat(0xc9f6ff),
@@ -569,7 +778,7 @@ export class DesignScene {
       const valves = items.filter((c) => c.system === system && c.type.startsWith("Van"));
       add(
         new THREE.BoxGeometry(1, 1, 1),
-        mat(0xc52e24),
+        mat(system === "ống chính trên cao" ? 0xd63724 : 0xf39220),
         valves.map((c) => ({
           id: c.id,
           matrix: matrix(
@@ -594,7 +803,9 @@ export class DesignScene {
       const fittings = items.filter(
         (c) =>
           c.system === system &&
-          ["Tê", "Co 90°", "Co 45°", "Nút bịt", "Côn thu", "Rắc co", "Lỗ định lượng"].includes(c.type),
+          (["Tê", "Co 90°", "Co 45°", "Nút bịt", "Côn thu", "Lỗ định lượng"].includes(c.type) ||
+            c.type.startsWith("Rắc co") ||
+            c.type.startsWith("Tê ")),
       );
       add(
         new THREE.SphereGeometry(1, 6, 4),
@@ -620,6 +831,38 @@ export class DesignScene {
           ),
         })),
       );
+    }
+    if (this.assemblyTier !== null) {
+      const movingIds = new Set(boxes.filter((b) => b.tier === this.assemblyTier).map((b) => b.id));
+      const groups = this.meshes
+        .map((mesh) => {
+          const ids = mesh.userData.ids as string[];
+          return {
+            mesh,
+            instances: ids.flatMap((id, index) => {
+              if (!movingIds.has(id)) return [];
+              const original = new THREE.Matrix4();
+              mesh.getMatrixAt(index, original);
+              return [{ index, original }];
+            }),
+          };
+        })
+        .filter((g) => g.instances.length > 0);
+      const start = performance.now() / 1000;
+      let settled = false;
+      this.animation.push((t) => {
+        const remaining = Math.max(0, 1 - (t - start) / 1.2);
+        if (settled) return;
+        for (const group of groups) {
+          for (const item of group.instances) {
+            const m = item.original.clone();
+            m.elements[13] += 0.22 * remaining;
+            group.mesh.setMatrixAt(item.index, m);
+          }
+          group.mesh.instanceMatrix.needsUpdate = true;
+        }
+        if (!remaining) settled = true;
+      });
     }
   }
   private updateLabels() {
@@ -656,7 +899,7 @@ export class DesignScene {
     if (b.isEmpty()) return;
     if (this.one && this.design.stacking === "xep-chong") b.max.y += this.design.overflowHeight + 0.025;
     const center = b.getCenter(new THREE.Vector3());
-    const direction = new THREE.Vector3(1, 0.8, 1).normalize();
+    const direction = new THREE.Vector3(1, 0.8, -1).normalize();
     this.controls.target.copy(center);
     this.camera.position.copy(center).add(direction);
     this.camera.lookAt(center);

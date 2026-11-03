@@ -1,4 +1,15 @@
-﻿export type System = "cấp" | "tràn" | "xả cặn" | "ống đứng cấp" | "ống đứng thoát" | "ống chính" | "khung";
+﻿export type System =
+  | "cấp"
+  | "tràn"
+  | "xả cặn"
+  | "ống đứng cấp"
+  | "ống đứng thoát"
+  | "ống chính"
+  | "khung"
+  | "ống chính trên cao"
+  | "ống thả"
+  | "mương"
+  | "Phòng lọc";
 export interface RackDesign {
   length: number;
   width: number;
@@ -20,6 +31,29 @@ export interface RackDesign {
   crabWeight: number;
   drainDownMinutes: number;
   drainHeaderDn: number;
+  blockCols: number;
+  blockGap: number;
+  drainEnds: "mot" | "hai";
+  supplyEnds: "trai" | "phai" | "hai";
+  drainValve: boolean;
+  doorStyle: "ban-le" | "ngan-keo";
+  plumbing: "van-hong" | "ong-tren-cao";
+  dropEvery: 1 | 2;
+  maxStackHeight: number;
+  trenchWidth: number;
+  trenchDepth: number;
+  trunkSection: number;
+  mechanical: "lang-cat" | "loc-trong";
+  settlingMinutes: number;
+  sandRate: number;
+  uvDose: number;
+  outletStyle: "te-ong" | "lo-khoan";
+  orificeDiameter: number;
+  baseStyle: "gach-soi" | "be-do";
+  brickLength: number;
+  gravelDepth: number;
+  availableHead: number;
+  freeboard: number;
   bottomHeight: number;
   aisle: number;
   flow: number;
@@ -56,6 +90,29 @@ export const defaultDesign: RackDesign = {
   crabWeight: 0.3,
   drainDownMinutes: 2,
   drainHeaderDn: 34,
+  blockCols: 10,
+  blockGap: 0.2,
+  drainEnds: "hai",
+  supplyEnds: "trai",
+  drainValve: true,
+  doorStyle: "ban-le",
+  plumbing: "van-hong",
+  dropEvery: 1,
+  maxStackHeight: 2.2,
+  trenchWidth: 0.2,
+  trenchDepth: 0.1,
+  trunkSection: 6,
+  mechanical: "lang-cat",
+  settlingMinutes: 15,
+  sandRate: 35,
+  uvDose: 40,
+  outletStyle: "te-ong",
+  orificeDiameter: 2,
+  baseStyle: "gach-soi",
+  brickLength: 0.4,
+  gravelDepth: 0.05,
+  availableHead: 0.03,
+  freeboard: 0.02,
   bottomHeight: 0.1,
   aisle: 0.8,
   flow: 1.5,
@@ -93,6 +150,7 @@ export interface Component {
   position: [number, number, number];
   end?: [number, number, number];
   rack?: number;
+  block?: number;
   tier?: number;
   col?: number;
   flow?: number;
@@ -102,27 +160,66 @@ export interface Component {
   sink?: boolean;
   intermittent?: boolean;
   flushFlow?: number;
+  spec?: string;
+  unit?: string;
+  size?: [number, number, number];
+  virtual?: boolean;
+  code?: string;
 }
 export function tierPitch(d: RackDesign): number {
   return d.stacking === "xep-chong" ? d.height - d.interlock : d.tierSpacing;
 }
+export interface Block {
+  index: number;
+  first: number;
+  cols: number;
+  offset: number;
+  span: number;
+}
+/** Chia đều số cột, ví dụ 25 cột tối đa 10 thành 9 + 8 + 8. */
+export function blocks(d: RackDesign): Block[] {
+  const n = Math.ceil(d.cols / d.blockCols),
+    base = Math.floor(d.cols / n),
+    remainder = d.cols % n;
+  let first = 0,
+    offset = 0;
+  return Array.from({ length: n }, (_, index) => {
+    const cols = base + (index < remainder ? 1 : 0),
+      span = cols * (d.length + d.gap),
+      result = { index, first, cols, offset, span };
+    first += cols;
+    offset += span + d.blockGap;
+    return result;
+  });
+}
+export function rowSpan(d: RackDesign): number {
+  const b = blocks(d);
+  return b[b.length - 1].offset + b[b.length - 1].span;
+}
 /** Giữ ống góp trong vùng thành hộp khi xếp chồng; vẫn dốc về ống đứng. */
 export function rimSlope(d: RackDesign): number {
   if (d.stacking === "gia-do") return d.slope;
-  const span = d.cols * (d.length + d.gap) + 0.08;
-  return Math.min(d.slope, Math.max(0.00001, (d.overflowHeight - 0.02 - d.drainHeaderDn / 2000 - 0.002) / span));
+  const step = d.length + d.gap;
+  const span = Math.max(
+    ...blocks(d).map((b) => {
+      if (d.drainEnds !== "hai") return b.span + 0.08;
+      const center = (b.cols === 1 ? 0 : Math.ceil(b.cols / 2) - 0.5) * step + d.length * 0.8;
+      return Math.min(center + 0.08, b.span + 0.08 - center);
+    }),
+  );
+  const sideDrop = Math.abs(d.width - 0.105) * d.slope + 0.002;
+  return Math.min(d.slope, Math.max(0.00001, (d.availableHead - sideDrop - 0.012) / Math.max(0.001, span)));
 }
 /** Diện tích hình chữ nhật bao dãy và lối đi phục vụ, không gồm phòng lọc. */
 export function floorArea(d: RackDesign): number {
-  const span = d.cols * (d.length + d.gap);
+  const span = rowSpan(d);
   if (d.layout === "một dãy") return (d.racks * span + (d.racks - 1) * d.aisle) * (d.width + d.aisle);
   if (d.layout === "song song") return span * (d.racks * d.width + d.racks * d.aisle);
   const pairs = Math.ceil(d.racks / 2);
   return (pairs * span + (pairs - 1) * d.aisle) * ((d.racks > 1 ? 2 : 1) * d.width + d.aisle);
 }
 export function rackPosition(d: RackDesign, rack: number): [number, number] {
-  if (d.layout === "một dãy") return [rack * (d.cols * (d.length + d.gap) + d.aisle), 0];
-  if (d.layout === "quay lưng")
-    return [Math.floor(rack / 2) * (d.cols * (d.length + d.gap) + d.aisle), (rack % 2) * d.width];
+  if (d.layout === "một dãy") return [rack * (rowSpan(d) + d.aisle), 0];
+  if (d.layout === "quay lưng") return [Math.floor(rack / 2) * (rowSpan(d) + d.aisle), (rack % 2) * d.width];
   return [0, rack * (d.width + d.aisle)];
 }
