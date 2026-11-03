@@ -22,18 +22,25 @@ interface Props {
 }
 
 export default function TwinView({ library, view, onPick }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TwinScene | null>(null);
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
   const [hover, setHover] = useState<{ id: SceneUnit; x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const scene = new TwinScene(canvasRef.current!, library);
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("aria-label", "Mô hình 3D hệ thống RAS. Bấm vào thiết bị để xem chi tiết.");
+    hostRef.current!.appendChild(canvas);
+    const scene = new TwinScene(canvas, library);
     scene.onPick = (id) => id && pickRef.current(id);
     scene.onHover = (id, x, y) => setHover(id ? { id, x, y } : null);
     sceneRef.current = scene;
-    return () => scene.dispose();
+    return () => {
+      scene.dispose();
+      canvas.remove();
+      sceneRef.current = null;
+    };
   }, [library]);
 
   useEffect(() => {
@@ -42,9 +49,11 @@ export default function TwinView({ library, view, onPick }: Props) {
 
   return (
     <div className="twin">
-      <canvas ref={canvasRef} aria-label="Mô hình 3D hệ thống RAS. Bấm vào thiết bị để xem chi tiết." />
+      <div ref={hostRef} className="twin-canvas-host" />
       <div className="twin-tools">
-        <button type="button" onClick={() => sceneRef.current?.overview()}>Toàn cảnh</button>
+        <button type="button" onClick={() => sceneRef.current?.overview()}>
+          Toàn cảnh
+        </button>
         {view.selected && (
           <button type="button" onClick={() => sceneRef.current?.focus(view.selected!)}>
             Nhìn gần {NAMES[view.selected]}
@@ -52,10 +61,22 @@ export default function TwinView({ library, view, onPick }: Props) {
         )}
       </div>
       <div className="twin-legend" aria-hidden>
-        <span><i className="ok" />Đạt</span>
-        <span><i className="warn" />Quá nửa ngưỡng</span>
-        <span><i className="bad" />Vượt ngưỡng</span>
-        <span><i className="off" />Tắt</span>
+        <span>
+          <i className="ok" />
+          Đạt
+        </span>
+        <span>
+          <i className="warn" />
+          Quá nửa ngưỡng
+        </span>
+        <span>
+          <i className="bad" />
+          Vượt ngưỡng
+        </span>
+        <span>
+          <i className="off" />
+          Tắt
+        </span>
       </div>
       {hover && (
         <div className="twin-tip" style={{ left: hover.x, top: hover.y }}>

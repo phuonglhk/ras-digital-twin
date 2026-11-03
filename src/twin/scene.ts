@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Cảnh 3D của Digital Twin. Bố cục theo thứ tự công nghệ iRAS:
  * khu nuôi bên trái, tuyến xử lý chạy dọc trục x, ống hồi đi trên cao về khu nuôi,
  * nhánh khử nitrat đặt cạnh khu nuôi.
@@ -514,5 +514,7 @@ export class TwinScene {
     this.canvas.removeEventListener("pointerleave", this.handleLeave);
     this.controls.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 }
+

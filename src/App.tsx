@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   buildChain,
@@ -47,7 +47,7 @@ export default function App() {
   const sim = simRef.current;
   const [snap, setSnap] = useState<Snapshot>(() => ({ water: sim.state, t: sim.t, history: [...sim.history] }));
   const [speed, setSpeed] = useState(600);
-  const [selected, setSelected] = useState<SceneUnit>("biofilter");
+  const [selected, setSelected] = useState<SceneUnit>(() => { const chosen = new URLSearchParams(location.search).get("chon"); return (["culture", "rdf", "skimmer", "biofilter", "degasser", "pump", "uv", "oxygen", "denit"] as string[]).includes(chosen ?? "") ? chosen as SceneUnit : "biofilter"; });
   const [trend, setTrend] = useState<TrendTab>("ammonia");
   const [event, setEvent] = useState<{ label: string; until: number; restore: Partial<Params> } | null>(null);
 
@@ -285,3 +285,4 @@ export default function App() {
     </div>
   );
 }
+

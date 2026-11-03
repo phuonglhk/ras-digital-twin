@@ -30,11 +30,20 @@ const MAT = {
 };
 
 export function waterMaterial() {
-  return new THREE.MeshPhongMaterial({ color: 0x4fb7e6, transparent: true, opacity: 0.62, shininess: 80, depthWrite: false });
+  return new THREE.MeshPhongMaterial({
+    color: 0x4fb7e6,
+    transparent: true,
+    opacity: 0.62,
+    shininess: 80,
+    depthWrite: false,
+  });
 }
 
 function lampAt(group: THREE.Group, y: number) {
-  const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), new THREE.MeshBasicMaterial({ color: 0x5b6b5e }));
+  const lamp = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.12, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x5b6b5e }),
+  );
   lamp.position.set(0, y, 0);
   group.add(lamp);
   return lamp;
@@ -56,7 +65,12 @@ function cylinder(rTop: number, rBottom: number, h: number, mat: THREE.Material,
 /** Bọt khí bốc lên trong một khối hộp. */
 function bubbles(count: number, w: number, h: number, d: number, y0: number) {
   const pos = new Float32Array(count * 3);
-  const seed = Array.from({ length: count }, () => [Math.random() - 0.5, Math.random(), Math.random() - 0.5, 0.4 + Math.random() * 0.8]);
+  const seed = Array.from({ length: count }, () => [
+    Math.random() - 0.5,
+    Math.random(),
+    Math.random() - 0.5,
+    0.4 + Math.random() * 0.8,
+  ]);
   const pts = new THREE.Points(
     new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(pos, 3)),
     new THREE.PointsMaterial({ color: 0xffffff, size: 0.04, transparent: true, opacity: 0.8, depthWrite: false }),
@@ -94,7 +108,11 @@ export class AssetKit {
     g.scale.set(size.x / s.x, size.y / s.y, size.z / s.z);
     const bb = new THREE.Box3();
     for (const p of parts) bb.union(p.geometry.boundingBox!);
-    g.position.set(-((bb.min.x + bb.max.x) / 2) * g.scale.x, -bb.min.y * g.scale.y, -((bb.min.z + bb.max.z) / 2) * g.scale.z);
+    g.position.set(
+      -((bb.min.x + bb.max.x) / 2) * g.scale.x,
+      -bb.min.y * g.scale.y,
+      -((bb.min.z + bb.max.z) / 2) * g.scale.z,
+    );
     const wrap = new THREE.Group();
     wrap.add(g);
     return wrap;
@@ -107,7 +125,26 @@ export function drumFilter(kit: AssetKit): Equipment {
   const group = new THREE.Group();
   const size = new THREE.Vector3(1.4, 1.1, 1.3);
   group.add(kit.place("drum_filter", size));
-  return { group, inlet: new THREE.Vector3(-0.7, 0.6, 0), outlet: new THREE.Vector3(0.7, 0.45, 0), height: size.y, lamp: lampAt(group, size.y + 0.3) };
+  const drum = cylinder(0.36, 0.36, 0.9, new THREE.MeshLambertMaterial({ color: 0xb7c7c8, wireframe: true }), 12);
+  drum.rotation.z = Math.PI / 2;
+  drum.position.set(0, 0.7, 0);
+  group.add(drum);
+  const spray = bubbles(35, 0.7, 0.3, 0.3, 0.75);
+  group.add(spray.pts);
+  group.add(box(0.85, 0.05, 0.05, MAT.pvc, 0, 1.0, 0));
+  group.add(box(0.8, 0.12, 0.18, MAT.steel, 0, 0.45, 0));
+  group.add(box(0.25, 0.25, 0.25, MAT.dark, 0.7, 0.3, 0));
+  return {
+    animate: (t, on) => {
+      drum.rotation.x = on ? t : 0;
+      spray.tick(t, on);
+    },
+    group,
+    inlet: new THREE.Vector3(-0.7, 0.6, 0),
+    outlet: new THREE.Vector3(0.7, 0.45, 0),
+    height: size.y,
+    lamp: lampAt(group, size.y + 0.3),
+  };
 }
 
 export function pump(kit: AssetKit): Equipment {
@@ -115,8 +152,15 @@ export function pump(kit: AssetKit): Equipment {
   const size = new THREE.Vector3(0.7, 0.6, 0.6);
   group.add(kit.place("pump", size));
   let spin = 0;
-  const shaft = box(0.08, 0.08, 0.5, MAT.dark, 0, 0.26, 0);
+  const shaft = new THREE.Group();
+  shaft.position.set(0, 0.3, 0);
+  for (let i = 0; i < 4; i++) {
+    const blade = box(0.26, 0.035, 0.035, MAT.steel);
+    blade.rotation.z = (i * Math.PI) / 2;
+    shaft.add(blade);
+  }
   group.add(shaft);
+  group.add(box(0.2, 0.3, 0.3, MAT.dark, -0.35, 0.1, 0));
   return {
     group,
     inlet: new THREE.Vector3(-0.35, 0.3, 0),
@@ -138,7 +182,14 @@ export function boxTank(kit: AssetKit, w: number, h: number, d: number): Equipme
   water.scale.y = h * 0.82;
   water.position.y = 0.06 + water.scale.y / 2;
   group.add(water);
-  return { group, water, inlet: new THREE.Vector3(-w / 2, h * 0.75, 0), outlet: new THREE.Vector3(w / 2, h * 0.5, 0), height: h, lamp: lampAt(group, h + 0.3) };
+  return {
+    group,
+    water,
+    inlet: new THREE.Vector3(-w / 2, h * 0.75, 0),
+    outlet: new THREE.Vector3(w / 2, h * 0.5, 0),
+    height: h,
+    lamp: lampAt(group, h + 0.3),
+  };
 }
 
 /** Bể vi sinh MBBR: bể chữ nhật, giá thể trôi và bọt khí. */
@@ -146,10 +197,15 @@ export function mbbr(kit: AssetKit, mediaVolume: number): Equipment {
   const reactor = Math.max(0.3, mediaVolume / 0.5);
   const h = 1.2;
   const w = Math.sqrt((reactor / h) * 1.4);
-  const d = (reactor / h) / w;
+  const d = reactor / h / w;
   const eq = boxTank(kit, w, h, d);
   const chips = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.03, 0.05), MAT.media, 160);
-  const seeds = Array.from({ length: 160 }, () => [Math.random() * Math.PI * 2, 0.15 + Math.random() * 0.8, Math.random() * 0.5 + 0.3, Math.random()]);
+  const seeds = Array.from({ length: 160 }, () => [
+    Math.random() * Math.PI * 2,
+    0.15 + Math.random() * 0.8,
+    Math.random() * 0.5 + 0.3,
+    Math.random(),
+  ]);
   eq.group.add(chips);
   const air = bubbles(120, w * 0.8, h * 0.75, d * 0.8, 0.08);
   eq.group.add(air.pts);
@@ -157,7 +213,11 @@ export function mbbr(kit: AssetKit, mediaVolume: number): Equipment {
   eq.animate = (time, on) => {
     seeds.forEach(([a, y, r, ph], i) => {
       const ang = a + (on ? time * (0.6 + ph) : 0);
-      m4.makeRotationY(ang * 3).setPosition(Math.cos(ang) * r * w * 0.4, 0.1 + y * h * 0.7 + Math.sin(time * 2 + ph * 6) * 0.03, Math.sin(ang) * r * d * 0.4);
+      m4.makeRotationY(ang * 3).setPosition(
+        Math.cos(ang) * r * w * 0.4,
+        0.1 + y * h * 0.7 + Math.sin(time * 2 + ph * 6) * 0.03,
+        Math.sin(ang) * r * d * 0.4,
+      );
       chips.setMatrixAt(i, m4);
     });
     chips.instanceMatrix.needsUpdate = true;
@@ -170,7 +230,12 @@ export function mbbr(kit: AssetKit, mediaVolume: number): Equipment {
 export function skimmer(): Equipment {
   const group = new THREE.Group();
   group.add(box(0.7, 0.35, 0.6, MAT.hdpe));
-  const col = cylinder(0.17, 0.17, 1.5, new THREE.MeshPhongMaterial({ color: 0xbfe6f5, transparent: true, opacity: 0.45, depthWrite: false }));
+  const col = cylinder(
+    0.17,
+    0.17,
+    1.5,
+    new THREE.MeshPhongMaterial({ color: 0xbfe6f5, transparent: true, opacity: 0.45, depthWrite: false }),
+  );
   col.position.set(0, 0.35 + 0.75, 0);
   group.add(col);
   const cup = cylinder(0.26, 0.2, 0.3, MAT.pvc);
@@ -261,7 +326,16 @@ export function oxygenCone(): Equipment {
   const cap = cylinder(0.08, 0.16, 0.12, MAT.o2, 12);
   cap.position.set(0.15, 1.26, 0.6);
   group.add(cap);
-  return { group, inlet: new THREE.Vector3(0, 1.55, 0), outlet: new THREE.Vector3(0.38, 0.3, 0), height: 1.6, lamp: lampAt(group, 1.9) };
+  const air = bubbles(60, 0.3, 1.0, 0.3, 0.35);
+  group.add(air.pts);
+  return {
+    animate: (t, on) => air.tick(t, on),
+    group,
+    inlet: new THREE.Vector3(0, 1.55, 0),
+    outlet: new THREE.Vector3(0.38, 0.3, 0),
+    height: 1.6,
+    lamp: lampAt(group, 1.9),
+  };
 }
 
 /** Bể tròn cho cá/tôm. */
@@ -269,7 +343,10 @@ export function roundTank(volume: number): Equipment {
   const h = volume > 8 ? 1.4 : 1.0;
   const r = Math.sqrt(volume / (Math.PI * h * 0.85));
   const group = new THREE.Group();
-  const wall = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshLambertMaterial({ color: 0x2f6fae, side: THREE.DoubleSide }));
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(r, r, h, 28, 1, true),
+    new THREE.MeshLambertMaterial({ color: 0x2f6fae, side: THREE.DoubleSide }),
+  );
   wall.position.y = h / 2;
   wall.castShadow = wall.receiveShadow = true;
   group.add(wall);
@@ -288,7 +365,14 @@ export function roundTank(volume: number): Equipment {
   const stand = cylinder(0.06, 0.06, h + 0.2, MAT.pvc, 8);
   stand.position.set(0, (h + 0.2) / 2, 0);
   group.add(stand);
-  return { group, water, inlet: new THREE.Vector3(-r, h, 0), outlet: new THREE.Vector3(r, 0.2, 0), height: h, lamp: lampAt(group, h + 0.5) };
+  return {
+    group,
+    water,
+    inlet: new THREE.Vector3(-r, h, 0),
+    outlet: new THREE.Vector3(r, 0.2, 0),
+    height: h,
+    lamp: lampAt(group, h + 0.5),
+  };
 }
 
 /** Khung kệ thép cho hộp cua. */
@@ -316,7 +400,11 @@ export function crabBoxes(kit: AssetKit, positions: THREE.Vector3[], size: THREE
   const bb = new THREE.Box3();
   for (const p of parts) bb.union(p.geometry.boundingBox!);
   const scale = new THREE.Vector3(size.x / s.x, size.y / s.y, size.z / s.z);
-  const offset = new THREE.Vector3(-((bb.min.x + bb.max.x) / 2) * scale.x, -bb.min.y * scale.y, -((bb.min.z + bb.max.z) / 2) * scale.z);
+  const offset = new THREE.Vector3(
+    -((bb.min.x + bb.max.x) / 2) * scale.x,
+    -bb.min.y * scale.y,
+    -((bb.min.z + bb.max.z) / 2) * scale.z,
+  );
   const group = new THREE.Group();
   const m4 = new THREE.Matrix4();
   for (const p of parts) {
@@ -329,7 +417,11 @@ export function crabBoxes(kit: AssetKit, positions: THREE.Vector3[], size: THREE
     group.add(inst);
   }
   // Đèn trạng thái từng hộp.
-  const lamps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xffffff }), positions.length);
+  const lamps = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.05, 0.05, 0.05),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    positions.length,
+  );
   positions.forEach((pos, i) => {
     m4.makeTranslation(pos.x, pos.y + size.y + 0.04, pos.z + size.z * 0.35);
     lamps.setMatrixAt(i, m4);
@@ -337,4 +429,97 @@ export function crabBoxes(kit: AssetKit, positions: THREE.Vector3[], size: THREE
   });
   group.add(lamps);
   return { group, lamps };
+}
+
+/** Máy thổi khí dạng khối với rotor quay. */
+export function blower(): Equipment {
+  const group = new THREE.Group();
+  group.add(box(1.1, 0.15, 0.65, MAT.frame));
+  group.add(box(0.5, 0.5, 0.55, MAT.hdpe, -0.25, 0.15));
+  const rotor = new THREE.Group();
+  rotor.position.set(0.3, 0.45, -0.01);
+  for (let i = 0; i < 4; i++) {
+    const blade = box(0.32, 0.06, 0.06, MAT.steel);
+    blade.rotation.z = (i * Math.PI) / 2;
+    rotor.add(blade);
+  }
+  group.add(rotor);
+  group.add(box(0.2, 0.3, 0.2, MAT.pvc, 0.35, 0.65));
+  return {
+    group,
+    inlet: new THREE.Vector3(-0.55, 0.4, 0),
+    outlet: new THREE.Vector3(0.35, 0.95, 0),
+    height: 1,
+    lamp: lampAt(group, 1.2),
+    animate: (t, on) => {
+      rotor.rotation.z = on ? t * 5 : 0;
+    },
+  };
+}
+
+/** Gắn tên bộ phận cho các nhóm hình học được tạo bởi builder. */
+export function labelEquipmentParts(equipment: Equipment, labels: string[], indexes: number[][]): Equipment {
+  indexes.forEach((groupIndexes, index) => {
+    groupIndexes.forEach((childIndex) => {
+      const child = equipment.group.children[childIndex];
+      if (child) child.userData.part = labels[index];
+    });
+  });
+  return equipment;
+}
+
+/** Bể thiếu khí với máy khuấy và bơm châm methanol. */
+export function denitrification(kit: AssetKit): Equipment {
+  const eq = boxTank(kit, 1.5, 1.2, 1);
+  const mixer = new THREE.Group();
+  mixer.position.set(0, 0.35, 0);
+  mixer.add(box(0.08, 0.7, 0.08, MAT.steel));
+  for (let i = 0; i < 4; i++) {
+    const blade = box(0.5, 0.04, 0.08, MAT.pvc);
+    blade.rotation.y = (i * Math.PI) / 2;
+    mixer.add(blade);
+  }
+  eq.group.add(mixer);
+  const dosing = box(0.25, 0.3, 0.25, MAT.dark, 0.95, 0, 0);
+  eq.group.add(dosing);
+  const drops = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), MAT.hdpe);
+  eq.group.add(drops);
+  eq.animate = (t, on) => {
+    mixer.rotation.y = on ? t * 2 : 0;
+    drops.position.set(0.5, 1.15 - (t % 1) * 0.6, 0);
+    drops.visible = on;
+  };
+  return eq;
+}
+
+/** Kệ hộp với các giọt nước cấp và dòng chảy trong ống tràn. */
+export function crabRack(kit: AssetKit): Equipment {
+  const group = new THREE.Group();
+  group.add(rackFrame(1.5, 3, 0.7, 0.4));
+  const positions = [-0.45, 0, 0.45].flatMap((x) => [0.1, 0.5].map((y) => new THREE.Vector3(x, y, 0)));
+  group.add(crabBoxes(kit, positions, new THREE.Vector3(0.4, 0.3, 0.6)).group);
+  const pipe = cylinder(0.04, 0.04, 1.5, MAT.pvc, 8);
+  pipe.rotation.z = Math.PI / 2;
+  pipe.position.set(0, 0.1, 0.43);
+  group.add(pipe);
+  const drops = positions.map(() => new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), MAT.hdpe));
+  drops.forEach((drop) => group.add(drop));
+  const flow = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), MAT.hdpe);
+  group.add(flow);
+  const lamp = lampAt(group, 1.5);
+  return {
+    group,
+    inlet: new THREE.Vector3(0, 1.3, 0),
+    outlet: new THREE.Vector3(0.75, 0.1, 0.43),
+    height: 1.3,
+    lamp,
+    animate: (t, on) => {
+      drops.forEach((drop, i) => {
+        drop.visible = on;
+        drop.position.set(positions[i].x, positions[i].y + 0.55 - ((t + i * 0.16) % 1) * 0.25, 0);
+      });
+      flow.visible = on;
+      flow.position.set(-0.75 + (t % 1) * 1.5, 0.1, 0.43);
+    },
+  };
 }

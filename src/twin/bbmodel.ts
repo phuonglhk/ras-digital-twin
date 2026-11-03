@@ -29,19 +29,72 @@ type V3 = [number, number, number];
 
 // Bốn góc mỗi mặt theo thứ tự trên-trái, trên-phải, dưới-phải, dưới-trái khi nhìn từ ngoài vào.
 const FACE: Record<string, { normal: V3; corners: (a: number[], b: number[]) => V3[] }> = {
-  north: { normal: [0, 0, -1], corners: (a, b) => [[b[0], b[1], a[2]], [a[0], b[1], a[2]], [a[0], a[1], a[2]], [b[0], a[1], a[2]]] },
-  south: { normal: [0, 0, 1], corners: (a, b) => [[a[0], b[1], b[2]], [b[0], b[1], b[2]], [b[0], a[1], b[2]], [a[0], a[1], b[2]]] },
-  east: { normal: [1, 0, 0], corners: (a, b) => [[b[0], b[1], b[2]], [b[0], b[1], a[2]], [b[0], a[1], a[2]], [b[0], a[1], b[2]]] },
-  west: { normal: [-1, 0, 0], corners: (a, b) => [[a[0], b[1], a[2]], [a[0], b[1], b[2]], [a[0], a[1], b[2]], [a[0], a[1], a[2]]] },
-  up: { normal: [0, 1, 0], corners: (a, b) => [[a[0], b[1], a[2]], [b[0], b[1], a[2]], [b[0], b[1], b[2]], [a[0], b[1], b[2]]] },
-  down: { normal: [0, -1, 0], corners: (a, b) => [[a[0], a[1], b[2]], [b[0], a[1], b[2]], [b[0], a[1], a[2]], [a[0], a[1], a[2]]] },
+  north: {
+    normal: [0, 0, -1],
+    corners: (a, b) => [
+      [b[0], b[1], a[2]],
+      [a[0], b[1], a[2]],
+      [a[0], a[1], a[2]],
+      [b[0], a[1], a[2]],
+    ],
+  },
+  south: {
+    normal: [0, 0, 1],
+    corners: (a, b) => [
+      [a[0], b[1], b[2]],
+      [b[0], b[1], b[2]],
+      [b[0], a[1], b[2]],
+      [a[0], a[1], b[2]],
+    ],
+  },
+  east: {
+    normal: [1, 0, 0],
+    corners: (a, b) => [
+      [b[0], b[1], b[2]],
+      [b[0], b[1], a[2]],
+      [b[0], a[1], a[2]],
+      [b[0], a[1], b[2]],
+    ],
+  },
+  west: {
+    normal: [-1, 0, 0],
+    corners: (a, b) => [
+      [a[0], b[1], a[2]],
+      [a[0], b[1], b[2]],
+      [a[0], a[1], b[2]],
+      [a[0], a[1], a[2]],
+    ],
+  },
+  up: {
+    normal: [0, 1, 0],
+    corners: (a, b) => [
+      [a[0], b[1], a[2]],
+      [b[0], b[1], a[2]],
+      [b[0], b[1], b[2]],
+      [a[0], b[1], b[2]],
+    ],
+  },
+  down: {
+    normal: [0, -1, 0],
+    corners: (a, b) => [
+      [a[0], a[1], b[2]],
+      [b[0], a[1], b[2]],
+      [b[0], a[1], a[2]],
+      [a[0], a[1], a[2]],
+    ],
+  },
 };
 
 const textureCache = new Map<string, THREE.Texture>();
 function pixelTexture(src: string) {
   let tex = textureCache.get(src);
   if (!tex) {
-    tex = new THREE.TextureLoader().load(src);
+    let finish!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    tex = new THREE.TextureLoader().load(src, finish, undefined, finish);
+    tex.userData.ready = ready;
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.NearestFilter;
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -54,7 +107,12 @@ function pixelTexture(src: string) {
 export function buildParts(model: BbModel): Part[] {
   const W = model.resolution.width || 16;
   const H = model.resolution.height || 16;
-  const buckets = model.textures.map(() => ({ pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] }));
+  const buckets = model.textures.map(() => ({
+    pos: [] as number[],
+    nrm: [] as number[],
+    uv: [] as number[],
+    idx: [] as number[],
+  }));
   const scale = 1 / 16;
 
   for (const cube of model.cubes) {
