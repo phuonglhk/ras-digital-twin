@@ -26,10 +26,12 @@ function Row({ label, value, unit, tone }: { label: string; value: ReactNode; un
 }
 
 const DESC: Record<SceneUnit, string> = {
-  culture: "Nguồn tải ô nhiễm. Tải suy từ lượng thức ăn theo Timmons & Ebeling: TAN = F·PC·0.092, TSS = 0.25·F, CO₂ = 1.375·O₂.",
+  culture:
+    "Nguồn tải ô nhiễm. Tải suy từ lượng thức ăn theo Timmons & Ebeling: TAN = F·PC·0.092, TSS = 0.25·F, CO₂ = 1.375·O₂.",
   rdf: "Lọc cơ học lưới 60 µm, rửa ngược tự động. Bỏ chất rắn sớm để giảm tải BOD cho bể vi sinh.",
   skimmer: "Phân đoạn bọt trên một nhánh tuần hoàn, kéo chất hữu cơ hoà tan và hạt mịn lên cốc bọt.",
-  biofilter: "MBBR giá thể trôi. Nitrat hoá theo diện tích giá thể: r = k·S^0.7·1.09^(T−10)·(1−0.01·Sal), chặn nhiệt ở 25 °C.",
+  biofilter:
+    "MBBR giá thể trôi. Nitrat hoá theo diện tích giá thể: r = k·S^0.7·1.09^(T−10)·(1−0.01·Sal), chặn nhiệt ở 25 °C.",
   degasser: "Tháp đệm thổi khí ngược chiều. Khử CO₂ để nâng pH và Ω canxit, đồng thời nạp lại ôxy.",
   pump: "Bơm chính cột áp ~7 m, hệ dòng tự chảy về hộc bơm.",
   uv: "Khử trùng trên nhánh, không đổi hoá học nước trong mô hình.",
@@ -52,9 +54,21 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
           <Row label="Thể tích nuôi / tổng" value={`${fmt(L.cultureVolume, 2)} / ${fmt(L.totalVolume, 2)}`} unit="m³" />
           <Row label="Thức ăn" value={fmt(L.feed, 2)} unit="kg/ngày" />
           <Row label="TAN thải" value={fmt(L.tan, 0)} unit="g N/ngày" />
-          <Row label="TAN trung bình / cao điểm" value={`${fmt(L.tan, 0)} / ${fmt(r.peakLoads.tan, 0)}`} unit="g N/ngày" />
-          <Row label="O₂ trung bình / cao điểm" value={`${fmt(r.averageLoads.o2, 0)} / ${fmt(r.peakLoads.o2, 0)}`} unit="g/ngày" />
-          <Row label="CO₂ trung bình / cao điểm" value={`${fmt(r.averageLoads.co2, 0)} / ${fmt(r.peakLoads.co2, 0)}`} unit="g/ngày" />
+          <Row
+            label="TAN trung bình / cao điểm"
+            value={`${fmt(L.tan, 0)} / ${fmt(r.peakLoads.tan, 0)}`}
+            unit="g N/ngày"
+          />
+          <Row
+            label="O₂ trung bình / cao điểm"
+            value={`${fmt(r.averageLoads.o2, 0)} / ${fmt(r.peakLoads.o2, 0)}`}
+            unit="g/ngày"
+          />
+          <Row
+            label="CO₂ trung bình / cao điểm"
+            value={`${fmt(r.averageLoads.co2, 0)} / ${fmt(r.peakLoads.co2, 0)}`}
+            unit="g/ngày"
+          />
           <Row label="DOM thải" value={fmt(L.dom, 0)} unit="g/ngày" />
           <Row label="TSS thải" value={fmt(L.tss, 0)} unit="g/ngày" />
           <Row label="Tiêu hao O₂ / thải CO₂" value={`${fmt(L.o2, 0)} / ${fmt(L.co2, 0)}`} unit="g/ngày" />
@@ -90,7 +104,12 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
           <Row label="Hiệu suất một lượt NH₄⁺" value={fmt(b.etaTan * 100, 1)} unit="%" />
           <Row label="Giới hạn bởi" value={b.limitedBy} />
           <Row label="Hiệu suất một lượt NO₂⁻" value={fmt(b.etaNo2 * 100, 1)} unit="%" />
-          <Row label="TAN bể nuôi / mục tiêu thiết kế" value={`${fmt(tank.tan, 3)} / ${fmt(b.designTan, 2)}`} unit="mg/L" tone={tank.tan > b.designTan * 2 ? "bad" : tank.tan > b.designTan ? "warn" : ""} />
+          <Row
+            label="TAN bể nuôi / mục tiêu thiết kế"
+            value={`${fmt(tank.tan, 3)} / ${fmt(b.designTan, 2)}`}
+            unit="mg/L"
+            tone={tank.tan > b.designTan * 2 ? "bad" : tank.tan > b.designTan ? "warn" : ""}
+          />
           <Row label="Hệ số nhiệt · hệ số mặn" value={`${fmt(b.fTemp, 2)}× · ${fmt(b.fSalt, 2)}×`} />
           <Row label="TAN xử lý" value={fmt(b.removed, 0)} unit="g N/ngày" />
           <Row label="O₂ cho nitrat hoá" value={fmt(b.o2, 3)} unit="kg/ngày" />
@@ -116,7 +135,12 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
           <Row label="Lưu lượng" value={fmt(p.pumpOn ? p.flow : 0, 1)} unit="m³/h" />
           <Row label="Cột áp" value={fmt(r.pump.head, 0)} unit="m" />
           <Row label="Công suất trục (η 60%)" value={fmt(r.pump.power, 2)} unit="kW" />
-          <Row label="Thời gian một vòng" value={fmt(r.pump.turnover, 0)} unit="phút" tone={r.pump.turnover > 60 ? "warn" : ""} />
+          <Row
+            label="Thời gian một vòng"
+            value={fmt(r.pump.turnover, 0)}
+            unit="phút"
+            tone={r.pump.turnover > 60 ? "warn" : ""}
+          />
         </>
       );
       break;
@@ -159,7 +183,8 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
       <div className="kvs">{body}</div>
       {out && (
         <p className="detail-foot">
-          Đầu ra: TAN {fmt(out.tan, 3)} · NO₂⁻ {fmt(out.no2, 3)} · DO {fmt(out.do, 2)} · CO₂ {fmt(out.co2, 1)} · pH {fmt(out.ph, 2)}
+          Đầu ra: TAN {fmt(out.tan, 3)} · NO₂⁻ {fmt(out.no2, 3)} · DO {fmt(out.do, 2)} · CO₂ {fmt(out.co2, 1)} · pH{" "}
+          {fmt(out.ph, 2)}
         </p>
       )}
       <h3>Cân bằng kiềm</h3>

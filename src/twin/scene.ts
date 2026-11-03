@@ -130,7 +130,10 @@ export class TwinScene {
   onPick?: (id: SceneUnit | null) => void;
   onHover?: (id: SceneUnit | null, x: number, y: number) => void;
 
-  constructor(private canvas: HTMLCanvasElement, lib: BbLibrary) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    lib: BbLibrary,
+  ) {
     this.kit = new AssetKit(lib);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -156,7 +159,10 @@ export class TwinScene {
     grid.position.y = 0.003;
     this.scene.add(grid);
 
-    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 40), new THREE.MeshBasicMaterial({ color: 0xf4c542, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+    this.ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.9, 1.05, 40),
+      new THREE.MeshBasicMaterial({ color: 0xf4c542, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
+    );
     this.ring.rotation.x = -Math.PI / 2;
     this.ring.position.y = 0.01;
     this.ring.visible = false;
@@ -186,7 +192,8 @@ export class TwinScene {
     this.layoutKey = key;
 
     this.world.traverse((o) => {
-      if ((o as THREE.Mesh).geometry && !(o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.Mesh).geometry.dispose();
+      if ((o as THREE.Mesh).geometry && !(o as THREE.InstancedMesh).isInstancedMesh)
+        (o as THREE.Mesh).geometry.dispose();
     });
     this.world.clear();
     this.units.clear();
@@ -283,7 +290,10 @@ export class TwinScene {
       center = new THREE.Vector3(x0, 0, 0);
       // Ống cấp chạy dọc nóc từng kệ.
       for (const z of zs) {
-        const f = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, length, 8), new THREE.MeshLambertMaterial({ color: 0xd9ded9 }));
+        const f = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.03, 0.03, length, 8),
+          new THREE.MeshLambertMaterial({ color: 0xd9ded9 }),
+        );
         f.rotation.z = Math.PI / 2;
         f.position.set(x0, height + 0.05, z - 0.2);
         group.add(f);
@@ -309,12 +319,15 @@ export class TwinScene {
       }
       sample.lamp.visible = false;
       height = sample.height;
-      inlet = new THREE.Vector3(endX - cols * gap / 2, height + 0.9, 0);
+      inlet = new THREE.Vector3(endX - (cols * gap) / 2, height + 0.9, 0);
       outlet = new THREE.Vector3(endX + 0.2, 0.15, 0);
-      center = new THREE.Vector3(endX - cols * gap / 2, 0, 0);
+      center = new THREE.Vector3(endX - (cols * gap) / 2, 0, 0);
     }
 
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), new THREE.MeshBasicMaterial({ color: 0x5b6b5e }));
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.16, 0.16),
+      new THREE.MeshBasicMaterial({ color: 0x5b6b5e }),
+    );
     lamp.position.set(center.x, height + 1.1, center.z);
     group.add(lamp);
     const eq: Equipment = { group, inlet, outlet, height: height + 0.8, lamp, water };
@@ -341,7 +354,12 @@ export class TwinScene {
 
     // Khu nuôi → lọc trống: ống tràn chung sát sàn.
     const rdfIn = world("rdf", "inlet");
-    main([culture.outlet, new THREE.Vector3(rdfIn.x - 0.35, culture.outlet.y, 0), new THREE.Vector3(rdfIn.x - 0.35, rdfIn.y, 0), rdfIn]);
+    main([
+      culture.outlet,
+      new THREE.Vector3(rdfIn.x - 0.35, culture.outlet.y, 0),
+      new THREE.Vector3(rdfIn.x - 0.35, rdfIn.y, 0),
+      rdfIn,
+    ]);
 
     const order: SceneUnit[] = ["rdf", "skimmer", "biofilter", "degasser", "pump", "oxygen", "uv"];
     for (let i = 0; i < order.length - 1; i++) {
@@ -354,14 +372,42 @@ export class TwinScene {
     // Hồi về khu nuôi trên cao.
     const o2 = world("uv", "outlet");
     const top = 3.4;
-    main([o2, new THREE.Vector3(o2.x + 0.5, o2.y, 0), new THREE.Vector3(o2.x + 0.5, top, 0), new THREE.Vector3(o2.x + 0.5, top, 1.4), new THREE.Vector3(culture.inlet.x, top, 1.4), new THREE.Vector3(culture.inlet.x, top, culture.inlet.z), culture.inlet]);
+    main([
+      o2,
+      new THREE.Vector3(o2.x + 0.5, o2.y, 0),
+      new THREE.Vector3(o2.x + 0.5, top, 0),
+      new THREE.Vector3(o2.x + 0.5, top, 1.4),
+      new THREE.Vector3(culture.inlet.x, top, 1.4),
+      new THREE.Vector3(culture.inlet.x, top, culture.inlet.z),
+      culture.inlet,
+    ]);
 
     // Nhánh khử nitrat: lấy từ ống tràn, trả về ống tràn phía sau.
     const dIn = world("denit", "inlet");
     const dOut = world("denit", "outlet");
     const tapX = culture.outlet.x + 0.4;
-    this.addPipe([new THREE.Vector3(tapX, culture.outlet.y, 0), new THREE.Vector3(tapX, culture.outlet.y, dIn.z), new THREE.Vector3(dIn.x - 0.3, culture.outlet.y, dIn.z), new THREE.Vector3(dIn.x - 0.3, dIn.y, dIn.z), dIn], 0.03, false);
-    this.addPipe([dOut, new THREE.Vector3(dOut.x + 0.3, dOut.y, dOut.z), new THREE.Vector3(dOut.x + 0.3, culture.outlet.y + 0.05, dOut.z), new THREE.Vector3(tapX + 0.6, culture.outlet.y + 0.05, dOut.z), new THREE.Vector3(tapX + 0.6, culture.outlet.y + 0.05, 0)], 0.03, false);
+    this.addPipe(
+      [
+        new THREE.Vector3(tapX, culture.outlet.y, 0),
+        new THREE.Vector3(tapX, culture.outlet.y, dIn.z),
+        new THREE.Vector3(dIn.x - 0.3, culture.outlet.y, dIn.z),
+        new THREE.Vector3(dIn.x - 0.3, dIn.y, dIn.z),
+        dIn,
+      ],
+      0.03,
+      false,
+    );
+    this.addPipe(
+      [
+        dOut,
+        new THREE.Vector3(dOut.x + 0.3, dOut.y, dOut.z),
+        new THREE.Vector3(dOut.x + 0.3, culture.outlet.y + 0.05, dOut.z),
+        new THREE.Vector3(tapX + 0.6, culture.outlet.y + 0.05, dOut.z),
+        new THREE.Vector3(tapX + 0.6, culture.outlet.y + 0.05, 0),
+      ],
+      0.03,
+      false,
+    );
   }
 
   private addPipe(pts: THREE.Vector3[], radius: number, main: boolean) {
@@ -377,7 +423,12 @@ export class TwinScene {
     const positions = new Float32Array(count * 3);
     const points = new THREE.Points(
       new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(positions, 3)),
-      new THREE.PointsMaterial({ color: main ? 0x7fd6ff : 0xc4a7ff, size: main ? 0.11 : 0.08, transparent: true, depthTest: false }),
+      new THREE.PointsMaterial({
+        color: main ? 0x7fd6ff : 0xc4a7ff,
+        size: main ? 0.11 : 0.08,
+        transparent: true,
+        depthTest: false,
+      }),
     );
     points.renderOrder = 10;
     this.world.add(points);
@@ -406,7 +457,7 @@ export class TwinScene {
       const level = view.levels[id] ?? "ok";
       const accent = !on[id] ? "#8a9aa0" : level === "bad" ? "#f87171" : level === "warn" ? "#fbbf24" : "#7fe3a8";
       (u.eq.lamp.material as THREE.MeshBasicMaterial).color.setHex(!on[id] ? 0x5b6b5e : LEVEL_HEX[level]);
-      u.label.draw(TITLES[id], on[id] ? view.labels[id] ?? "" : "TẮT", accent, view.selected === id);
+      u.label.draw(TITLES[id], on[id] ? (view.labels[id] ?? "") : "TẮT", accent, view.selected === id);
       if (u.eq.water) {
         const c = WATER_CLEAN.clone().lerp(WATER_TURBID, level === "bad" ? 0.65 : level === "warn" ? 0.3 : 0);
         (u.eq.water.material as THREE.MeshPhongMaterial).color.copy(c);
@@ -455,7 +506,12 @@ export class TwinScene {
     const t = this.clock.getElapsedTime();
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
-    if (w && h && (this.canvas.width !== Math.floor(w * this.renderer.getPixelRatio()) || this.canvas.height !== Math.floor(h * this.renderer.getPixelRatio()))) {
+    if (
+      w &&
+      h &&
+      (this.canvas.width !== Math.floor(w * this.renderer.getPixelRatio()) ||
+        this.canvas.height !== Math.floor(h * this.renderer.getPixelRatio()))
+    ) {
       this.renderer.setSize(w, h, false);
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
@@ -517,4 +573,3 @@ export class TwinScene {
     this.renderer.forceContextLoss();
   }
 }
-

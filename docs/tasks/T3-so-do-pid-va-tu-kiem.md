@@ -41,6 +41,15 @@ Học cách làm của iRAS: thêm tham số URL `?selftest=1` để mở một 
 ### 3. README tiếng Việt
 Viết `README.md` gồm: mục đích, cách chạy (`npm install`, `npm run dev`, `npm test`), cấu trúc thư mục, nguồn mô hình kèm trích dẫn, giới hạn của mô hình, cách thêm asset Blockbench (`npm run assets`), và ghi chú về giấy phép của iRAS.
 
+### 4. Ba điểm còn lại từ nghiệm thu T2
+- Bảng "Thông số điển hình" của mỗi thiết bị có ít nhất 3 dòng, mỗi dòng có nguồn. Hiện côn ôxy và vài thiết bị khác chỉ có 1 dòng.
+- Sơ đồ "Hành trình của dòng nước" trên trang chủ bắt đầu bằng "Kệ hộp nuôi cua", vì cua là đối tượng mặc định. Bể tròn ghi chú là phương án cho cá và tôm.
+- Thêm `prettier` làm devDependency, kèm `.prettierrc` (`printWidth: 120`) và script `npm run format`. Chạy cho `src/`.
+
+## Lưu ý môi trường
+- Máy Windows chặn `npx.ps1` và `npm.ps1`, nên dùng `npx.cmd` và `npm.cmd`.
+- Không tạo file hay thư mục tạm trong repo. Nếu cần, đặt ở thư mục tạm của hệ thống.
+
 ## Tiêu chí nghiệm thu
 - `npx tsc --noEmit`, `npm test` và `npm run build` đều đạt.
 - Mở `/?selftest=1` thấy toàn bộ ĐẠT.

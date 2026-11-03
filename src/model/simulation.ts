@@ -71,7 +71,17 @@ export class Simulation {
     if (!force && this.t - this.lastSample < SAMPLE_EVERY_DAYS) return;
     this.lastSample = this.t;
     const p = describe(this.state, this.params);
-    this.history.push({ t: this.t, tan: p.tan, nh3: p.nh3, no2: p.no2, no3: p.no3, do: p.do, co2: p.co2, ph: p.ph, omega: p.omega });
+    this.history.push({
+      t: this.t,
+      tan: p.tan,
+      nh3: p.nh3,
+      no2: p.no2,
+      no3: p.no3,
+      do: p.do,
+      co2: p.co2,
+      ph: p.ph,
+      omega: p.omega,
+    });
     const cutoff = this.t - HISTORY_DAYS;
     while (this.history.length && this.history[0].t < cutoff) this.history.shift();
   }

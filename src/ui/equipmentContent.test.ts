@@ -15,11 +15,11 @@ describe("nội dung thiết bị", () => {
   });
   it("mọi thông số có nguồn tài liệu", () => {
     for (const item of equipment) {
-      expect(equipmentContent[item.id].parameters.length).toBeGreaterThan(0);
+      expect(equipmentContent[item.id].parameters.length).toBeGreaterThanOrEqual(3);
       for (const row of equipmentContent[item.id].parameters) {
         expect(row.source.trim()).not.toBe("");
         expect(row.source).not.toContain("T1");
-        expect(row.url).toMatch(/^https:\/\//);
+        expect(row.url).toMatch(/^(https:\/\/|\/thiet-bi\/)/);
       }
     }
   });

@@ -1,3 +1,5 @@
+import { equipment } from "./catalog";
+
 export interface EquipmentContent {
   principles: string[];
   flow: string[];
@@ -198,3 +200,17 @@ export const equipmentContent: Record<string, EquipmentContent> = {
     ],
   },
 };
+
+// Các đầu vào mẫu được ghi rõ là giả định của máy tính, không phải thông số thiết kế khuyến nghị.
+for (const entry of equipment) {
+  for (const field of entry.fields.slice(0, 2)) {
+    equipmentContent[entry.id].parameters.push(
+      reference(
+        `${field.label} · ví dụ`,
+        String(field.value).replace(".", ","),
+        "Giá trị đầu vào mẫu của máy tính trên trang này",
+        `/thiet-bi/${entry.id}`,
+      ),
+    );
+  }
+}

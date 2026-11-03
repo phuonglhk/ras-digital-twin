@@ -22,6 +22,8 @@ import LineChart from "./ui/LineChart";
 import ParamsPanel from "./ui/ParamsPanel";
 import TwinView from "./ui/TwinView";
 import UnitDetail from "./ui/UnitDetail";
+import Pid from "./ui/Pid";
+import SelfTest from "./ui/SelfTest";
 
 const SPEEDS = [
   { v: 0, label: "Dừng" },
@@ -47,15 +49,25 @@ export default function App() {
   const sim = simRef.current;
   const [snap, setSnap] = useState<Snapshot>(() => ({ water: sim.state, t: sim.t, history: [...sim.history] }));
   const [speed, setSpeed] = useState(600);
-  const [selected, setSelected] = useState<SceneUnit>(() => { const chosen = new URLSearchParams(location.search).get("chon"); return (["culture", "rdf", "skimmer", "biofilter", "degasser", "pump", "uv", "oxygen", "denit"] as string[]).includes(chosen ?? "") ? chosen as SceneUnit : "biofilter"; });
+  const [selected, setSelected] = useState<SceneUnit>(() => {
+    const chosen = new URLSearchParams(location.search).get("chon");
+    return (
+      ["culture", "rdf", "skimmer", "biofilter", "degasser", "pump", "uv", "oxygen", "denit"] as string[]
+    ).includes(chosen ?? "")
+      ? (chosen as SceneUnit)
+      : "biofilter";
+  });
   const [trend, setTrend] = useState<TrendTab>("ammonia");
+  const [viewMode, setViewMode] = useState<"3d" | "pid">("3d");
   const [event, setEvent] = useState<{ label: string; until: number; restore: Partial<Params> } | null>(null);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}models.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(setLibrary)
-      .catch((e) => setLoadError(`Không tải được model 3D (${e.message}). Chạy "npm run assets" để tạo public/models.json.`));
+      .catch((e) =>
+        setLoadError(`Không tải được model 3D (${e.message}). Chạy "npm run assets" để tạo public/models.json.`),
+      );
   }, []);
 
   const changeParams = useCallback(
@@ -104,7 +116,14 @@ export default function App() {
   const sceneView: SceneView = useMemo(() => {
     const L = (k: keyof Point, id: UnitId): Level => levelOf(k, points[id][k] as number, species) ?? "ok";
     const levels: Partial<Record<SceneUnit, Level>> = {
-      culture: worst([L("tan", "culture"), L("nh3", "culture"), L("no2", "culture"), L("do", "culture"), L("co2", "culture"), params.salinity > 0 ? L("omega", "culture") : null]),
+      culture: worst([
+        L("tan", "culture"),
+        L("nh3", "culture"),
+        L("no2", "culture"),
+        L("do", "culture"),
+        L("co2", "culture"),
+        params.salinity > 0 ? L("omega", "culture") : null,
+      ]),
       rdf: L("tss", "rdf"),
       skimmer: L("tss", "skimmer"),
       biofilter: worst([L("tan", "biofilter"), L("no2", "biofilter")]),
@@ -129,7 +148,9 @@ export default function App() {
   }, [points, species, params, rep, selected, tank]);
 
   const scenario = (label: string, hours: number, apply: Partial<Params>) => {
-    const restore = Object.fromEntries(Object.keys(apply).map((k) => [k, params[k as keyof Params]])) as Partial<Params>;
+    const restore = Object.fromEntries(
+      Object.keys(apply).map((k) => [k, params[k as keyof Params]]),
+    ) as Partial<Params>;
     changeParams({ ...params, ...apply });
     setEvent({ label, until: sim.t + hours / 24, restore });
     if (speed === 0) setSpeed(600);
@@ -144,12 +165,35 @@ export default function App() {
   };
   const trendSeries = {
     ammonia: [
-      { key: "tan", label: "TAN", color: "var(--c-tan)", values: hist.map((h) => h.tan), unit: "mg/L", limit: species.limits.tan },
+      {
+        key: "tan",
+        label: "TAN",
+        color: "var(--c-tan)",
+        values: hist.map((h) => h.tan),
+        unit: "mg/L",
+        limit: species.limits.tan,
+      },
       { key: "no2", label: "NO₂⁻", color: "var(--c-no2)", values: hist.map((h) => h.no2), unit: "mg/L" },
     ],
-    nh3: [{ key: "nh3", label: "NH₃ tự do", color: "var(--c-nh3)", values: hist.map((h) => h.nh3), unit: "µg/L", limit: species.limits.nh3 }],
+    nh3: [
+      {
+        key: "nh3",
+        label: "NH₃ tự do",
+        color: "var(--c-nh3)",
+        values: hist.map((h) => h.nh3),
+        unit: "µg/L",
+        limit: species.limits.nh3,
+      },
+    ],
     gas: [
-      { key: "do", label: "DO", color: "var(--c-do)", values: hist.map((h) => h.do), unit: "mg/L", limit: species.limits.doMin },
+      {
+        key: "do",
+        label: "DO",
+        color: "var(--c-do)",
+        values: hist.map((h) => h.do),
+        unit: "mg/L",
+        limit: species.limits.doMin,
+      },
       { key: "co2", label: "CO₂", color: "var(--c-co2)", values: hist.map((h) => h.co2), unit: "mg/L" },
     ],
     ph: [
@@ -162,20 +206,43 @@ export default function App() {
     <div className="app">
       <header className="top">
         <div className="brand">
-          <span className="brand-mark" aria-hidden>RAS</span>
+          <span className="brand-mark" aria-hidden>
+            RAS
+          </span>
           <div>
             <h1>RAS Digital Twin</h1>
             <p>{species.name} · mô hình công nghệ theo iRAS</p>
           </div>
         </div>
         <dl className="kpis">
-          <div><dt>Sinh khối</dt><dd>{fmt(rep.loads.biomass, 0)} kg</dd></div>
-          <div><dt>Thức ăn</dt><dd>{fmt(rep.loads.feed, 2)} kg/ngày</dd></div>
-          <div><dt>Tổng nước</dt><dd>{fmt(rep.loads.totalVolume, 1)} m³</dd></div>
-          <div><dt>Tuần hoàn</dt><dd>{fmt(params.pumpOn ? params.flow : 0, 1)} m³/h</dd></div>
-          <div><dt>Một vòng</dt><dd>{fmt(rep.pump.turnover, 0)} phút</dd></div>
-          <div><dt>NaHCO₃</dt><dd>{fmt(rep.alk.nahco3, 2)} kg/ngày</dd></div>
-          <div><dt>Ôxy</dt><dd>{fmt(rep.oxygen.pureO2, 2)} kg/ngày</dd></div>
+          <div>
+            <dt>Sinh khối</dt>
+            <dd>{fmt(rep.loads.biomass, 0)} kg</dd>
+          </div>
+          <div>
+            <dt>Thức ăn</dt>
+            <dd>{fmt(rep.loads.feed, 2)} kg/ngày</dd>
+          </div>
+          <div>
+            <dt>Tổng nước</dt>
+            <dd>{fmt(rep.loads.totalVolume, 1)} m³</dd>
+          </div>
+          <div>
+            <dt>Tuần hoàn</dt>
+            <dd>{fmt(params.pumpOn ? params.flow : 0, 1)} m³/h</dd>
+          </div>
+          <div>
+            <dt>Một vòng</dt>
+            <dd>{fmt(rep.pump.turnover, 0)} phút</dd>
+          </div>
+          <div>
+            <dt>NaHCO₃</dt>
+            <dd>{fmt(rep.alk.nahco3, 2)} kg/ngày</dd>
+          </div>
+          <div>
+            <dt>Ôxy</dt>
+            <dd>{fmt(rep.oxygen.pureO2, 2)} kg/ngày</dd>
+          </div>
         </dl>
         <div className="clock">
           <b>{clockLabel(snap.t)}</b>
@@ -192,23 +259,86 @@ export default function App() {
       <ParamsPanel params={params} onChange={changeParams} />
 
       <main className="center">
+        {new URLSearchParams(location.search).get("selftest") === "1" && <SelfTest />}
         <section className="stage">
-          {library ? <TwinView library={library} view={sceneView} onPick={setSelected} /> : <div className="twin twin-loading">{loadError || "Đang tải model 3D…"}</div>}
+          <div className="tabs view-toggle" role="group" aria-label="Chế độ xem">
+            <button
+              type="button"
+              className={viewMode === "3d" ? "on" : ""}
+              aria-pressed={viewMode === "3d"}
+              onClick={() => setViewMode("3d")}
+            >
+              Mô hình 3D
+            </button>
+            <button
+              type="button"
+              className={viewMode === "pid" ? "on" : ""}
+              aria-pressed={viewMode === "pid"}
+              onClick={() => setViewMode("pid")}
+            >
+              Sơ đồ P&amp;ID
+            </button>
+          </div>
+          {viewMode === "pid" ? (
+            <Pid view={sceneView} onPick={setSelected} />
+          ) : library ? (
+            <TwinView library={library} view={sceneView} onPick={setSelected} />
+          ) : (
+            <div className="twin twin-loading">{loadError || "Đang tải mô hình 3D…"}</div>
+          )}
           <div className="scenarios">
             <span>Kịch bản</span>
-            <button type="button" disabled={!!event} onClick={() => scenario("Mất điện bơm 2 giờ", 2, { pumpOn: false })}>Mất điện bơm 2 giờ</button>
-            <button type="button" disabled={!!event} onClick={() => scenario("Tắt tháp khử CO₂ 6 giờ", 6, { degasser: { ...params.degasser, on: false } })}>Tắt khử CO₂ 6 giờ</button>
-            <button type="button" disabled={!!event} onClick={() => scenario("Cho ăn gấp đôi 1 ngày", 24, { feedRate: params.feedRate * 2 })}>Cho ăn gấp đôi 1 ngày</button>
-            <button type="button" onClick={() => changeParams({ ...params, biofilter: { ...params.biofilter, maturity: 0.3 } })}>Bể vi sinh mới (chín 30%)</button>
-            <button type="button" onClick={() => { sim.reset(); setEvent(null); setSnap({ water: sim.state, t: sim.t, history: [...sim.history] }); }}>Về trạng thái ổn định</button>
-            {event && <em className="event">Đang chạy: {event.label} · còn {fmt(Math.max(0, (event.until - snap.t) * 24), 1)} giờ</em>}
+            <button
+              type="button"
+              disabled={!!event}
+              onClick={() => scenario("Mất điện bơm 2 giờ", 2, { pumpOn: false })}
+            >
+              Mất điện bơm 2 giờ
+            </button>
+            <button
+              type="button"
+              disabled={!!event}
+              onClick={() => scenario("Tắt tháp khử CO₂ 6 giờ", 6, { degasser: { ...params.degasser, on: false } })}
+            >
+              Tắt khử CO₂ 6 giờ
+            </button>
+            <button
+              type="button"
+              disabled={!!event}
+              onClick={() => scenario("Cho ăn gấp đôi 1 ngày", 24, { feedRate: params.feedRate * 2 })}
+            >
+              Cho ăn gấp đôi 1 ngày
+            </button>
+            <button
+              type="button"
+              onClick={() => changeParams({ ...params, biofilter: { ...params.biofilter, maturity: 0.3 } })}
+            >
+              Bể vi sinh mới (chín 30%)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sim.reset();
+                setEvent(null);
+                setSnap({ water: sim.state, t: sim.t, history: [...sim.history] });
+              }}
+            >
+              Về trạng thái ổn định
+            </button>
+            {event && (
+              <em className="event">
+                Đang chạy: {event.label} · còn {fmt(Math.max(0, (event.until - snap.t) * 24), 1)} giờ
+              </em>
+            )}
           </div>
         </section>
 
         {warns.length > 0 && (
           <ul className="warnings">
             {warns.map((w) => (
-              <li key={w.text} className={w.level}>{w.text}</li>
+              <li key={w.text} className={w.level}>
+                {w.text}
+              </li>
             ))}
           </ul>
         )}
@@ -227,9 +357,27 @@ export default function App() {
                 x={along}
                 yDigits={3}
                 series={[
-                  { key: "tan", label: "TAN", color: "var(--c-tan)", values: chain.map((c) => c.point.tan), unit: "mg/L" },
-                  { key: "no2", label: "NO₂⁻", color: "var(--c-no2)", values: chain.map((c) => c.point.no2), unit: "mg/L" },
-                  { key: "tss", label: "TSS ÷10", color: "var(--c-tss)", values: chain.map((c) => c.point.tss / 10), unit: "×10 mg/L" },
+                  {
+                    key: "tan",
+                    label: "TAN",
+                    color: "var(--c-tan)",
+                    values: chain.map((c) => c.point.tan),
+                    unit: "mg/L",
+                  },
+                  {
+                    key: "no2",
+                    label: "NO₂⁻",
+                    color: "var(--c-no2)",
+                    values: chain.map((c) => c.point.no2),
+                    unit: "mg/L",
+                  },
+                  {
+                    key: "tss",
+                    label: "TSS ÷10",
+                    color: "var(--c-tss)",
+                    values: chain.map((c) => c.point.tss / 10),
+                    unit: "×10 mg/L",
+                  },
                 ]}
               />
             </div>
@@ -241,7 +389,13 @@ export default function App() {
                 yDigits={2}
                 series={[
                   { key: "do", label: "DO", color: "var(--c-do)", values: chain.map((c) => c.point.do), unit: "mg/L" },
-                  { key: "co2", label: "CO₂", color: "var(--c-co2)", values: chain.map((c) => c.point.co2), unit: "mg/L" },
+                  {
+                    key: "co2",
+                    label: "CO₂",
+                    color: "var(--c-co2)",
+                    values: chain.map((c) => c.point.co2),
+                    unit: "mg/L",
+                  },
                 ]}
               />
             </div>
@@ -252,19 +406,35 @@ export default function App() {
           <div className="panel-head">
             <h2>Diễn biến bể nuôi 48 giờ</h2>
             <div className="tabs" role="tablist">
-              {([
-                ["ammonia", "TAN · NO₂⁻"],
-                ["nh3", "NH₃ tự do"],
-                ["gas", "DO · CO₂"],
-                ["ph", "pH · Ω"],
-              ] as [TrendTab, string][]).map(([k, label]) => (
-                <button key={k} type="button" role="tab" aria-selected={trend === k} className={trend === k ? "on" : ""} onClick={() => setTrend(k)}>
+              {(
+                [
+                  ["ammonia", "TAN · NO₂⁻"],
+                  ["nh3", "NH₃ tự do"],
+                  ["gas", "DO · CO₂"],
+                  ["ph", "pH · Ω"],
+                ] as [TrendTab, string][]
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={trend === k}
+                  className={trend === k ? "on" : ""}
+                  onClick={() => setTrend(k)}
+                >
                   {label}
                 </button>
               ))}
             </div>
           </div>
-          <LineChart ariaLabel="Diễn biến chất lượng nước bể nuôi theo thời gian" x={hx} series={trendSeries} xFormat={timeFmt} yDigits={trend === "nh3" ? 1 : 2} height={220} />
+          <LineChart
+            ariaLabel="Diễn biến chất lượng nước bể nuôi theo thời gian"
+            x={hx}
+            series={trendSeries}
+            xFormat={timeFmt}
+            yDigits={trend === "nh3" ? 1 : 2}
+            height={220}
+          />
         </section>
       </main>
 
@@ -285,4 +455,3 @@ export default function App() {
     </div>
   );
 }
-

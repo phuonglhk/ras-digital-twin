@@ -69,7 +69,15 @@ export default function LineChart({ x, series, height = 200, xFormat = String, y
         {series.map((s) =>
           s.limit != null && s.limit <= yMax ? (
             <g key={s.key + "-lim"}>
-              <line x1={pad.l} x2={W - pad.r} y1={py(s.limit)} y2={py(s.limit)} stroke={s.color} strokeDasharray="5 4" strokeOpacity={0.55} />
+              <line
+                x1={pad.l}
+                x2={W - pad.r}
+                y1={py(s.limit)}
+                y2={py(s.limit)}
+                stroke={s.color}
+                strokeDasharray="5 4"
+                strokeOpacity={0.55}
+              />
               <text x={W - pad.r} y={py(s.limit) - 4} className="chart-tick" textAnchor="end" fill={s.color}>
                 ngưỡng {s.label}
               </text>
@@ -83,12 +91,29 @@ export default function LineChart({ x, series, height = 200, xFormat = String, y
               <path d={`${d}L${px(n - 1)},${py(yMin)}L${px(0)},${py(yMin)}Z`} fill={s.color} fillOpacity={0.07} />
               <path d={d} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" />
               {n <= 16 && s.values.map((v, i) => <circle key={i} cx={px(i)} cy={py(v)} r={3} fill={s.color} />)}
-              {n > 0 && <circle cx={px(n - 1)} cy={py(s.values[n - 1])} r={4} fill={s.color} stroke="var(--panel)" strokeWidth={2} />}
+              {n > 0 && (
+                <circle
+                  cx={px(n - 1)}
+                  cy={py(s.values[n - 1])}
+                  r={4}
+                  fill={s.color}
+                  stroke="var(--panel)"
+                  strokeWidth={2}
+                />
+              )}
             </g>
           );
         })}
         {x.map((_, i) => (
-          <rect key={i} x={px(i) - iw / Math.max(n - 1, 1) / 2} y={pad.t} width={iw / Math.max(n - 1, 1)} height={ih} fill="transparent" onMouseEnter={() => setHover(i)} />
+          <rect
+            key={i}
+            x={px(i) - iw / Math.max(n - 1, 1) / 2}
+            y={pad.t}
+            width={iw / Math.max(n - 1, 1)}
+            height={ih}
+            fill="transparent"
+            onMouseEnter={() => setHover(i)}
+          />
         ))}
         {hover != null && <line x1={px(hover)} x2={px(hover)} y1={pad.t} y2={pad.t + ih} className="chart-cursor" />}
       </svg>

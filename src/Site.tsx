@@ -306,13 +306,16 @@ function Site() {
             <div className="flow-links">
               {UNIT_ORDER.map(
                 (unit) =>
-                  equipment.find((item) => item.unit === unit && (unit !== "culture" || item.id === "be-tron"))!,
+                  equipment.find((item) => item.unit === unit && (unit !== "culture" || item.id === "ho-nuoi-cua"))!,
               ).map((e) => (
                 <Link key={e.id} to={`/thiet-bi/${e.id}`}>
                   {e.name} →
                 </Link>
               ))}
               <span>Hồi về bể nuôi</span>
+              <p>
+                Bể tròn là phương án nuôi cá và tôm: <Link to="/thiet-bi/be-tron">Xem bể tròn</Link>.
+              </p>
               <div>
                 Nhánh xử lý: <Link to="/thiet-bi/khu-nitrat">Bể nuôi → khử nitrat → bể nuôi</Link>
               </div>

@@ -28,7 +28,11 @@ export default function ChainStrip({ chain, species, selected, onSelect }: Props
     <div className="chain" role="list" aria-label="Chất lượng nước dọc tuyến">
       {chain.map((c, i) => (
         <Fragment key={c.id}>
-          {i > 0 && <span className="chain-arrow" aria-hidden>→</span>}
+          {i > 0 && (
+            <span className="chain-arrow" aria-hidden>
+              →
+            </span>
+          )}
           <button
             type="button"
             role="listitem"
@@ -36,7 +40,9 @@ export default function ChainStrip({ chain, species, selected, onSelect }: Props
             onClick={() => onSelect(c.id)}
           >
             <header>
-              <span className="chain-icon" aria-hidden>{ICON[c.id]}</span>
+              <span className="chain-icon" aria-hidden>
+                {ICON[c.id]}
+              </span>
               <span>
                 <b>{UNIT_LABEL[c.id]}</b>
                 <small>{c.note}</small>
