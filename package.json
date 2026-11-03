@@ -1,0 +1,28 @@
+{
+  "name": "ras-digital-twin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Digital Twin minh hoạ hệ thống RAS (tuần hoàn nước), bám mô hình công nghệ của iras.cn",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "assets": "node tools/import-bbmodel.mjs assets-src public/models.json"
+  },
+  "dependencies": {
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.13",
+    "@types/react-dom": "19.1.9",
+    "@types/three": "0.180.0",
+    "@vitejs/plugin-react": "4.7.0",
+    "typescript": "5.9.3",
+    "vite": "5.4.21",
+    "vitest": "2.1.9"
+  }
+}
