@@ -1,7 +1,7 @@
 ﻿import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { halfPipeVelocity, velocity } from "./hydraulics";
-import type { Component, RackDesign, System } from "./types";
+import { rimSlope, type Component, type RackDesign, type System } from "./types";
 export type Layer = "hộp" | "khung" | "cấp" | "tràn" | "xả cặn" | "ống đứng" | "nước";
 const color: Record<System, number> = {
   cấp: 0x168bdb,
@@ -133,6 +133,7 @@ export class DesignScene {
   setFlush(on: boolean) {
     this.flush = on;
     this.rebuild();
+    if (this.one) this.overview();
   }
   update(
     d: RackDesign,
@@ -295,20 +296,23 @@ export class DesignScene {
         );
       // Hai thành bên chia thành các mảng, để trống hai khe chữ U tới mép trên.
       const notchY = Math.max(
-        0.005,
-        Math.min(d.height - 0.045, d.overflowHeight - 0.045 - d.slope * d.cols * (d.length + d.gap)),
+        0.002,
+        Math.min(
+          d.height - 0.045,
+          d.overflowHeight - 0.02 - d.drainHeaderDn / 2000 - rimSlope(d) * d.cols * (d.length + d.gap),
+        ),
       );
-      const notchCenters = [-d.width / 2 + 0.08, d.width / 2 - 0.015];
+      const notchCenters = [-d.width / 2 + 0.08, d.width / 2];
       for (const side of [-1, 1]) {
         if (this.one && side === -1) continue;
         const x = side * (d.length / 2 - 0.008);
         part(x, notchY / 2, 0, 0.016, notchY, d.width, 0x252b2d);
         let start = -d.width / 2;
         for (const center of notchCenters) {
-          const end = Math.max(start, Math.min(d.width / 2, center - 0.025));
+          const end = Math.max(start, Math.min(d.width / 2, center - d.slotWidth / 2));
           if (end > start)
             part(x, (notchY + d.height) / 2, (start + end) / 2, 0.016, d.height - notchY, end - start, 0x252b2d);
-          start = Math.min(d.width / 2, center + 0.025);
+          start = Math.min(d.width / 2, center + d.slotWidth / 2);
         }
         if (start < d.width / 2)
           part(
@@ -356,7 +360,7 @@ export class DesignScene {
         })),
       );
       part(-dw / 2, d.height / 2, -d.width / 2, 0.012, dh, 0.02, 0x909a9a);
-      if (!this.lowDetail || this.one)
+      if (!this.lowDetail || this.one || d.stacking === "xep-chong")
         for (const x of [-0.4, 0.4])
           for (const z of [-0.38, 0.38])
             part(x * d.length, d.height + 0.008, z * d.width, 0.035, 0.016, 0.035, 0x11191a);
@@ -384,7 +388,10 @@ export class DesignScene {
         );
         if (this.one && water)
           this.animation.push((t) => {
-            const level = d.overflowHeight * (0.12 + 0.88 * Math.min(1, (t % 12) / 8));
+            const level =
+              d.stacking === "xep-chong" && this.flush
+                ? d.overflowHeight * Math.max(0.03, 1 - (t % 12) / 9)
+                : d.overflowHeight * (0.12 + 0.88 * Math.min(1, (t % 12) / 8));
             boxes.forEach((b, i) =>
               water.setMatrixAt(
                 i,
@@ -484,9 +491,7 @@ export class DesignScene {
     ] as System[]) {
       const layer: Layer = system.startsWith("ống") ? "ống đứng" : (system as Layer);
       if (!this.layers.has(layer)) continue;
-      const pipes = items.filter(
-        (c) => c.system === system && c.end && c.length && (system !== "khung" || c.type === "Ống thẳng"),
-      );
+      const pipes = items.filter((c) => c.system === system && c.end && c.length);
       const entries = pipes.map((c) => {
         const a = new THREE.Vector3(...c.position),
           b = new THREE.Vector3(...c.end!);
@@ -507,7 +512,19 @@ export class DesignScene {
           ),
         };
       });
-      add(new THREE.CylinderGeometry(1, 1, 1, this.lowDetail ? 5 : 8), mat(color[system]), entries);
+      const pipeMesh = add(new THREE.CylinderGeometry(1, 1, 1, this.lowDetail ? 5 : 8), mat(color[system]), entries);
+      if (pipeMesh && this.one && this.flush && d.stacking === "xep-chong" && system === "tràn") {
+        const moving = pipes.flatMap((c, i) => (c.dn === 21 && (c.source || !c.network) ? [i] : []));
+        this.animation.push((t) => {
+          const lift = (d.overflowHeight + 0.025) * Math.min(1, (t % 12) / 3);
+          for (const i of moving) {
+            const transform = entries[i].matrix.clone();
+            transform.elements[13] += lift;
+            pipeMesh.setMatrixAt(i, transform);
+          }
+          pipeMesh.instanceMatrix.needsUpdate = true;
+        });
+      }
       if (this.layers.has("nước") && system !== "khung") {
         const flowing = pipes.filter((c) => (c.flow ?? 0) + (this.flush ? (c.flushFlow ?? 0) : 0) > 0 && c.dn);
         const particles = add(
@@ -637,6 +654,7 @@ export class DesignScene {
     if (!this.design) return;
     const b = new THREE.Box3().setFromObject(this.root);
     if (b.isEmpty()) return;
+    if (this.one && this.design.stacking === "xep-chong") b.max.y += this.design.overflowHeight + 0.025;
     const center = b.getCenter(new THREE.Vector3());
     const direction = new THREE.Vector3(1, 0.8, 1).normalize();
     this.controls.target.copy(center);

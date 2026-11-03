@@ -1,4 +1,4 @@
-﻿import { rackPosition, type Component, type RackDesign, type System } from "./types";
+﻿import { rackPosition, rimSlope, tierPitch, type Component, type RackDesign, type System } from "./types";
 import { choosePressureDn, chooseGravityDn } from "./hydraulics";
 type Point = Component["position"];
 export function decompose(d: RackDesign): Component[] {
@@ -11,6 +11,9 @@ export function decompose(d: RackDesign): Component[] {
     if (length > 1e-8) add("Ống thẳng", system, a, { dn, length, end: b, ...extra });
   };
   const span = d.cols * (d.length + d.gap),
+    pitch = tierPitch(d),
+    flushInstalled = d.stacking === "gia-do" && d.flushEnabled,
+    stackFlushExtra = (d.length * d.width * d.overflowHeight * 1000) / d.drainDownMinutes - d.flow,
     rackQ = d.cols * d.tiers * d.flow,
     totalQ = rackQ * d.racks,
     mainDn = choosePressureDn(totalQ),
@@ -18,7 +21,7 @@ export function decompose(d: RackDesign): Component[] {
   const groups = Array.from({ length: d.layout === "quay lưng" ? Math.ceil(d.racks / 2) : d.racks }, (_, g) => {
     const r = d.layout === "quay lưng" ? g * 2 : g;
     const [x, z] = rackPosition(d, r);
-    return { r, x, z, count: d.layout === "quay lưng" ? Math.min(2, d.racks - r) : 1, drainZ: z + d.width - 0.025 };
+    return { r, x, z, count: d.layout === "quay lưng" ? Math.min(2, d.racks - r) : 1, drainZ: z + d.width + 0.025 };
   });
   const supplyBases: Point[] = [];
   for (let r = 0; r < d.racks; r++) {
@@ -29,12 +32,12 @@ export function decompose(d: RackDesign): Component[] {
       supplyZ = front + sign * 0.08;
     const base: Point = [rx - 0.08, 0, supplyZ];
     supplyBases.push(base);
-    const h = d.bottomHeight + (d.tiers - 1) * d.tierSpacing + d.height;
+    const h = d.bottomHeight + (d.tiers - 1) * pitch + d.height;
     for (let t = 0; t < d.tiers; t++) {
-      const y = d.bottomHeight + t * d.tierSpacing,
-        sy = y + d.height,
+      const y = d.bottomHeight + t * pitch,
+        sy = y + (d.stacking === "xep-chong" ? pitch - d.headerDn / 2000 : d.height),
         meta = { rack: r, tier: t };
-      const lower = t === 0 ? base : ([base[0], d.bottomHeight + (t - 1) * d.tierSpacing + d.height, supplyZ] as Point);
+      const lower = t === 0 ? base : ([base[0], sy - pitch, supplyZ] as Point);
       const top: Point = [base[0], sy, supplyZ];
       pipe("ống đứng cấp", lower, top, riserDn, { ...meta, network: "cấp", flow: (d.tiers - t) * d.cols * d.flow });
       add("Tê", "cấp", top, { ...meta, dn: d.headerDn, count: 1 });
@@ -54,12 +57,32 @@ export function decompose(d: RackDesign): Component[] {
         add("Hộp nuôi", "khung", [x, y, rz + d.width / 2], { ...m, count: 1, reversed });
       }
       add("Nút bịt", "cấp", prev, { ...meta, dn: d.headerDn, count: 1 });
-      pipe("khung", [rx, y, rz], [rx + span, y, rz], 0, meta);
-      pipe("khung", [rx, y, rz + d.width], [rx + span, y, rz + d.width], 0, meta);
+      if (d.stacking === "gia-do") {
+        pipe("khung", [rx, y, rz], [rx + span, y, rz], 0, { ...meta, type: "Thanh đỡ tầng" });
+        pipe("khung", [rx, y, rz + d.width], [rx + span, y, rz + d.width], 0, { ...meta, type: "Thanh đỡ tầng" });
+      }
     }
-    for (const x of [rx, rx + span])
-      for (const z of [rz, rz + d.width]) pipe("khung", [x, 0, z], [x, h, z], 0, { rack: r });
-    pipe("khung", [rx, 0, rz + d.width], [rx + span, h, rz + d.width], 0, { rack: r });
+    if (d.stacking === "xep-chong") {
+      for (const z of [rz, rz + d.width])
+        pipe("khung", [rx, d.bottomHeight, z], [rx + span, d.bottomHeight, z], 0, { rack: r, type: "Đế kê" });
+      for (const x of [rx, rx + span]) {
+        pipe("khung", [x, d.bottomHeight, rz], [x, d.bottomHeight, rz + d.width], 0, { rack: r, type: "Đế kê" });
+        for (const z of [rz, rz + d.width])
+          pipe("khung", [x, 0, z], [x, d.bottomHeight, z], 0, { rack: r, type: "Đế kê" });
+      }
+      for (let c = 0; c < d.cols; c++) {
+        const x = rx + (c + 0.5) * (d.length + d.gap);
+        pipe("khung", [x, d.bottomHeight, rz], [x, h, rz], 0, { rack: r, col: c, type: "Dây chằng cột", count: 1 });
+      }
+      pipe("khung", [rx, d.bottomHeight, rz + d.width], [rx + span, h, rz + d.width], 0, {
+        rack: r,
+        type: "Thanh giằng dãy",
+      });
+    } else {
+      for (const x of [rx, rx + span])
+        for (const z of [rz, rz + d.width]) pipe("khung", [x, 0, z], [x, h, z], 0, { rack: r, type: "Cột giá đỡ" });
+      pipe("khung", [rx, 0, rz + d.width], [rx + span, h, rz + d.width], 0, { rack: r, type: "Thanh giằng dãy" });
+    }
     add("Co 90°", "ống đứng cấp", base, { rack: r, dn: riserDn, count: 1 });
     add("Rắc co", "ống đứng cấp", base, { rack: r, dn: riserDn, count: 1 });
     if (mainDn !== riserDn) add("Côn thu", "ống đứng cấp", base, { rack: r, dn: riserDn, count: 1 });
@@ -86,7 +109,11 @@ export function decompose(d: RackDesign): Component[] {
     pipe("ống chính", trunk[i], trunk[i - 1], chooseGravityDn(totalQ, d.slope), {
       network: "thoát",
       flow,
-      flushFlow: d.flushEnabled ? (flow * d.flushFlow) / d.flow : 0,
+      flushFlow: flushInstalled
+        ? (flow * d.flushFlow) / d.flow
+        : d.stacking === "xep-chong" && i === 1
+          ? stackFlushExtra
+          : 0,
       sink: i === 1,
     });
   }
@@ -96,15 +123,23 @@ export function decompose(d: RackDesign): Component[] {
       dn = chooseGravityDn(g.count * rackQ, d.slope),
       junctions: { point: Point; flow: number; flushFlow: number }[] = [];
     for (let t = 0; t < d.tiers; t++) {
-      const y = d.bottomHeight + t * d.tierSpacing,
+      const y = d.bottomHeight + t * pitch,
         meta = { rack: g.r, tier: t },
         headerStart = y + d.overflowHeight - 0.02,
         flushStart = y - 0.025;
-      for (const kind of ["tràn", ...(d.flushEnabled ? ["xả cặn"] : [])] as ("tràn" | "xả cặn")[]) {
+      for (const kind of ["tràn", ...(flushInstalled ? ["xả cặn"] : [])] as ("tràn" | "xả cặn")[]) {
         const isFlush = kind === "xả cặn",
           z = g.drainZ + (isFlush ? 0.055 : 0),
-          dnHeader = isFlush ? 34 : chooseGravityDn(g.count * d.cols * d.flow, d.slope);
-        const at = (x: number): Point => [x, (isFlush ? flushStart : headerStart) - d.slope * (x - g.x), z];
+          dnHeader = isFlush
+            ? 34
+            : d.stacking === "xep-chong"
+              ? d.drainHeaderDn
+              : chooseGravityDn(g.count * d.cols * d.flow, d.slope);
+        const at = (x: number): Point => [
+          x,
+          (isFlush ? flushStart : headerStart) - (isFlush ? d.slope : rimSlope(d)) * (x - g.x),
+          z,
+        ];
         let prev: Point | undefined;
         for (let c = 0; c < d.cols; c++) {
           const x = g.x + c * (d.length + d.gap) + d.length / 2 + d.length * 0.3,
@@ -116,7 +151,11 @@ export function decompose(d: RackDesign): Component[] {
               network: "thoát",
               flow: isFlush ? 0 : flow - g.count * d.flow,
               intermittent: isFlush,
-              flushFlow: isFlush ? c * g.count * d.flushFlow : undefined,
+              flushFlow: isFlush
+                ? c * g.count * d.flushFlow
+                : d.stacking === "xep-chong" && g.r === 0 && t === 0
+                  ? stackFlushExtra
+                  : undefined,
             });
           for (let side = 0; side < g.count; side++) {
             const r = g.r + side,
@@ -149,7 +188,12 @@ export function decompose(d: RackDesign): Component[] {
               // Phần ống đứng bên dưới cửa ra được bịt đáy; chỉ đoạn trên cửa ra mang dòng liên tục.
               pipe(kind, [x, y + 0.01, pitZ], junction, 21, { ...m, flow: 0 });
               add("Nút bịt", kind, [x, y + 0.01, pitZ], { ...m, dn: 21, count: 1 });
-              pipe(kind, junction, node, 21, { ...m, network: "thoát", flow: d.flow });
+              pipe(kind, junction, node, 21, {
+                ...m,
+                network: "thoát",
+                flow: d.flow,
+                flushFlow: d.stacking === "xep-chong" && r === 0 && t === 0 && c === 0 ? stackFlushExtra : undefined,
+              });
               add("Ống bọc khía chân", kind, [x, y + 0.01, pitZ], { ...m, dn: 34, count: 1 });
               add("Lưới chắn ống tràn", kind, [x, y + 0.01, pitZ], { ...m, dn: 34, count: 1 });
               add("Co 90°", kind, junction, { ...m, dn: 21, count: 1 });
@@ -166,7 +210,11 @@ export function decompose(d: RackDesign): Component[] {
           network: "thoát",
           flow: isFlush ? 0 : g.count * d.cols * d.flow,
           intermittent: isFlush,
-          flushFlow: isFlush ? g.count * d.cols * d.flushFlow : undefined,
+          flushFlow: isFlush
+            ? g.count * d.cols * d.flushFlow
+            : d.stacking === "xep-chong" && g.r === 0 && t === 0
+              ? stackFlushExtra
+              : undefined,
         });
         // Nối chéo có độ dốc xuống tới ống đứng; cả hai hệ cùng vào một ống đứng.
         const outlet: Point = [riserX, finish[1] - 0.002, g.drainZ];
@@ -175,12 +223,20 @@ export function decompose(d: RackDesign): Component[] {
           network: "thoát",
           flow: isFlush ? 0 : g.count * d.cols * d.flow,
           intermittent: isFlush,
-          flushFlow: isFlush ? g.count * d.cols * d.flushFlow : undefined,
+          flushFlow: isFlush
+            ? g.count * d.cols * d.flushFlow
+            : d.stacking === "xep-chong" && g.r === 0 && t === 0
+              ? stackFlushExtra
+              : undefined,
         });
         junctions.push({
           point: outlet,
           flow: isFlush ? 0 : g.count * d.cols * d.flow,
-          flushFlow: isFlush ? g.count * d.cols * d.flushFlow : 0,
+          flushFlow: isFlush
+            ? g.count * d.cols * d.flushFlow
+            : d.stacking === "xep-chong" && g.r === 0 && t === 0
+              ? stackFlushExtra
+              : 0,
         });
         add("Tê", "ống đứng thoát", outlet, { ...meta, dn, count: 1 });
         if (dnHeader !== dn) add("Côn thu", "ống đứng thoát", outlet, { ...meta, dn: dnHeader, count: 1 });

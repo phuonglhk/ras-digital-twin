@@ -1,5 +1,5 @@
 ﻿import { defaultParams, describe, steadyState } from "../model/process";
-import type { RackDesign } from "./types";
+import { floorArea, rimSlope, tierPitch, type RackDesign } from "./types";
 export const dns = [21, 27, 34, 42, 49, 60, 90, 114];
 // Đường kính trong giả định từ OD trừ hai lần bề dày ống uPVC PN10; cần xác nhận bảng nhà sản xuất khi mua.
 // ISO 1452-2: https://www.iso.org/standard/75825.html
@@ -52,7 +52,7 @@ export function hydraulics(d: RackDesign) {
   const mainDn = choosePressureDn(q),
     riserDn = choosePressureDn(rackQ),
     gravityDn = chooseGravityDn(rackQ, d.slope);
-  const height = d.bottomHeight + (d.tiers - 1) * d.tierSpacing + d.height;
+  const height = d.bottomHeight + (d.tiers - 1) * tierPitch(d) + d.height;
   const vh = velocity(d.cols * d.flow, d.headerDn);
   // Tổn thất cục bộ K=2 giả định cho co, tê và van; Darcy–Weisbach h=K v²/2g.
   const loss =
@@ -75,21 +75,45 @@ export function hydraulics(d: RackDesign) {
   const water = describe(steadyState(p), p);
   const warnings: string[] = [];
   // Manning cho ống góp nửa đầy; xả rửa gián đoạn không cộng vào Q liên tục.
-  const headerDn = chooseGravityDn(d.cols * d.flow * (d.layout === "quay lưng" && d.racks > 1 ? 2 : 1), d.slope);
-  const headerCapacity = gravityCapacity(headerDn, d.slope),
+  const perHeader = d.cols * (d.layout === "quay lưng" && d.racks > 1 ? 2 : 1);
+  const headerDn = d.stacking === "xep-chong" ? d.drainHeaderDn : chooseGravityDn(perHeader * d.flow, d.slope);
+  const headerSlope = rimSlope(d);
+  const headerCapacity = gravityCapacity(headerDn, headerSlope),
     flushCapacity = gravityCapacity(34, d.slope);
+  const flushRequired = volume / d.drainDownMinutes + Math.max(0, perHeader - 1) * d.flow;
+  const bottomLoad = d.boxWeight === null ? null : (d.tiers - 1) * (d.boxWeight + volume + d.crabWeight);
+  const area = floorArea(d);
   const clearance = d.tierSpacing - d.height - (0.025 + d.slope * (span + 0.08) + 0.017);
-  if (d.flushEnabled && d.tiers > 1 && clearance < 0)
+  if (d.stacking === "xep-chong") {
+    if (d.tiers > d.stackLimit)
+      warnings.push(`Số tầng vượt ${d.stackLimit} tầng, ngưỡng giả định cần xác nhận với nhà sản xuất.`);
+    if (d.boxWeight === null) warnings.push("Nhập khối lượng hộp để tính tải lên hộp đáy.");
+    if (d.headerDn / 1000 > d.slotWidth || d.drainHeaderDn / 1000 > d.slotWidth)
+      warnings.push("Đường kính ngoài ống góp lớn hơn bề rộng rãnh; cần chọn ống nhỏ hơn hoặc rãnh rộng hơn.");
+    if (headerCapacity < perHeader * d.flow)
+      warnings.push("Ống góp tràn không đủ sức tải lưu lượng liên tục theo Manning.");
+    if (headerCapacity < flushRequired)
+      warnings.push(
+        "Ống góp tràn không đủ sức tải khi xả hết một hộp trong thời gian đã chọn; tăng cỡ ống và kiểm tra lại rãnh.",
+      );
+    if (d.overflowHeight - 0.02 - d.drainHeaderDn / 2000 - 0.002 <= 0)
+      warnings.push("Không đủ cao độ đặt ống góp tràn trong thành hộp và dưới mực nước.");
+  }
+  if (d.stacking === "gia-do" && d.flushEnabled && d.tiers > 1 && clearance < 0)
     warnings.push("Khoảng hở giữa tầng không đủ cho ống thu xả rửa và độ dốc đã chọn.");
-  if (d.flushEnabled && d.bottomHeight - 0.025 - d.slope * (span + 0.08) - 0.017 < 0)
+  if (d.stacking === "gia-do" && d.flushEnabled && d.bottomHeight - 0.025 - d.slope * (span + 0.08) - 0.017 < 0)
     warnings.push("Ống thu xả rửa tầng thấp nhất thấp hơn mặt sàn.");
-  if (d.flushEnabled && d.cols * d.flushFlow * (d.layout === "quay lưng" && d.racks > 1 ? 2 : 1) > flushCapacity)
+  if (
+    d.stacking === "gia-do" &&
+    d.flushEnabled &&
+    d.cols * d.flushFlow * (d.layout === "quay lưng" && d.racks > 1 ? 2 : 1) > flushCapacity
+  )
     warnings.push("Lưu lượng xả rửa đồng thời vượt sức tải nửa ống DN34; giảm lưu lượng hoặc xả lần lượt.");
-  if (d.flushEnabled && d.bottomHeight - 0.025 - d.slope * (span + 0.08) - 0.002 <= 0)
+  if (d.stacking === "gia-do" && d.flushEnabled && d.bottomHeight - 0.025 - d.slope * (span + 0.08) - 0.002 <= 0)
     warnings.push(
       "Ống thu xả rửa thấp hơn chân ống đứng, đoạn nối sẽ đi lên; cần tăng cao độ tầng thấp nhất hoặc giảm độ dốc/chiều dài.",
     );
-  if (d.bottomHeight + d.overflowHeight - 0.02 - d.slope * (span + 0.08) - 0.002 <= 0)
+  if (d.bottomHeight + d.overflowHeight - 0.02 - headerSlope * (span + 0.08) - 0.002 <= 0)
     warnings.push("Ống góp tràn thấp hơn chân ống đứng; cần điều chỉnh cao độ để thoát xuống.");
   if (d.overflowHeight <= 0.02) warnings.push("Ống góp tràn không thấp hơn mực nước trong hộp.");
   if (turnover > 15) warnings.push("Thời gian thay nước vượt 15 phút (ngưỡng minh hoạ).");
@@ -122,5 +146,9 @@ export function hydraulics(d: RackDesign) {
     headerCapacity,
     flushCapacity,
     clearance,
+    bottomLoad,
+    area,
+    flushRequired,
+    headerSlope,
   };
 }

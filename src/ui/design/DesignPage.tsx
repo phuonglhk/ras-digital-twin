@@ -67,7 +67,10 @@ export default function DesignPage() {
           if (Number.isFinite(value))
             setD((old) => ({
               ...old,
-              [key]: Math.min(max, Math.max(min, ["cols", "tiers", "racks"].includes(key) ? Math.round(value) : value)),
+              [key]: Math.min(
+                max,
+                Math.max(min, ["cols", "tiers", "racks", "stackLimit"].includes(key) ? Math.round(value) : value),
+              ),
             }));
         }}
       />
@@ -128,8 +131,18 @@ export default function DesignPage() {
             />
           </label>
           <h3>Kệ và bố trí</h3>
+          <label>
+            Kiểu đặt hộp
+            <select
+              value={d.stacking}
+              onChange={(e) => setD({ ...d, stacking: e.target.value as RackDesign["stacking"] })}
+            >
+              <option value="xep-chong">Xếp chồng căn hộ</option>
+              <option value="gia-do">Giá đỡ có khoảng hở</option>
+            </select>
+          </label>
           {number("cols", "Hộp mỗi tầng", 1, 25, 1)}
-          {number("tiers", "Số tầng", 1, 8, 1)}
+          {number("tiers", "Số tầng", 1, 20, 1)}
           {number("racks", "Số kệ", 1, 10, 1)}
           <label>
             Bố trí
@@ -140,8 +153,24 @@ export default function DesignPage() {
             </select>
           </label>
           {number("gap", "Khe giữa hộp (m)", 0, 0.2, 0.01)}
-          {number("tierSpacing", "Khoảng cách tầng (m)", 0.18, 1, 0.01)}
-          {number("bottomHeight", "Chiều cao tầng thấp nhất (m)", 0.1, 1, 0.01)}
+          {d.stacking === "xep-chong" ? (
+            <>
+              {number("interlock", "Độ lồng khóa (m)", 0, 0.05, 0.001)}
+              {number("slotWidth", "Bề rộng rãnh luồn ống (m)", 0.01, 0.15, 0.005)}
+              {number("stackLimit", "Ngưỡng số tầng giả định", 1, 20, 1)}
+              {number("crabWeight", "Khối lượng mỗi con cua (kg)", 0, 3, 0.05)}
+              <p>Ngưỡng số tầng là giả định, cần xác nhận với nhà sản xuất.</p>
+            </>
+          ) : (
+            number("tierSpacing", "Khoảng cách tầng (m)", 0.18, 1, 0.01)
+          )}
+          {number(
+            "bottomHeight",
+            d.stacking === "xep-chong" ? "Chiều cao đế kê (m)" : "Chiều cao tầng thấp nhất (m)",
+            0.05,
+            1,
+            0.01,
+          )}
           {number("aisle", "Bề rộng lối đi (m)", 0.3, 3, 0.1)}
           <h3>Thuỷ lực và van</h3>
           {number("flow", "Lưu lượng mỗi hộp (L/phút)", 0.5, 5, 0.1)}
@@ -158,17 +187,36 @@ export default function DesignPage() {
               ))}
             </select>
           </label>
+          {d.stacking === "xep-chong" && (
+            <>
+              <label>
+                Ống góp tràn kiêm xả cặn
+                <select value={d.drainHeaderDn} onChange={(e) => setD({ ...d, drainHeaderDn: Number(e.target.value) })}>
+                  {dns.map((n) => (
+                    <option key={n} value={n}>
+                      DN{n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {number("drainDownMinutes", "Thời gian xả hết một hộp (phút)", 0.25, 30, 0.25)}
+            </>
+          )}
           {toggle("supplyValve", "Van cấp từng hộp")}
-          {toggle("sludgeValve", "Van xả cặn từng hộp")}
-          <label className="design-check">
-            <input
-              type="checkbox"
-              checked={d.flushEnabled}
-              onChange={(e) => setD({ ...d, flushEnabled: e.target.checked })}
-            />
-            Lắp nhánh xả rửa định kỳ
-          </label>
-          {d.flushEnabled && number("flushFlow", "Lưu lượng xả rửa giả định mỗi hộp (L/phút)", 0.1, 10, 0.1)}
+          {d.stacking === "gia-do" && (
+            <>
+              {toggle("sludgeValve", "Van xả cặn từng hộp")}
+              <label className="design-check">
+                <input
+                  type="checkbox"
+                  checked={d.flushEnabled}
+                  onChange={(e) => setD({ ...d, flushEnabled: e.target.checked })}
+                />
+                Lắp nhánh xả rửa định kỳ
+              </label>
+              {d.flushEnabled && number("flushFlow", "Lưu lượng xả rửa giả định mỗi hộp (L/phút)", 0.1, 10, 0.1)}
+            </>
+          )}
           {toggle("tierValve", "Van chặn mỗi tầng")}
           <p>Ống uPVC; lưu lượng mặc định 1,5 L/phút/hộp là giá trị tham khảo, cần đối chiếu nhà cung cấp.</p>
         </section>
@@ -181,7 +229,7 @@ export default function DesignPage() {
             <button onClick={() => setExploded(!exploded)}>{exploded ? "Ghép lại" : "Tách rời"}</button>
             <button onClick={() => setOne(!one)}>{one ? "Tất cả hộp" : "Một hộp"}</button>
             <button
-              disabled={!d.flushEnabled}
+              disabled={d.stacking === "gia-do" && !d.flushEnabled}
               aria-pressed={flushing}
               onClick={() => {
                 const next = !flushing;
@@ -223,8 +271,9 @@ export default function DesignPage() {
           <p>Ống cấp: xanh lam · tràn: xanh lục · xả cặn: nâu · van: đỏ.</p>
           {one && (
             <p>
-              Ống bọc có khía chân hút nước sát hố gom, qua ống đứng đặt mực nước vào ống góp tràn kiêm xả cặn. Nhánh xả
-              rửa chỉ vận hành định kỳ; hoạt ảnh giả định tất cả hộp cùng xả ở lưu lượng xả rửa đã nhập.
+              {d.stacking === "xep-chong"
+                ? "Nhấc ống đứng trong để xả nước và cặn qua ống bọc vào ống góp. Nhấn Xả rửa để xem hình động."
+                : "Ống bọc có khía chân hút nước sát hố gom. Nhánh đáy xả rửa định kỳ; hoạt ảnh giả định tất cả hộp cùng xả ở lưu lượng đã nhập."}
             </p>
           )}
           {chosen && (
@@ -243,9 +292,16 @@ export default function DesignPage() {
         <section className="site-panel design-results">
           <h2>Tóm tắt</h2>
           <p>
-            {h.boxes} hộp · {h.boxes} con ·{" "}
-            {displayQuantity(d.racks * d.cols * (d.length + d.gap) * (d.width + d.aisle))} m² sàn ước tính
+            {h.boxes} hộp · {h.boxes} con · {displayQuantity(h.area)} m² sàn ước tính ·{" "}
+            {displayQuantity(h.boxes / h.area)} con/m²; mốc Bing: 1.000 con/66 m² ({displayQuantity(1000 / 66)} con/m²)
           </p>
+          {d.stacking === "xep-chong" && (
+            <p>
+              Bước tầng {displayQuantity((d.height - d.interlock) * 100)} cm · tải lên hộp đáy{" "}
+              {h.bottomLoad === null ? "chưa tính: cần khối lượng hộp" : `${displayQuantity(h.bottomLoad)} kg`} (nước
+              giả định 1 kg/L).
+            </p>
+          )}
           <p>
             Q {displayQuantity(h.q)} L/phút · sump tối thiểu {displayQuantity(h.sump)} L · cột áp bơm{" "}
             {displayQuantity(h.pumpHead)} m
@@ -258,9 +314,12 @@ export default function DesignPage() {
             Ống chính cấp DN{h.mainDn} · ống đứng cấp DN{h.riserDn} · thoát DN{h.gravityDn}
           </p>
           <p>
-            Ống góp tràn kiêm xả cặn DN{h.headerDn}, sức tải nửa ống {displayQuantity(h.headerCapacity)} L/phút; ống thu
-            xả rửa DN34, sức tải {displayQuantity(h.flushCapacity)} L/phút theo Manning. Xả rửa không cộng vào Q thiết
-            kế.
+            Ống góp tràn kiêm xả cặn DN{h.headerDn}, sức tải nửa ống {displayQuantity(h.headerCapacity)} L/phút, độ dốc{" "}
+            {displayQuantity(h.headerSlope * 100)}%;{" "}
+            {d.stacking === "xep-chong"
+              ? `khi xả một hộp cần ${displayQuantity(h.flushRequired)} L/phút.`
+              : `ống thu xả rửa DN34 có sức tải ${displayQuantity(h.flushCapacity)} L/phút.`}{" "}
+            Xả rửa không cộng vào Q thiết kế.
           </p>
           <p>
             TAN {displayQuantity(h.water.tan)} mg N/L · DO {displayQuantity(h.water.do)} mg/L · NH₃ tự do{" "}

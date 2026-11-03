@@ -14,10 +14,10 @@ export function bom(components: Component[]): BomRow[] {
   for (const c of components) {
     const item = c.system === "khung" && c.type === "Ống thẳng" ? "Thép hộp khung" : c.type;
     const spec = c.dn ? `DN${c.dn}` : "—",
-      unit = c.length !== undefined ? "m" : "cái",
+      unit = c.type === "Dây chằng cột" ? "cái" : c.length !== undefined ? "m" : "cái",
       key = [c.system, item, spec].join("|");
     const row = rows.get(key) ?? { key, system: c.system, item, spec, unit, quantity: 0, note: "", ids: [] };
-    row.quantity += c.length ?? c.count ?? 1;
+    row.quantity += c.type === "Dây chằng cột" ? (c.count ?? 1) : (c.length ?? c.count ?? 1);
     row.ids.push(c.id);
     rows.set(key, row);
   }
@@ -53,7 +53,7 @@ export type Prices = Record<string, number>;
 // Giá ống và phụ kiện là ví dụ có thể sửa, không phải báo giá; hộp lấy giữa khoảng FOB tham khảo.
 export function defaultPrice(row: BomRow): number {
   if (row.item === "Hộp nuôi") return 6.4;
-  if (row.unit === "m") return row.item === "Thép hộp khung" ? 2 : 1;
+  if (row.unit === "m") return row.system === "khung" ? 2 : 1;
   if (row.item === "Lỗ định lượng") return 0;
   if (row.item.startsWith("Van")) return 2;
   return 0.5;

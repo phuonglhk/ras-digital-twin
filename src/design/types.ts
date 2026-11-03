@@ -13,6 +13,13 @@ export interface RackDesign {
   layout: "một dãy" | "quay lưng" | "song song";
   gap: number;
   tierSpacing: number;
+  stacking: "xep-chong" | "gia-do";
+  interlock: number;
+  slotWidth: number;
+  stackLimit: number;
+  crabWeight: number;
+  drainDownMinutes: number;
+  drainHeaderDn: number;
   bottomHeight: number;
   aisle: number;
   flow: number;
@@ -42,7 +49,14 @@ export const defaultDesign: RackDesign = {
   layout: "một dãy",
   gap: 0.01,
   tierSpacing: 0.3,
-  bottomHeight: 0.2,
+  stacking: "xep-chong",
+  interlock: 0.005,
+  slotWidth: 0.035,
+  stackLimit: 10,
+  crabWeight: 0.3,
+  drainDownMinutes: 2,
+  drainHeaderDn: 34,
+  bottomHeight: 0.1,
   aisle: 0.8,
   flow: 1.5,
   supplyValve: false,
@@ -88,6 +102,23 @@ export interface Component {
   sink?: boolean;
   intermittent?: boolean;
   flushFlow?: number;
+}
+export function tierPitch(d: RackDesign): number {
+  return d.stacking === "xep-chong" ? d.height - d.interlock : d.tierSpacing;
+}
+/** Giữ ống góp trong vùng thành hộp khi xếp chồng; vẫn dốc về ống đứng. */
+export function rimSlope(d: RackDesign): number {
+  if (d.stacking === "gia-do") return d.slope;
+  const span = d.cols * (d.length + d.gap) + 0.08;
+  return Math.min(d.slope, Math.max(0.00001, (d.overflowHeight - 0.02 - d.drainHeaderDn / 2000 - 0.002) / span));
+}
+/** Diện tích hình chữ nhật bao dãy và lối đi phục vụ, không gồm phòng lọc. */
+export function floorArea(d: RackDesign): number {
+  const span = d.cols * (d.length + d.gap);
+  if (d.layout === "một dãy") return (d.racks * span + (d.racks - 1) * d.aisle) * (d.width + d.aisle);
+  if (d.layout === "song song") return span * (d.racks * d.width + d.racks * d.aisle);
+  const pairs = Math.ceil(d.racks / 2);
+  return (pairs * span + (pairs - 1) * d.aisle) * ((d.racks > 1 ? 2 : 1) * d.width + d.aisle);
 }
 export function rackPosition(d: RackDesign, rack: number): [number, number] {
   if (d.layout === "một dãy") return [rack * (d.cols * (d.length + d.gap) + d.aisle), 0];
