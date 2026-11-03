@@ -204,8 +204,8 @@ export class TwinScene {
       ["biofilter", mbbr(this.kit, p.biofilter.media), 0],
       ["degasser", degasser(), 1.0],
       ["pump", pump(this.kit), 0.7],
-      ["uv", uvReactor(), 1.1],
       ["oxygen", oxygenCone(), 0.8],
+      ["uv", uvReactor(), 1.1],
     ];
     let cursor = 0;
     for (const [id, eq, width] of line) {
@@ -343,7 +343,7 @@ export class TwinScene {
     const rdfIn = world("rdf", "inlet");
     main([culture.outlet, new THREE.Vector3(rdfIn.x - 0.35, culture.outlet.y, 0), new THREE.Vector3(rdfIn.x - 0.35, rdfIn.y, 0), rdfIn]);
 
-    const order: SceneUnit[] = ["rdf", "skimmer", "biofilter", "degasser", "pump", "uv", "oxygen"];
+    const order: SceneUnit[] = ["rdf", "skimmer", "biofilter", "degasser", "pump", "oxygen", "uv"];
     for (let i = 0; i < order.length - 1; i++) {
       const a = world(order[i], "outlet");
       const b = world(order[i + 1], "inlet");
@@ -352,7 +352,7 @@ export class TwinScene {
     }
 
     // Hồi về khu nuôi trên cao.
-    const o2 = world("oxygen", "outlet");
+    const o2 = world("uv", "outlet");
     const top = 3.4;
     main([o2, new THREE.Vector3(o2.x + 0.5, o2.y, 0), new THREE.Vector3(o2.x + 0.5, top, 0), new THREE.Vector3(o2.x + 0.5, top, 1.4), new THREE.Vector3(culture.inlet.x, top, 1.4), new THREE.Vector3(culture.inlet.x, top, culture.inlet.z), culture.inlet]);
 

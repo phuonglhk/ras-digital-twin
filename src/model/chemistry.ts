@@ -22,18 +22,65 @@ export function freeAmmoniaFraction(pH: number, tC: number, salinity = 0): numbe
   return 1 / (1 + 10 ** (pKa - pH));
 }
 
-/** pK₁ của hệ carbonat. Nước ngọt: Harned & Davis (1943); mặn: hạ dần tới ~0.49 ở 35‰. */
+/** pK₁ của hệ carbonat, thang pH tổng; tại S = 0 dùng giới hạn nước ngọt. */
 export function pK1(tC: number, salinity = 0): number {
   const T = K(tC);
-  const fresh = 3404.71 / T + 0.032786 * T - 14.8435;
-  return fresh - 0.49 * Math.sqrt(Math.max(0, salinity) / 35);
+  const s = Math.max(0, salinity), r = Math.sqrt(s);
+  // Millero (2010), phương trình 16–21 và bảng 2, thang pH tổng.
+  return -126.34048 + 6320.813/T + 19.568224*Math.log(T) + 13.4051*r + 0.03185*s - 0.00005218*s*s + (-531.095*r - 5.7789*s)/T - 2.0663*r*Math.log(T);
 }
 
-/** pK₂ của hệ carbonat. Nước ngọt: Harned & Scholes (1941); mặn: hạ dần tới ~1.36 ở 35‰. */
+/** pK₂ của hệ carbonat, thang pH tổng; tại S = 0 dùng giới hạn nước ngọt. */
 export function pK2(tC: number, salinity = 0): number {
   const T = K(tC);
-  const fresh = 2902.39 / T + 0.02379 * T - 6.498;
-  return fresh - 1.36 * Math.sqrt(Math.max(0, salinity) / 35);
+  const s = Math.max(0, salinity), r = Math.sqrt(s);
+  // Millero (2010), phương trình 16–21 và bảng 3, thang pH tổng.
+  return -90.18333 + 5143.692/T + 14.613358*Math.log(T) + 21.5724*r + 0.1212*s - 0.0003714*s*s + (-798.292*r - 18.951*s)/T - 3.403*r*Math.log(T);
+}
+
+// Dickson (1990), phương trình 23, hằng số borat trên thang pH tổng.
+function boronK(tC: number, s: number): number {
+  const t = K(tC), r = Math.sqrt(s);
+  return Math.exp((-8966.9 - 2890.53*r - 77.942*s + 1.728*s*r - 0.0996*s*s)/t + 148.0248 + 137.1942*r + 1.62142*s + (-24.4344 - 25.085*r - 0.2474*s)*Math.log(t) + 0.053105*r*t);
+}
+// Millero (1995), hằng số phân ly nước, xấp xỉ thang tổng.
+function waterK(tC: number, s: number): number {
+  const t = K(tC);
+  return Math.exp(148.96502 - 13847.26/t - 23.6521*Math.log(t) + (118.67/t - 5.977 + 1.0495*Math.log(t))*Math.sqrt(s) - 0.01615*s);
+}
+// Dickson và cộng sự (2007): TA = HCO₃ + 2CO₃ + B(OH)₄ + OH − H.
+function alkalinityAt(ph: number, carbon: number, tC: number, salinity: number, fixedDIC: boolean): number {
+  const s = Math.max(0, salinity), h = 10 ** -ph, k1 = 10 ** -pK1(tC,s), k2 = 10 ** -pK2(tC,s);
+  const ratio = k1/h, ratio2 = ratio*k2/h;
+  const co2 = fixedDIC ? carbon/(1+ratio+ratio2) : carbon;
+  const kb = boronK(tC,s);
+  // Uppström (1974): tổng bo = 0,0004157 × S/35 mol/kg.
+  const borate = 0.0004157*s/35 * kb/(kb+h);
+  return co2*(ratio+2*ratio2) + borate + waterK(tC,s)/h - h;
+}
+function bisect(target: number, carbon: number, tC: number, s: number, fixedDIC: boolean): number {
+  let lo = 0, hi = 14;
+  for (let i = 0; i < 38; i++) { const mid = (lo+hi)/2; if (alkalinityAt(mid,carbon,tC,s,fixedDIC) < target) lo = mid; else hi = mid; }
+  return (lo+hi)/2;
+}
+/** TA: mg/L CaCO₃; CO₂ và DIC: mg/L quy đổi CO₂. */
+export function solvePH(ta: number, co2: number, tC: number, s = 0): number {
+  return bisect(ta/50040, Math.max(0,co2)/44010, tC,s,false);
+}
+// Dickson và cộng sự (2007): cân bằng khối lượng carbon vô cơ.
+export function dic(ta: number, co2: number, tC: number, s = 0): number {
+  const h = 10 ** -solvePH(ta,co2,tC,s), k1 = 10 ** -pK1(tC,s), k2 = 10 ** -pK2(tC,s);
+  return Math.max(0,co2)*(1+k1/h+k1*k2/(h*h));
+}
+export function co2FromDIC(ta: number, total: number, tC: number, s = 0): number {
+  const ph = bisect(ta/50040,Math.max(0,total)/44010,tC,s,true), h = 10 ** -ph;
+  const k1 = 10 ** -pK1(tC,s), k2 = 10 ** -pK2(tC,s);
+  return Math.max(0,total)/(1+k1/h+k1*k2/(h*h));
+}
+// Van Slyke (1922): β = dTA/dpH tại DIC không đổi, sai phân trung tâm.
+export function bufferBeta(ta: number, co2: number, tC: number, s = 0): number {
+  const ph = solvePH(ta,co2,tC,s), total = dic(ta,co2,tC,s)/44010, delta = 0.001;
+  return (alkalinityAt(ph+delta,total,tC,s,true)-alkalinityAt(ph-delta,total,tC,s,true))*50040/(2*delta);
 }
 
 /**
@@ -64,8 +111,10 @@ export function calciteSaturation(
   salinity: number,
   calciumHardness: number,
 ): number {
-  const hco3 = alkalinity / 50.04 / 1000; // mol/L
-  const co3 = hco3 * 10 ** (pH - pK2(tC, salinity));
+  // Cân bằng carbonat, borat và nước theo Dickson và cộng sự (2007).
+  const h = 10 ** -pH, k2 = 10 ** -pK2(tC, salinity);
+  const hco3 = Math.max(0, alkalinity / 50040 - alkalinityAt(pH, 0, tC, salinity, false)) / (1 + 2*k2/h);
+  const co3 = hco3 * k2/h;
   const ca = calcium(salinity, calciumHardness) / 1000;
   const logKsp = -8.48 + 2.11 * Math.sqrt(Math.max(0, salinity) / 35);
   return (ca * co3) / 10 ** logKsp;

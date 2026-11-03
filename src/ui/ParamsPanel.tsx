@@ -87,6 +87,7 @@ export default function ParamsPanel({ params: p, onChange }: Props) {
         <Num id="fr" label="Lượng cho ăn" value={p.feedRate} unit="%/ngày" min={0} max={8} step={0.1} onChange={(v) => set({ feedRate: v })} />
         <Num id="pc" label="Đạm thức ăn" value={p.protein * 100} unit="%" min={20} max={60} step={1} onChange={(v) => set({ protein: v / 100 })} />
         <Toggle id="meal" label="Cho ăn theo bữa (07:00, 17:00)" on={p.mealPulses} onChange={(v) => set({ mealPulses: v })} />
+        <Num id="peak" label="Hệ số tải giờ cao điểm" value={p.peakFactor} min={1} max={4} step={0.1} onChange={(v) => set({ peakFactor: v })} />
       </Section>
 
       <Section title="③ Nước">
@@ -109,6 +110,7 @@ export default function ParamsPanel({ params: p, onChange }: Props) {
         {p.rdf.on && <Num id="rdfe" label="Hiệu suất TSS" value={p.rdf.efficiency * 100} unit="%" min={30} max={95} step={1} onChange={(v) => sub("rdf", { efficiency: v / 100 })} />}
         <Toggle id="sk" label="Tách đạm" on={p.skimmer.on} onChange={(v) => sub("skimmer", { on: v })} />
         {p.skimmer.on && <Num id="skb" label="Nhánh qua tách đạm" value={p.skimmer.bypass * 100} unit="%" min={5} max={100} step={5} onChange={(v) => sub("skimmer", { bypass: v / 100 })} />}
+        {p.skimmer.on && <Toggle id="ozone" label="Ozone cho tách đạm" on={p.skimmer.ozone} onChange={(v) => sub("skimmer", { ozone: v })} />}
         <Toggle id="bf" label="Bể vi sinh MBBR" on={p.biofilter.on} onChange={(v) => sub("biofilter", { on: v })} />
         {p.biofilter.on && (
           <>

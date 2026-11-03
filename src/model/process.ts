@@ -1,7 +1,7 @@
 /*
  * Mô hình công nghệ RAS bám theo iRAS:
  *   bể nuôi → lọc trống (RDF) → tách đạm (skimmer) → bể vi sinh (MBBR)
- *   → tháp khử CO₂ → bơm → UV → côn ôxy → hồi về bể nuôi,
+ *   → tháp khử CO₂ → bơm → côn ôxy → UV → hồi về bể nuôi,
  *   cùng nhánh khử nitrat và châm kiềm.
  * Tải ô nhiễm suy từ lượng thức ăn (Timmons & Ebeling 2010):
  *   TAN = F·PC·0.092, TSS = 0.25·F, O₂ = hệ số loài·F, CO₂ = 1.375·O₂.
@@ -11,14 +11,18 @@
 
 import {
   calciteSaturation,
+  bufferBeta,
+  co2FromDIC,
   co2Equilibrium,
+  dic,
   freeAmmoniaFraction,
   nitrificationSaltFactor,
   nitrificationTempFactor,
   oxygenSaturation,
-  phFromCarbonate,
+  solvePH,
 } from "./chemistry";
 import { speciesById, type Species } from "./species";
+import { fmt } from "./format";
 
 export interface Params {
   speciesId: string;
@@ -37,8 +41,9 @@ export interface Params {
   exchange: number; // %/ngày tổng thể tích
   pumpOn: boolean;
   mealPulses: boolean;
+  peakFactor: number;
   rdf: { on: boolean; efficiency: number };
-  skimmer: { on: boolean; bypass: number };
+  skimmer: { on: boolean; bypass: number; ozone: boolean };
   biofilter: { on: boolean; media: number; ssa: number; k: number; maturity: number };
   degasser: { on: boolean; gl: number; efficiency: number };
   uv: { on: boolean; bypass: number; dose: number };
@@ -68,14 +73,17 @@ export function defaultParams(speciesId = "mud-crab"): Params {
     exchange: 10,
     pumpOn: true,
     mealPulses: true,
+    peakFactor: 1.5,
     rdf: { on: true, efficiency: 0.75 },
-    skimmer: { on: true, bypass: 0.2 },
+    skimmer: { on: true, bypass: 0.2, ozone: false },
     biofilter: { on: true, media: s.culture === "boxes" ? 0.25 : Math.round(cultureVol * 0.08 * 10) / 10, ssa: 500, k: 0.58, maturity: 1 },
-    degasser: { on: true, gl: 5, efficiency: 0.65 },
+    // Giữ quan hệ thiết kế hiện có của bảng điều khiển: hiệu suất = min(0,9; 0,2 + 0,09 × G:L).
+    degasser: { on: true, gl: 8, efficiency: 0.9 },
     uv: { on: true, bypass: 0.1, dose: 40 },
     oxygen: { on: true, target: 1.2 },
     denit: { on: true, flow: s.culture === "boxes" ? 0.15 : Math.round(cultureVol * 0.01 * 10) / 10, efficiency: 0.8 },
-    alkDosing: { on: true, target: 150 },
+    // 200 mg/L nằm trong khoảng RAS 150–200 mg/L: NOAA, North Central Regional Aquaculture Conference (1997), mục Alkalinity.
+    alkDosing: { on: true, target: 200 },
   };
 }
 
@@ -86,6 +94,7 @@ export interface Water {
   no2: number;
   no3: number;
   tss: number;
+  dom: number; // mg COD/L
   do: number;
   co2: number;
   alk: number; // mg/L CaCO₃
@@ -98,12 +107,14 @@ export interface Point extends Water {
   nh4: number; // mg N/L
   omega: number;
   doSat: number; // phần bão hoà
+  tgp: number; // % áp suất khí tổng ước tính
+  beta: number; // mg/L CaCO₃ trên mỗi đơn vị pH
 }
 
-export const WATER_KEYS: (keyof Water)[] = ["tan", "no2", "no3", "tss", "do", "co2", "alk"];
+export const WATER_KEYS: (keyof Water)[] = ["tan", "no2", "no3", "tss", "dom", "do", "co2", "alk"];
 
 export function describe(w: Water, p: Params): Point {
-  const ph = phFromCarbonate(w.alk, w.co2, p.temp, p.salinity);
+  const ph = solvePH(w.alk, w.co2, p.temp, p.salinity);
   const f = freeAmmoniaFraction(ph, p.temp, p.salinity);
   return {
     ...w,
@@ -113,6 +124,9 @@ export function describe(w: Water, p: Params): Point {
     nh4: w.tan * (1 - f),
     omega: calciteSaturation(ph, w.alk, p.temp, p.salinity, p.calciumHardness),
     doSat: w.do / oxygenSaturation(p.temp, p.salinity),
+    // Định luật Dalton: giả sử các khí khác ở áp suất cân bằng, O₂ chiếm 20,95% áp suất khí khô.
+    tgp: 100 * (1 + 0.2095 * (w.do / oxygenSaturation(p.temp, p.salinity) - 1)),
+    beta: bufferBeta(w.alk, w.co2, p.temp, p.salinity),
   };
 }
 
@@ -125,6 +139,7 @@ export interface Loads {
   feed: number; // kg/ngày
   tan: number; // g N/ngày
   tss: number; // g/ngày
+  dom: number; // g COD/ngày
   o2: number; // g/ngày
   co2: number; // g/ngày
   cultureVolume: number; // m³
@@ -146,6 +161,8 @@ export function loads(p: Params): Loads {
     feed,
     tan: feed * p.protein * 0.092 * 1000,
     tss: feed * 0.25 * 1000,
+    // Giả định thiết kế theo đặc tả: COD hoà tan bằng 10% thức ăn.
+    dom: feed * 0.10 * 1000,
     o2,
     co2: o2 * 1.375,
     cultureVolume,
@@ -175,7 +192,7 @@ export function mealFactor(hour: number) {
 
 export type UnitId = "culture" | "rdf" | "skimmer" | "biofilter" | "degasser" | "pump" | "uv" | "oxygen";
 
-export const UNIT_ORDER: UnitId[] = ["culture", "rdf", "skimmer", "biofilter", "degasser", "pump", "uv", "oxygen"];
+export const UNIT_ORDER: UnitId[] = ["culture", "rdf", "skimmer", "biofilter", "degasser", "pump", "oxygen", "uv"];
 
 export const UNIT_LABEL: Record<UnitId | "denit", string> = {
   culture: "Bể nuôi",
@@ -197,6 +214,7 @@ export interface Biofilter {
   etaNo2: number; // hiệu suất một lượt NO₂⁻ → NO₃⁻
   fTemp: number;
   fSalt: number;
+  limitedBy: "diện tích giá thể" | "lưu lượng";
 }
 
 export function biofilterKinetics(p: Params, tanIn: number, qDay: number): Biofilter {
@@ -211,7 +229,14 @@ export function biofilterKinetics(p: Params, tanIn: number, qDay: number): Biofi
   // Hiệu suất một lượt bị chặn ở 85%: MBBR thực tế hiếm khi vượt (iRAS báo 47–63%).
   const etaTan = b.on && qDay > 0 && tanIn > 1e-6 ? Math.min(0.85, capacity / (qDay * tanIn)) : 0;
   const etaNo2 = b.on ? Math.min(0.95, 0.95 * b.maturity) : 0;
-  return { area, rate, capacity, etaTan, etaNo2, fTemp, fSalt };
+  return { area, rate, capacity, etaTan, etaNo2, fTemp, fSalt, limitedBy: etaTan >= 0.85 ? "lưu lượng" : "diện tích giá thể" };
+}
+
+/** Khử một lượng CO₂ (mg/L), giữ kiềm và cân bằng lại DIC. */
+export function stripCO2(w: Water, amount: number, p: Params): void {
+  // Dickson và cộng sự (2007): khí thoát làm giảm DIC, không đổi kiềm tổng.
+  const total = dic(w.alk, w.co2, p.temp, p.salinity);
+  w.co2 = co2FromDIC(w.alk, Math.max(0, total - Math.max(0, amount)), p.temp, p.salinity);
 }
 
 export interface Step {
@@ -240,8 +265,11 @@ export function passChain(tank: Water, p: Params): Step[] {
   if (p.skimmer.on) {
     const b = p.skimmer.bypass;
     w.tss *= 1 - b * 0.4;
+    // Hiệu suất một lượt nhánh theo đặc tả; ozone ôxy hoá giả định 20% NO₂⁻ trên nhánh.
+    w.dom *= 1 - b * (p.skimmer.ozone ? 0.7 : 0.4);
+    if (p.skimmer.ozone) { const oxidized = w.no2 * b * 0.2; w.no2 -= oxidized; w.no3 += oxidized; }
     w.do += (sat - w.do) * b * 0.3;
-    w.co2 = eq + (w.co2 - eq) * (1 - b * 0.2);
+    stripCO2(w, Math.max(0, w.co2 - eq) * b * 0.2, p);
     push("skimmer", `Nhánh ${Math.round(b * 100)}% · TSS −${Math.round(b * 40)}%`);
   } else push("skimmer", "Đang tắt", false);
 
@@ -255,28 +283,30 @@ export function passChain(tank: Water, p: Params): Step[] {
     w.no3 += dNo2;
     w.do = Math.max(0, w.do - 3.43 * dTan - 1.14 * dNo2);
     w.do += (sat - w.do) * 0.35; // MBBR sục khí
+    const carbonBefore = dic(w.alk, w.co2, p.temp, p.salinity);
     w.alk = Math.max(1, w.alk - 7.14 * dTan);
-    w.co2 += 8.5 * dTan;
-    w.co2 = eq + (w.co2 - eq) * 0.85;
+    // Bảo toàn DIC khi nitrat hoá tiêu hao kiềm và tạo CO₂ (hệ số mô hình hiện hữu).
+    w.co2 = co2FromDIC(w.alk, carbonBefore + 8.5 * dTan, p.temp, p.salinity);
+    stripCO2(w, Math.max(0, w.co2 - eq) * 0.15, p);
     w.tss *= 0.9;
     push("biofilter", `Nitrat hoá ${Math.round(k.etaTan * 100)}% · TAN → NO₃⁻`);
   } else push("biofilter", "Đang tắt", false);
 
   if (p.degasser.on) {
-    w.co2 = eq + (w.co2 - eq) * (1 - p.degasser.efficiency);
+    stripCO2(w, Math.max(0, w.co2 - eq) * p.degasser.efficiency, p);
     w.do += (sat - w.do) * 0.6;
     push("degasser", `G:L=${p.degasser.gl} · CO₂ −${Math.round(p.degasser.efficiency * 100)}%`);
   } else push("degasser", "Đang tắt", false);
 
   push("pump", p.pumpOn ? `${p.flow} m³/h` : "Đang dừng", p.pumpOn);
 
-  if (p.uv.on) push("uv", `${p.uv.dose} mJ/cm² · nhánh ${Math.round(p.uv.bypass * 100)}%`);
-  else push("uv", "Đang tắt", false);
-
   if (p.oxygen.on) {
     w.do = Math.max(w.do, p.oxygen.target * sat);
     push("oxygen", `DO → ${Math.round(p.oxygen.target * 100)}% bão hoà`);
   } else push("oxygen", "Đang tắt", false);
+
+  if (p.uv.on) push("uv", `${p.uv.dose} mJ/cm² · nhánh ${Math.round(p.uv.bypass * 100)}%`);
+  else push("uv", "Đang tắt", false);
 
   return steps;
 }
@@ -289,6 +319,7 @@ export function makeupWater(p: Params): Water {
     no2: 0,
     no3: 0,
     tss: 0,
+    dom: 0,
     do: oxygenSaturation(p.temp, p.salinity),
     co2: co2Equilibrium(p.temp),
     alk: p.makeupAlk,
@@ -318,11 +349,17 @@ export function rates(tank: Water, p: Params, L: Loads, hour = 12): Rates {
   for (const key of WATER_KEYS) {
     d[key] = (q * (ret[key] - tank[key]) + qx * (mk[key] - tank[key])) / V;
   }
+  // Cân bằng khối lượng DIC khi trộn các dòng, Dickson và cộng sự (2007).
+  d.co2 = (q * (dic(ret.alk, ret.co2, p.temp, p.salinity) - dic(tank.alk, tank.co2, p.temp, p.salinity)) + qx * (dic(mk.alk, mk.co2, p.temp, p.salinity) - dic(tank.alk, tank.co2, p.temp, p.salinity))) / V;
 
   // Nguồn và tiêu hao trong bể nuôi (g/ngày ÷ m³ = mg/L·ngày).
   d.tan += (L.tan * m) / V;
   d.tss += (L.tss * m) / V;
-  const o2Use = tank.do > 0.5 ? L.o2 * m : L.o2 * m * (tank.do / 0.5);
+  d.dom += (L.dom * m) / V;
+  // Giả định động học bậc nhất cho dị dưỡng: 0,02 g O₂/g TSS/ngày và 0,05 g O₂/g COD/ngày.
+  const heterotrophic = (0.02 * tank.tss + 0.05 * tank.dom) * V;
+  const o2Use = (L.o2 * m + heterotrophic) * Math.min(1, tank.do / 0.5);
+  d.dom -= 0.05 * tank.dom * Math.min(1, tank.do / 0.5);
   d.do -= o2Use / V;
   d.co2 += (o2Use * 1.375) / V;
   // Trao đổi khí bề mặt bể nuôi (nhỏ, có cả khi bơm dừng).
@@ -350,6 +387,8 @@ export function step(tank: Water, p: Params, L: Loads, dtDays: number, hour: num
   const { dWdt } = rates(tank, p, L, hour);
   const next = {} as Water;
   for (const key of WATER_KEYS) next[key] = Math.max(key === "alk" ? 1 : 0, tank[key] + dWdt[key] * dtDays);
+  // Tích phân DIC và kiềm rồi thiết lập lại CO₂ tự do theo cân bằng carbonat.
+  next.co2 = co2FromDIC(next.alk, Math.max(0, dic(tank.alk, tank.co2, p.temp, p.salinity) + dWdt.co2 * dtDays), p.temp, p.salinity);
   return next;
 }
 
@@ -375,12 +414,15 @@ export function steadyState(p: Params, start?: Water): Water {
 
 export interface UnitReport {
   loads: Loads;
+  averageLoads: { tan: number; o2: number; co2: number };
+  peakLoads: { tan: number; o2: number; co2: number };
   biofilter: Biofilter & { removed: number; o2: number; alk: number; designTan: number; airFlow: number };
   rdf: { solids: number; backwash: number };
   degasser: { airFlow: number; co2Removed: number };
   pump: { power: number; head: number; turnover: number };
   uv: { flow: number; power: number };
-  oxygen: { pureO2: number };
+  oxygen: { pureO2: number; tgpOutlet: number };
+  tgpTank: number;
   denit: { removed: number; methanol: number; alkBack: number };
   alk: { consumed: number; dose: number; nahco3: number };
 }
@@ -392,14 +434,21 @@ export function report(tank: Water, p: Params): UnitReport {
   const byId = Object.fromEntries(r.steps.map((s) => [s.id, s.out])) as Record<UnitId, Water>;
   const k = biofilterKinetics(p, byId.skimmer.tan, qDay);
   const removed = qDay * byId.skimmer.tan * k.etaTan;
+  // Cùng giả định dị dưỡng bậc nhất như cân bằng trong bể; tải nền không nhân hệ số bữa ăn.
+  const heterotrophic = (0.02 * tank.tss + 0.05 * tank.dom) * L.totalVolume;
+  const averageLoads = { tan: L.tan, o2: L.o2 + heterotrophic, co2: (L.o2 + heterotrophic) * 1.375 };
+  const peakLoads = { tan: L.tan * p.peakFactor, o2: L.o2 * p.peakFactor + heterotrophic, co2: (L.o2 * p.peakFactor + heterotrophic) * 1.375 };
   // Côn ôxy hiệu suất hoà tan ~85%.
-  const pureO2 = p.oxygen.on ? (qDay * Math.max(0, byId.oxygen.do - byId.uv.do)) / 0.85 / 1000 : 0;
+  // Định cỡ theo tải giờ cao điểm, hệ số truyền ôxy 85% như giả định thiết kế hiện hữu.
+  const pureO2 = p.oxygen.on && p.pumpOn ? (qDay * Math.max(0, byId.oxygen.do - byId.pump.do) + L.o2 * Math.max(0, p.peakFactor - 1)) / 0.85 / 1000 : 0;
   const denitRemoved = r.denitRemoved;
   const o2Nitri = (removed * 4.57) / 1000; // kg/ngày
   // Gió MBBR: đủ ôxy (không khí 0.28 kg O₂/m³, hiệu suất truyền 5%) hoặc đủ khuấy trộn (~5 m³/h mỗi m³ bể, bể = giá thể ÷ 50%).
-  const airFlow = p.biofilter.on ? Math.max(o2Nitri / (0.28 * 0.05) / 24, 5 * (p.biofilter.media / 0.5)) : 0;
+  const airFlow = p.biofilter.on ? Math.max(o2Nitri * p.peakFactor / (0.28 * 0.05) / 24, 5 * (p.biofilter.media / 0.5)) : 0;
   return {
     loads: L,
+    averageLoads,
+    peakLoads,
     biofilter: {
       ...k,
       removed,
@@ -409,10 +458,11 @@ export function report(tank: Water, p: Params): UnitReport {
       airFlow,
     },
     rdf: { solids: (qDay * byId.culture.tss * (p.rdf.on ? p.rdf.efficiency : 0)) / 1000, backwash: qDay * 0.004 },
-    degasser: { airFlow: p.degasser.on ? p.flow * p.degasser.gl : 0, co2Removed: (qDay * Math.max(0, byId.biofilter.co2 - byId.degasser.co2)) / 1000 },
+    degasser: { airFlow: p.degasser.on ? p.flow * p.degasser.gl : 0, co2Removed: (qDay * Math.max(0, dic(byId.biofilter.alk, byId.biofilter.co2, p.temp, p.salinity) - dic(byId.degasser.alk, byId.degasser.co2, p.temp, p.salinity))) / 1000 },
     pump: { power: p.pumpOn ? (1000 * 9.81 * (p.flow / 3600) * 7) / 0.6 / 1000 : 0, head: 7, turnover: L.cultureVolume / Math.max(p.flow, 1e-6) * 60 },
     uv: { flow: p.flow * (p.uv.on ? p.uv.bypass : 0), power: p.uv.on ? p.flow * p.uv.bypass * p.uv.dose * 0.0012 : 0 },
-    oxygen: { pureO2 },
+    oxygen: { pureO2, tgpOutlet: describe(byId.oxygen, p).tgp },
+    tgpTank: describe(tank, p).tgp,
     denit: { removed: denitRemoved, methanol: (denitRemoved * 2.47) / 1000, alkBack: (denitRemoved * 3.57) / 1000 },
     alk: { consumed: (removed * 7.14) / 1000, dose: r.alkDose / 1000, nahco3: ((r.alkDose / 1000) * 84.01) / 50.04 },
   };
@@ -453,14 +503,16 @@ export function warnings(chain: { id: UnitId; point: Point }[], p: Params, rep: 
   const out: Warning[] = [];
   const tank = chain[0]?.point;
   if (!tank) return out;
+  if (tank.tgp > 102) out.push({ level: tank.tgp > 105 ? "bad" : "warn", text: `TGP bể nuôi ${fmt(tank.tgp, 1)}% vượt ${tank.tgp > 105 ? 105 : 102}%: nguy cơ bệnh bọt khí.` });
+  if (p.pumpOn && p.oxygen.on && rep.oxygen.tgpOutlet > 110) out.push({ level: "warn", text: `TGP sau côn ôxy ${fmt(rep.oxygen.tgpOutlet, 1)}% vượt 110%: nguy cơ bệnh bọt khí gần vòi cấp nước.` });
 
   if (!p.pumpOn) out.push({ level: "bad", text: "Bơm tuần hoàn đang dừng: nước không qua xử lý, TAN và CO₂ tích tụ, DO tụt trong bể nuôi." });
 
   if (rep.biofilter.fTemp < 1.5) {
-    out.push({ level: "warn", text: `Nước ${p.temp} °C: hệ số nhiệt nitrat hoá ${rep.biofilter.fTemp.toFixed(2)}×, cần nhiều giá thể hơn để giữ TAN.` });
+    out.push({ level: "warn", text: `Nước ${fmt(p.temp, 1)} °C: hệ số nhiệt nitrat hoá ${fmt(rep.biofilter.fTemp, 2)}×, cần nhiều giá thể hơn để giữ TAN.` });
   }
   if (p.salinity > 0) {
-    out.push({ level: "ok", text: `Độ mặn ${p.salinity}‰: hệ số mặn nitrat hoá ${rep.biofilter.fSalt.toFixed(2)}×, DO bão hoà thấp hơn nước ngọt ~${Math.round(0.575 * p.salinity)}%.` });
+    out.push({ level: "ok", text: `Độ mặn ${fmt(p.salinity, Number.isInteger(p.salinity) ? 0 : 1)}‰: hệ số mặn nitrat hoá ${fmt(rep.biofilter.fSalt, 2)}×, DO bão hoà thấp hơn nước ngọt ~${fmt(0.575 * p.salinity, 0)}%.` });
   }
   if (p.biofilter.maturity < 0.8) {
     out.push({ level: "warn", text: `Bể vi sinh mới chín ${Math.round(p.biofilter.maturity * 100)}%: vi khuẩn ôxy hoá nitrit chưa đủ, NO₂⁻ dễ tăng vọt.` });
@@ -471,27 +523,27 @@ export function warnings(chain: { id: UnitId; point: Point }[], p: Params, rep: 
   if (levelOf("nh3", nh3.point.nh3, s) !== "ok") {
     out.push({
       level: levelOf("nh3", nh3.point.nh3, s)!,
-      text: `NH₃ tự do ${nh3.point.nh3.toFixed(1)} µg/L tại ${UNIT_LABEL[nh3.id]} (${(nh3.point.fNh3 * 100).toFixed(2)}% TAN ở pH ${nh3.point.ph.toFixed(2)}). Ngưỡng ${s.name}: ${s.limits.nh3} µg/L.`,
+      text: `NH₃ tự do ${fmt(nh3.point.nh3, 1)} µg/L tại ${UNIT_LABEL[nh3.id]} (${fmt(nh3.point.fNh3 * 100, 2)}% TAN ở pH ${fmt(nh3.point.ph, 2)}). Ngưỡng ${s.name}: ${fmt(s.limits.nh3, 0)} µg/L.`,
     });
   }
   const no2 = worst("no2");
   if (levelOf("no2", no2.point.no2, s) !== "ok") {
-    out.push({ level: levelOf("no2", no2.point.no2, s)!, text: `NO₂⁻ ${no2.point.no2.toFixed(2)} mg/L: bước NO₂⁻ → NO₃⁻ chưa theo kịp.` });
+    out.push({ level: levelOf("no2", no2.point.no2, s)!, text: `NO₂⁻ ${fmt(no2.point.no2, 2)} mg/L: bước NO₂⁻ → NO₃⁻ chưa theo kịp.` });
   }
   if (levelOf("tan", tank.tan, s) === "bad") {
-    out.push({ level: "bad", text: `TAN bể nuôi ${tank.tan.toFixed(2)} mg/L vượt ${s.limits.tan}: tăng giá thể vi sinh hoặc lưu lượng tuần hoàn.` });
+    out.push({ level: "bad", text: `TAN bể nuôi ${fmt(tank.tan, 2)} mg/L vượt ${fmt(s.limits.tan, 1)}: tăng giá thể vi sinh hoặc lưu lượng tuần hoàn.` });
   }
   const minOmega = chain.reduce((a, c) => (c.point.omega < a.point.omega ? c : a), chain[0]);
   if (p.salinity > 0 && minOmega.point.omega < 1) {
     out.push({
       level: minOmega.point.omega < 0.6 ? "bad" : "warn",
-      text: `Ω canxit ${minOmega.point.omega.toFixed(2)} < 1 tại ${UNIT_LABEL[minOmega.id]}: nước ăn mòn CaCO₃, bất lợi cho giáp xác cứng vỏ sau lột. Tăng kiềm hoặc khử CO₂.`,
+      text: `Ω canxit ${fmt(minOmega.point.omega, 2)} < 1 tại ${UNIT_LABEL[minOmega.id]}: nước ăn mòn CaCO₃, bất lợi cho giáp xác cứng vỏ sau lột. Tăng kiềm hoặc khử CO₂.`,
     });
   }
-  if (levelOf("co2", tank.co2, s) === "bad") out.push({ level: "bad", text: `CO₂ ${tank.co2.toFixed(1)} mg/L vượt ${s.limits.co2}: tăng G:L tháp khử khí.` });
-  if (tank.do < s.limits.doMin) out.push({ level: "bad", text: `DO bể nuôi ${tank.do.toFixed(1)} mg/L dưới ${s.limits.doMin}.` });
-  if (levelOf("no3", tank.no3, s) === "bad") out.push({ level: "warn", text: `NO₃⁻ ${tank.no3.toFixed(0)} mg/L: tăng thay nước hoặc lưu lượng nhánh khử nitrat.` });
-  if (rep.pump.turnover > 60 && p.pumpOn) out.push({ level: "warn", text: `Một vòng tuần hoàn mất ${rep.pump.turnover.toFixed(0)} phút cho thể tích nuôi: nên dưới 60 phút.` });
+  if (levelOf("co2", tank.co2, s) === "bad") out.push({ level: "bad", text: `CO₂ ${fmt(tank.co2, 1)} mg/L vượt ${fmt(s.limits.co2, 0)}: tăng G:L tháp khử khí.` });
+  if (tank.do < s.limits.doMin) out.push({ level: "bad", text: `DO bể nuôi ${fmt(tank.do, 1)} mg/L dưới ${fmt(s.limits.doMin, 1)}.` });
+  if (levelOf("no3", tank.no3, s) === "bad") out.push({ level: "warn", text: `NO₃⁻ ${fmt(tank.no3, 0)} mg/L: tăng thay nước hoặc lưu lượng nhánh khử nitrat.` });
+  if (rep.pump.turnover > 60 && p.pumpOn) out.push({ level: "warn", text: `Một vòng tuần hoàn mất ${fmt(rep.pump.turnover, 0)} phút cho thể tích nuôi: nên dưới 60 phút.` });
   return out;
 }
 

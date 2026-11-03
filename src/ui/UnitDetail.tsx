@@ -52,6 +52,10 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
           <Row label="Thể tích nuôi / tổng" value={`${fmt(L.cultureVolume, 2)} / ${fmt(L.totalVolume, 2)}`} unit="m³" />
           <Row label="Thức ăn" value={fmt(L.feed, 2)} unit="kg/ngày" />
           <Row label="TAN thải" value={fmt(L.tan, 0)} unit="g N/ngày" />
+          <Row label="TAN trung bình / cao điểm" value={`${fmt(L.tan, 0)} / ${fmt(r.peakLoads.tan, 0)}`} unit="g N/ngày" />
+          <Row label="O₂ trung bình / cao điểm" value={`${fmt(r.averageLoads.o2, 0)} / ${fmt(r.peakLoads.o2, 0)}`} unit="g/ngày" />
+          <Row label="CO₂ trung bình / cao điểm" value={`${fmt(r.averageLoads.co2, 0)} / ${fmt(r.peakLoads.co2, 0)}`} unit="g/ngày" />
+          <Row label="DOM thải" value={fmt(L.dom, 0)} unit="g/ngày" />
           <Row label="TSS thải" value={fmt(L.tss, 0)} unit="g/ngày" />
           <Row label="Tiêu hao O₂ / thải CO₂" value={`${fmt(L.o2, 0)} / ${fmt(L.co2, 0)}`} unit="g/ngày" />
           <Row label="NH₃ tự do trong bể" value={`${fmt(tank.nh3, 1)} (${fmt(tank.fNh3 * 100, 2)}% TAN)`} unit="µg/L" />
@@ -84,6 +88,7 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
           <Row label="Giá thể / diện tích" value={`${fmt(p.biofilter.media, 2)} m³ · ${fmt(b.area, 0)}`} unit="m²" />
           <Row label="Tốc độ bề mặt" value={fmt(b.rate, 3)} unit="g N/m²·ngày" />
           <Row label="Hiệu suất một lượt NH₄⁺" value={fmt(b.etaTan * 100, 1)} unit="%" />
+          <Row label="Giới hạn bởi" value={b.limitedBy} />
           <Row label="Hiệu suất một lượt NO₂⁻" value={fmt(b.etaNo2 * 100, 1)} unit="%" />
           <Row label="TAN bể nuôi / mục tiêu thiết kế" value={`${fmt(tank.tan, 3)} / ${fmt(b.designTan, 2)}`} unit="mg/L" tone={tank.tan > b.designTan * 2 ? "bad" : tank.tan > b.designTan ? "warn" : ""} />
           <Row label="Hệ số nhiệt · hệ số mặn" value={`${fmt(b.fTemp, 2)}× · ${fmt(b.fSalt, 2)}×`} />
@@ -128,7 +133,8 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
       body = (
         <>
           <Row label="DO mục tiêu" value={fmt(p.oxygen.target * 100, 0)} unit="% bão hoà" />
-          <Row label="DO vào → ra" value={`${fmt(points.uv?.do, 2)} → ${fmt(points.oxygen?.do, 2)}`} unit="mg/L" />
+          <Row label="DO vào → ra" value={`${fmt(points.pump?.do, 2)} → ${fmt(points.oxygen?.do, 2)}`} unit="mg/L" />
+          <Row label="TGP đầu ra / bể nuôi" value={`${fmt(r.oxygen.tgpOutlet, 1)} / ${fmt(r.tgpTank, 1)}`} unit="%" />
           <Row label="Ôxy tinh khiết" value={fmt(r.oxygen.pureO2, 2)} unit="kg/ngày" />
         </>
       );
@@ -158,6 +164,7 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
       )}
       <h3>Cân bằng kiềm</h3>
       <div className="kvs">
+        <Row label="Sức đệm β" value={fmt((out ?? tank).beta, 1)} unit="mg/L CaCO₃/pH" />
         <Row label="Nitrat hoá tiêu hao" value={fmt(r.alk.consumed, 3)} unit="kg CaCO₃/ngày" />
         <Row label="Khử nitrat hồi lại" value={fmt(r.denit.alkBack, 3)} unit="kg CaCO₃/ngày" />
         <Row label="NaHCO₃ cần châm" value={fmt(r.alk.nahco3, 3)} unit="kg/ngày" />

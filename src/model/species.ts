@@ -50,7 +50,8 @@ export const SPECIES: Species[] = [
     protein: 0.4,
     // Hô hấp cua bùn ~0.1–0.2 mg O₂/g·h ⇒ ~0.15 kg O₂ mỗi kg thức ăn ở mức cho ăn 3%.
     oxygenPerFeed: 0.15,
-    limits: { tan: 1.0, nh3: 50, no2: 1.0, no3: 50, doMin: 4.5, phMin: 7.6, phMax: 8.5, co2: 15, tss: 15 },
+    // SEAFDEC/AQD, Farming Mangrove Crab: khoảng pH nuôi cua Scylla 7,5–8,5.
+    limits: { tan: 1.0, nh3: 50, no2: 1.0, no3: 50, doMin: 4.5, phMin: 7.5, phMax: 8.5, co2: 15, tss: 15 },
     defaults: { units: 240, avgWeight: 300, perUnit: 1, unitVolume: 0.008 },
     note: "Cua lột cần nước bão hoà CaCO₃ (Ω > 1) để cứng vỏ. Mỗi hộp một con.",
   },
