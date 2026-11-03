@@ -1,5 +1,14 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { amountOf, bom, csv, displayQuantity, priceOf, type Currency, type Prices } from "../../design/bom";
+import {
+  amountOf,
+  bom,
+  csv,
+  displayQuantity,
+  displaySpec,
+  priceOf,
+  type Currency,
+  type Prices,
+} from "../../design/bom";
 import { decompose } from "../../design/decompose";
 import { hydraulics, dns, velocity, halfPipeVelocity } from "../../design/hydraulics";
 import { inspectNetwork } from "../../design/network";
@@ -407,6 +416,9 @@ export default function DesignPage() {
             </>
           )}
           {number("uvDose", "Liều UV (mJ/cm²)", 1, 200, 1)}
+          {number("uvTransmittance", "Độ truyền UVT (%)", 1, 100, 1)}
+          {number("uvQ40", "q40 mỗi đèn (m³/giờ; 30 mJ/cm², UVT 90%)", 0.01, 100, 0.1)}
+          <p>q40 là giả định kiểu catalogue; hiệu chỉnh 90/UVT gần đúng. Cần đối chiếu nhà cung cấp.</p>
         </section>
         <section className="site-panel design-view">
           <h2>Mô hình 3D</h2>
@@ -414,6 +426,7 @@ export default function DesignPage() {
           <div className="design-canvas" ref={host} />
           <div className="design-buttons">
             <button onClick={() => scene.current?.overview()}>Toàn cảnh</button>
+            <button onClick={() => scene.current?.overview(true)}>Gồm ống chính</button>
             <button onClick={() => setExploded(!exploded)}>{exploded ? "Ghép lại" : "Tách rời"}</button>
             <button onClick={() => setOne(!one)}>{one ? "Tất cả hộp" : "Một hộp"}</button>
             <button
@@ -506,7 +519,7 @@ export default function DesignPage() {
                         <tr key={row.key}>
                           <td>{row.system}</td>
                           <td>{row.item}</td>
-                          <td>{row.spec}</td>
+                          <td>{displaySpec(row)}</td>
                           <td>{displayQuantity(row.quantity)}</td>
                           <td>{row.unit}</td>
                         </tr>
@@ -573,6 +586,10 @@ export default function DesignPage() {
             {h.boxes} hộp · {h.boxes} con · {displayQuantity(h.area)} m² sàn ước tính ·{" "}
             {displayQuantity(h.boxes / h.area)} con/m²; mốc Bing: 1.000 con/66 m² ({displayQuantity(1000 / 66)} con/m²)
           </p>
+          <p>
+            Diện tích gồm khe giữa các khối và lối đi, không gồm phòng lọc; cùng số hộp có thể cần diện tích khác khi
+            thay số kệ, số tầng hoặc cách bố trí.
+          </p>
           {d.stacking === "xep-chong" && (
             <p>
               Bước tầng {displayQuantity((d.height - d.interlock) * 100)} cm · tải lên hộp đáy{" "}
@@ -612,8 +629,8 @@ export default function DesignPage() {
             {displayQuantity(h.water.nh3)} µg N/L
           </p>
           <p>
-            Thời gian thay nước 15 phút là ngưỡng minh hoạ. Kết quả chất lượng nước dùng cấu hình lọc mặc định của mô
-            hình.
+            Thời gian thay nước 15 phút là ngưỡng minh hoạ. Chất lượng nước dùng lưu lượng thiết kế và diện tích giá thể
+            MBBR của phòng lọc đề xuất; các công đoạn khác theo giả định mặc định của mô hình.
           </p>
           {h.warnings.map((w) => (
             <p className="design-warning" key={w}>
@@ -709,7 +726,7 @@ export default function DesignPage() {
                       >
                         <td>{r.system}</td>
                         <td>{r.item}</td>
-                        <td>{r.spec}</td>
+                        <td>{displaySpec(r)}</td>
                         <td>{r.unit}</td>
                         <td>{displayQuantity(r.quantity)}</td>
                         <td>

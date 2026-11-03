@@ -47,6 +47,8 @@ export interface RackDesign {
   settlingMinutes: number;
   sandRate: number;
   uvDose: number;
+  uvQ40: number;
+  uvTransmittance: number;
   outletStyle: "te-ong" | "lo-khoan";
   orificeDiameter: number;
   baseStyle: "gach-soi" | "be-do";
@@ -106,6 +108,8 @@ export const defaultDesign: RackDesign = {
   settlingMinutes: 15,
   sandRate: 35,
   uvDose: 40,
+  uvQ40: 2.5,
+  uvTransmittance: 90,
   outletStyle: "te-ong",
   orificeDiameter: 2,
   baseStyle: "gach-soi",

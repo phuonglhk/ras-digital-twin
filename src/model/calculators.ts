@@ -108,14 +108,19 @@ export function calculate(id: string, v: Values): Result[] {
       ];
     }
     case "den-uv": {
-      const power = (q * (v.dose ?? 40) * 0.0012) / Math.max((v.uvt ?? 90) / 100, 0.01);
+      // q40 là giả định kiểu catalogue tại 30 mJ/cm², UVT 90%; 90/UVT chỉ là hiệu chỉnh gần đúng.
+      // UVT, lưu lượng và hình học buồng ảnh hưởng liều; đối chiếu thiết bị đã kiểm định:
+      // https://www.ontario.ca/page/ultraviolet-disinfection-technical-bulletin
+      const lamps = Math.ceil(
+        (q * ((v.dose ?? 40) / 30) * (90 / Math.max(v.uvt ?? 90, 1))) / Math.max(v.q40 ?? 2.5, 0.01),
+      );
       return [
         result(
           "Số đèn ước tính",
-          Math.ceil((power * 1000) / 40),
+          lamps,
           "đèn 40 W",
-          "Làm tròn lên (Q × liều × 0,0012 / UVT) / 0,04",
-          "Hệ số công suất giả định T1; hiệu chỉnh UVT gần đúng",
+          "Làm tròn lên [Q × (liều / 30) × (90 / UVT) / q40]",
+          "q40 giả định kiểu catalogue tại 30 mJ/cm² và UVT 90%; 90/UVT gần đúng, cần đối chiếu nhà cung cấp",
         ),
       ];
     }

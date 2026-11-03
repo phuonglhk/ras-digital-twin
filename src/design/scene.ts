@@ -71,6 +71,7 @@ export class DesignScene {
     this.scene.add(light, this.root);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
+    this.controls.zoomToCursor = true;
     this.resize = new ResizeObserver(() => this.onResize());
     this.resize.observe(canvas.parentElement!);
     this.onResize();
@@ -893,9 +894,30 @@ export class DesignScene {
       label.line.setAttribute("y2", String(py));
     });
   }
-  overview() {
+  overview(includeMain = false) {
     if (!this.design) return;
-    const b = new THREE.Box3().setFromObject(this.root);
+    const b = new THREE.Box3();
+    if (includeMain) b.setFromObject(this.root);
+    else {
+      const allowed = new Set(
+        this.components
+          .filter((c) => c.system !== "ống chính" && c.system !== "Phòng lọc" && c.system !== "mương")
+          .map((c) => c.id),
+      );
+      const transform = new THREE.Matrix4();
+      for (const mesh of this.meshes) {
+        mesh.geometry.computeBoundingBox();
+        const geometryBox = mesh.geometry.boundingBox;
+        if (!geometryBox) continue;
+        const ids = mesh.userData.ids as string[];
+        ids.forEach((id, i) => {
+          if (!allowed.has(id)) return;
+          mesh.getMatrixAt(i, transform);
+          b.union(geometryBox.clone().applyMatrix4(transform));
+        });
+      }
+      if (b.isEmpty()) b.setFromObject(this.root);
+    }
     if (b.isEmpty()) return;
     if (this.one && this.design.stacking === "xep-chong") b.max.y += this.design.overflowHeight + 0.025;
     const center = b.getCenter(new THREE.Vector3());

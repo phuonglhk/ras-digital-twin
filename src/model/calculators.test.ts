@@ -8,7 +8,8 @@ describe("máy tính nhanh", () => {
     ["mbbr", { load: 1000, temp: 25, salt: 0, ssa: 500 }, 1000 / (0.58 * 1.09 ** 15)],
     ["thap-khu-co2", { q: 10, gl: 8 }, 80],
     ["bom-tuan-hoan", { q: 3600, head: 10, eff: 100 }, 98.1],
-    ["den-uv", { q: 10, dose: 40, uvt: 100 }, 12],
+    // ⌈10 × (40/30) × (90/100) / 2,5⌉ = 5 đèn.
+    ["den-uv", { q: 10, dose: 40, uvt: 100, q40: 2.5 }, 5],
     ["con-oxy", { q: 10, input: 6, output: 10 }, 0.96],
     ["khu-nitrat", { q: 10, input: 50, output: 10 }, 23.712],
     ["may-thoi-khi", { q: 3600, pressure: 30, eff: 100 }, 30],

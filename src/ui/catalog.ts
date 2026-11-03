@@ -88,7 +88,12 @@ export const equipment: Entry[] = [
     group: "Khử trùng",
     unit: "uv",
     description: "Bức xạ UV xử lý vi sinh vật trong dòng nước.",
-    fields: [q, f("dose", "Liều UV (mJ/cm²)", 40), f("uvt", "Độ truyền UVT (%)", 90)],
+    fields: [
+      q,
+      f("dose", "Liều UV (mJ/cm²)", 40),
+      f("uvt", "Độ truyền UVT (%)", 90, 1),
+      f("q40", "Lưu lượng q40 mỗi đèn (m³/giờ; 30 mJ/cm², UVT 90%)", 2.5, 0.01),
+    ],
     parts: ["Buồng chiếu: chứa dòng nước", "Đèn UV: phát bức xạ", "Tủ điện: cấp nguồn"],
   },
   {

@@ -101,6 +101,7 @@ export const equipmentContent: Record<string, EquipmentContent> = {
     principles: [
       "Nước chảy qua buồng chiếu, tia UV tác động lên vật chất di truyền của vi sinh vật.",
       "Liều phụ thuộc cường độ, thời gian tiếp xúc và độ truyền qua của nước.",
+      "Ước tính theo lưu lượng q40 mỗi đèn tại 30 mJ/cm² và UVT 90%; q40 mặc định 2,5 m³/giờ là giả định, cần đối chiếu nhà cung cấp. Hiệu chỉnh 90/UVT chỉ gần đúng.",
       "Cặn che chắn hoặc ống thạch anh bẩn làm liều thực tế giảm.",
       "Làm sạch ống thạch anh và thay đèn theo tuổi thọ nhà sản xuất.",
     ],

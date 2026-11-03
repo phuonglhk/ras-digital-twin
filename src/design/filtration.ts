@@ -12,7 +12,7 @@ export function filterRoom(d: RackDesign, pumpHead: number) {
   p.avgWeight = d.crabWeight * 1000;
   const load = loads(p);
   const mbbr = calculate("mbbr", { load: load.tan, temp: p.temp, salt: p.salinity, ssa: p.biofilter.ssa });
-  const lamps = calculate("den-uv", { q: flowM3h, dose: d.uvDose, uvt: 90 })[0].value;
+  const lamps = calculate("den-uv", { q: flowM3h, dose: d.uvDose, uvt: d.uvTransmittance, q40: d.uvQ40 })[0].value;
   // HRT là giả định; V=Q×t. Sump 5 phút theo Louisiana Sea Grant:
   // https://repository.library.noaa.gov/view/noaa/39465/noaa_39465_DS1.pdf
   const settling = (flow * d.settlingMinutes) / 1000,

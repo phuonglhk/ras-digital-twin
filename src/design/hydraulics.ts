@@ -1,5 +1,6 @@
 ﻿import { defaultParams, describe, steadyState } from "../model/process";
 import { blocks, floorArea, rimSlope, rowSpan, tierPitch, type RackDesign } from "./types";
+import { filterRoom } from "./filtration";
 export const dns = [21, 27, 34, 42, 49, 60, 90, 114];
 // Đường kính trong giả định từ OD trừ hai lần bề dày ống uPVC PN10; cần xác nhận bảng nhà sản xuất khi mua.
 // ISO 1452-2: https://www.iso.org/standard/75825.html
@@ -133,8 +134,10 @@ export function hydraulics(d: RackDesign) {
   const p = defaultParams("mud-crab");
   p.units = boxes;
   p.perUnit = 1;
+  p.avgWeight = d.crabWeight * 1000;
   p.unitVolume = volume / 1000;
   p.flow = q * 0.06;
+  p.biofilter.media = filterRoom(d, 0).mediaVolume;
   const water = describe(steadyState(p), p);
   const warnings: string[] = [];
   if (d.outletStyle === "lo-khoan" && orificeHead > d.residualHead)

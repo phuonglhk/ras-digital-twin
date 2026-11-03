@@ -1,7 +1,8 @@
 ﻿import { describe, expect, it } from "vitest";
 import { blocks, boxPresets, defaultDesign, floorArea, tierPitch, type Component } from "./types";
 import { decompose } from "./decompose";
-import { bom, csv, costRows, amountOf } from "./bom";
+import { bom, csv, costRows, amountOf, displaySpec } from "./bom";
+import { defaultParams, describe as describeWater, steadyState } from "../model/process";
 import {
   distributedHeaderLoss,
   fullFlowLoss,
@@ -185,7 +186,7 @@ describe("mạng kệ", () => {
     const r = bom(decompose(small)),
       s = csv(r, {}, "VND", 25000);
     expect(s.startsWith("\ufeff")).toBe(true);
-    for (const fields of costRows(r, {}, "VND", 25000))
+    for (const fields of costRows(r, {}, "VND", 25000, true))
       expect(s).toContain(fields.map((x) => `"${x.replace(/"/g, '""')}"`).join(","));
     expect(amountOf(r.find((x) => x.item === "Hộp nuôi")!, {})).toBeCloseTo(38.4);
   });
@@ -240,21 +241,44 @@ describe("mạng kệ", () => {
     expect(hydraulics({ ...small, availableHead: 0.0001 }).warnings.some((w) => w.includes("xả một hộp"))).toBe(true);
     expect(hydraulics({ ...small, boxWeight: null }).bottomLoad).toBeNull();
   });
-  it("diện tích sàn có lối đi cho 1000 hộp", () =>
-    expect(floorArea({ ...defaultDesign, racks: 5, tiers: 8, cols: 25 })).toBeCloseTo(72.24));
+  it("diện tích sàn có lối đi cho hai bố trí 1000 hộp", () => {
+    expect(floorArea({ ...defaultDesign, racks: 5, tiers: 8, cols: 25 })).toBeCloseTo(72.24);
+    expect(floorArea({ ...defaultDesign, racks: 4, tiers: 10, cols: 25 })).toBeCloseTo(57.6);
+  });
 });
 describe("thuỷ lực", () => {
   it("phòng lọc theo lưu lượng và tải cua", () => {
     const room = filterRoom(defaultDesign, 3);
+    // ⌈9 × (40/30) × (90/90) / 2,5⌉ = 5; 90 m³/giờ tương tự là 48.
+    expect(room.lamps).toBe(5);
+    expect(filterRoom({ ...defaultDesign, racks: 5, tiers: 8, cols: 25 }, 3).lamps).toBe(48);
+    expect(filterRoom({ ...defaultDesign, uvQ40: 1.25 }, 3).lamps).toBe(10);
     expect(room.flow).toBe(150);
     expect(room.settling).toBeCloseTo(2.25);
     expect(room.sump).toBeCloseTo(0.75);
     expect(room.sandDiameter).toBeCloseTo(Math.sqrt((4 * (9 / 35)) / Math.PI));
     expect(room.mediaVolume).toBeGreaterThan(0);
+    const rows = bom(room.components),
+      settling = rows.find((r) => r.item === "Bể lắng")!;
+    expect(displaySpec(settling)).toBe("2,25 m³");
+    expect(csv(rows)).toContain('"2.25 m³"');
     expect(room.components.find((c) => c.type === "Bơm tuần hoàn")?.count).toBe(2);
     const alt = filterRoom({ ...defaultDesign, mechanical: "loc-trong" }, 3);
     expect(alt.components.some((c) => c.type === "Lọc trống")).toBe(true);
     expect(alt.components.some((c) => c.type === "Bình lọc cát")).toBe(false);
+  });
+  it("chất lượng nước dùng giá thể của phòng lọc và lưu lượng thiết kế", () => {
+    const d = { ...defaultDesign, racks: 5, tiers: 8, cols: 25, crabWeight: 0.45 };
+    const p = defaultParams("mud-crab");
+    p.units = d.racks * d.tiers * d.cols;
+    p.perUnit = 1;
+    p.avgWeight = d.crabWeight * 1000;
+    p.unitVolume = d.length * d.width * d.overflowHeight;
+    p.flow = p.units * d.flow * 0.06;
+    p.biofilter.media = filterRoom(d, 0).mediaVolume;
+    const expected = describeWater(steadyState(p), p);
+    expect(hydraulics(d).water.tan).toBeCloseTo(expected.tan, 8);
+    expect(hydraulics(d).water.do).toBeCloseTo(expected.do, 8);
   });
   it("chia 25 cột thành ba khối cân bằng", () =>
     expect(blocks({ ...defaultDesign, cols: 25 }).map((b) => b.cols)).toEqual([9, 8, 8]));

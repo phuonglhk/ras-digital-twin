@@ -1,4 +1,5 @@
 ﻿import type { Component, System } from "./types";
+import { fmt } from "../model/format";
 export interface BomRow {
   key: string;
   system: System;
@@ -8,6 +9,12 @@ export interface BomRow {
   quantity: number;
   note: string;
   ids: string[];
+}
+/** Quy cách lưu số dấu chấm để xuất máy đọc; chỉ đổi dấu khi hiển thị. */
+export function displaySpec(row: BomRow): string {
+  return row.system === "Phòng lọc"
+    ? row.spec.replace(/\d+\.\d+/g, (value) => fmt(Number(value), value.split(".")[1].length))
+    : row.spec;
 }
 export function bom(components: Component[]): BomRow[] {
   const rows = new Map<string, BomRow>();
@@ -67,9 +74,16 @@ export function priceOf(row: BomRow, prices: Prices): number {
 export function amountOf(row: BomRow, prices: Prices): number {
   return Number(row.quantity.toFixed(2)) * priceOf(row, prices);
 }
-export function costRows(rows: BomRow[], prices: Prices, currency: Currency, exchange: number): string[][] {
+export function costRows(
+  rows: BomRow[],
+  prices: Prices,
+  currency: Currency,
+  exchange: number,
+  machine = false,
+): string[][] {
   const factor = currency === "VND" ? exchange : 1;
-  const money = (n: number) => displayQuantity(n * factor);
+  const formatNumber = (n: number) => (machine ? String(Number(n.toFixed(2))) : displayQuantity(n));
+  const money = (n: number) => formatNumber(n * factor);
   const systems = [...new Set(rows.map((r) => r.system))];
   return systems
     .flatMap((system) => {
@@ -80,7 +94,7 @@ export function costRows(rows: BomRow[], prices: Prices, currency: Currency, exc
           r.item,
           r.spec,
           r.unit,
-          displayQuantity(r.quantity),
+          formatNumber(r.quantity),
           money(priceOf(r, prices)),
           money(amountOf(r, prices)),
           r.note,
@@ -114,7 +128,7 @@ export function csv(rows: BomRow[], prices: Prices = {}, currency: Currency = "U
         `Thành tiền (${currency})`,
         "Ghi chú",
       ],
-      ...costRows(rows, prices, currency, exchange),
+      ...costRows(rows, prices, currency, exchange, true),
     ]
       .map((row) => row.map(quote).join(","))
       .join("\r\n")
