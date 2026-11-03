@@ -1,0 +1,131 @@
+﻿.design-page {
+  max-width: 1600px;
+}
+.design-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.design-config {
+  grid-row: span 2;
+}
+.design-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.design-config input,
+.design-config select {
+  max-width: 100%;
+  padding: 6px;
+}
+.design-config .design-check {
+  flex-direction: row;
+  align-items: center;
+}
+.design-canvas {
+  position: relative;
+  height: 480px;
+  width: 100%;
+  background: #0b1418;
+}
+.design-view,
+.design-config {
+  min-width: 0;
+  max-width: 100%;
+}
+.design-overlay,
+.design-label-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.design-label-lines line {
+  stroke: #f3bb69;
+  stroke-width: 1.2;
+}
+.design-part-label {
+  position: absolute;
+  color: #fff;
+  background: #10242d;
+  border: 1px solid #8ba9ae;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.design-fps {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: #10242ddd;
+  color: #fff;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.design-canvas canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.design-buttons,
+.design-layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+  max-width: 100%;
+}
+.design-buttons > *,
+.design-layers > * {
+  max-width: 100%;
+}
+.design-layers label {
+  display: flex;
+  gap: 3px;
+}
+.design-results {
+  min-width: 0;
+}
+.design-table {
+  overflow-x: auto;
+}
+.design-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.design-table td,
+.design-table th {
+  padding: 6px;
+  text-align: left;
+  border-bottom: 1px solid #d5e2e2;
+}
+.design-table tbody tr {
+  cursor: pointer;
+}
+.design-selected {
+  background: #ffedb5;
+}
+.design-warning {
+  color: #ffd185;
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .design-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .design-config {
+    grid-row: auto;
+  }
+  .design-canvas {
+    height: 360px;
+  }
+  .design-page {
+    min-width: 0;
+  }
+}

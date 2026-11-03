@@ -1,5 +1,6 @@
-import { Component, useEffect, useState, type ReactNode } from "react";
+﻿import { Component, useEffect, useState, type ReactNode } from "react";
 import TwinApp from "./App";
+import DesignPage from "./ui/design/DesignPage";
 import { calculate, type Values } from "./model/calculators";
 import { freeAmmoniaFraction } from "./model/chemistry";
 import { fmt } from "./model/format";
@@ -262,10 +263,13 @@ function Site() {
     entry?.name ??
     tool?.name ??
     (
-      { "/": "Trang chủ", "/thiet-bi": "Thiết bị", "/quy-trinh": "Quy trình", "/gioi-thieu": "Giới thiệu" } as Record<
-        string,
-        string
-      >
+      {
+        "/": "Trang chủ",
+        "/thiet-ke": "Thiết kế",
+        "/thiet-bi": "Thiết bị",
+        "/quy-trinh": "Quy trình",
+        "/gioi-thieu": "Giới thiệu",
+      } as Record<string, string>
     )[path] ??
     "Không tìm thấy";
   useEffect(() => {
@@ -277,13 +281,16 @@ function Site() {
         <Link to="/">RAS DIGITAL TWIN</Link>
         <div>
           <Link to="/quy-trinh">Quy trình</Link>
+          <Link to="/thiet-ke">Thiết kế</Link>
           <Link to="/thiet-bi">Thiết bị</Link>
           <Link to="/cong-cu/nh3-tu-do">Công cụ</Link>
           <Link to="/gioi-thieu">Giới thiệu</Link>
         </div>
       </nav>
       <RouteBoundary key={path}>
-        {path === "/quy-trinh" ? (
+        {path === "/thiet-ke" ? (
+          <DesignPage />
+        ) : path === "/quy-trinh" ? (
           <TwinApp />
         ) : entry ? (
           <Detail key={entry.id} entry={entry} />
@@ -302,6 +309,11 @@ function Site() {
             <h1>Khám phá hệ thống RAS qua mô hình 3D</h1>
             <p className="lead">Tìm hiểu thiết bị, dòng nước và các phép tính cơ bản cho hệ thống nuôi tuần hoàn.</p>
             <Link to="/quy-trinh">Mở mô phỏng toàn hệ →</Link>
+            <article className="site-panel">
+              <h2>Thiết kế kệ hộp cua</h2>
+              <p>Thiết lập kệ, xem đường ống và bóc tách vật tư.</p>
+              <Link to="/thiet-ke">Mở thiết kế →</Link>
+            </article>
             <h2>Hành trình của dòng nước</h2>
             <div className="flow-links">
               {UNIT_ORDER.map(

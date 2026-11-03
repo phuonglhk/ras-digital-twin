@@ -43,7 +43,18 @@ type TrendTab = "ammonia" | "nh3" | "gas" | "ph";
 export default function App() {
   const [library, setLibrary] = useState<BbLibrary | null>(null);
   const [loadError, setLoadError] = useState("");
-  const [params, setParams] = useState<Params>(() => defaultParams());
+  const [params, setParams] = useState<Params>(() => {
+    const p = defaultParams();
+    const query = new URLSearchParams(location.search);
+    const boxes = Number(query.get("hop"));
+    const flow = Number(query.get("luu-luong"));
+    if (Number.isInteger(boxes) && boxes > 0 && boxes <= 10000) {
+      p.units = boxes;
+      p.perUnit = 1;
+    }
+    if (Number.isFinite(flow) && flow > 0 && flow <= 10000) p.flow = flow;
+    return p;
+  });
   const simRef = useRef<Simulation | null>(null);
   if (!simRef.current) simRef.current = new Simulation(params);
   const sim = simRef.current;
