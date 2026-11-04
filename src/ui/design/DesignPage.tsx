@@ -657,7 +657,9 @@ export default function DesignPage() {
               Mạng có {networkErrors.length} lỗi kết nối hoặc cao độ. {networkErrors[0]}
             </p>
           )}
-          <a href={`/quy-trinh?hop=${h.boxes}&luu-luong=${h.q * 0.06}&loc-co-hoc=${d.mechanical}`}>
+          <a
+            href={`${import.meta.env.BASE_URL}quy-trinh?hop=${h.boxes}&luu-luong=${h.q * 0.06}&loc-co-hoc=${d.mechanical}`}
+          >
             Mở trong Quy trình →
           </a>
           <h2>Bảng vật tư</h2>

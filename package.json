@@ -6,7 +6,7 @@
   "description": "Digital Twin minh hoạ hệ thống RAS (tuần hoàn nước), bám mô hình công nghệ của iras.cn",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node tools/copy-404.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "baseline": "vite-node tools/baseline.ts",

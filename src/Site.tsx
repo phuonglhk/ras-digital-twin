@@ -10,15 +10,17 @@ import LineChart from "./ui/LineChart";
 import { equipmentContent } from "./ui/equipmentContent";
 import { UNIT_ORDER } from "./model/process";
 import { compatibleUnits, convertUnit, unitNames, type UnitKind } from "./model/converter";
+import { prefixBase, stripBase } from "./basePath";
 
 function Link({ to, children }: { to: string; children: React.ReactNode }) {
+  const href = prefixBase(to, import.meta.env.BASE_URL);
   return (
     <a
-      href={to}
+      href={href}
       onClick={(e) => {
         if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
           e.preventDefault();
-          history.pushState({}, "", to);
+          history.pushState({}, "", href);
           window.dispatchEvent(new PopStateEvent("popstate"));
           window.scrollTo(0, 0);
         }
@@ -250,10 +252,10 @@ class RouteBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 }
 function Site() {
-  const [path, setPath] = useState(location.pathname);
+  const [path, setPath] = useState(() => stripBase(location.pathname, import.meta.env.BASE_URL));
   const [group, setGroup] = useState("Tất cả");
   useEffect(() => {
-    const handler = () => setPath(location.pathname);
+    const handler = () => setPath(stripBase(location.pathname, import.meta.env.BASE_URL));
     addEventListener("popstate", handler);
     return () => removeEventListener("popstate", handler);
   }, []);

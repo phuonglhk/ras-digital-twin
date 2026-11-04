@@ -109,7 +109,7 @@ export function EquipmentView({ entry }: { entry: Entry }) {
   useEffect(() => {
     let dead = false,
       cleanup = () => {};
-    fetch("/models.json")
+    fetch(`${import.meta.env.BASE_URL}models.json`)
       .then((r) => r.json())
       .then((library: BbLibrary) => {
         if (dead || !canvas.current) return;
@@ -216,7 +216,7 @@ export function useThumbnails(entries: Entry[]) {
   useEffect(() => {
     let dead = false;
     if (entries.every((e) => thumbnails.has(e.id))) return;
-    fetch("/models.json")
+    fetch(`${import.meta.env.BASE_URL}models.json`)
       .then((response) => response.json())
       .then(async (library: BbLibrary) => {
         if (dead) return;
