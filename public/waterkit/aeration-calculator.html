@@ -1,0 +1,734 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Công cụ tính lượng khí sục | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Tính trực tuyến nhu cầu oxy và lượng khí cấp cho quá trình bùn hoạt tính: tính nhu cầu oxy để loại bỏ BOD, nitrat hoá và khử nitrat theo phương pháp tuổi bùn, sau đó hiệu chỉnh theo α, β, nhiệt độ, độ cao và độ sâu để xác định SOR và lượng khí cấp tiêu chuẩn Gs.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+  /* 统一顶部导航 */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600; font-size: 16.5px;
+    color: var(--ink); letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--text-faint); margin-top: 1px;
+  }
+  .nav-links {
+    display: flex; gap: 24px; font-size: 14px; align-items: center;
+  }
+  .nav-links a {
+    color: var(--text); text-decoration: none;
+    transition: color 0.15s; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←"; margin-right: 4px; color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* 面包屑 */
+  .breadcrumb {
+    max-width: 820px; margin: 0 auto;
+    padding: 20px 16px 0;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb a {
+    color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  /* 主体外壳 */
+  .main-wrap { flex: 1; padding: 16px; }
+
+  /* 统一页脚 */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: 40px;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px; color: var(--text);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.7; max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex; justify-content: space-between;
+    align-items: center; font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit; text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+  /* 工具内部的小footer */
+  .tool-inner-footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  header.tool-header {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: #fff;
+    padding: 24px 24px 20px;
+  }
+  header.tool-header h1 { font-size: 22px; margin-bottom: 6px; }
+  header.tool-header p { font-size: 13px; opacity: 0.9; }
+  .body { padding: 24px; }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0e7490;
+    margin: 20px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0f2fe;
+  }
+  .section-title:first-child { margin-top: 0; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+  }
+  .field label {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field .unit {
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: normal;
+  }
+  .field input, .field select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  }
+  .results {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #0891b2;
+  }
+  .results h2 {
+    font-size: 16px;
+    color: #0e7490;
+    margin-bottom: 14px;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px dashed #bae6fd;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4b5563; font-size: 14px; }
+  .result-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #0891b2;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-unit { color: #6b7280; font-size: 13px; margin-left: 4px; font-weight: normal; }
+  .formula-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+  .formula-box h3 {
+    font-size: 14px;
+    color: #374151;
+    margin-bottom: 10px;
+  }
+  .formula-box code {
+    display: block;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: #0e7490;
+    overflow-x: auto;
+  }
+  .formula-box p { margin: 6px 0; font-size: 12.5px; }
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-primary { background: #0891b2; color: #fff; }
+  .btn-primary:hover { background: #0e7490; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+  .note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #92400e;
+    border-left: 3px solid #f59e0b;
+  }
+  @media (max-width: 480px) {
+    .main-wrap { padding: 8px; }
+    header.tool-header { padding: 18px; }
+    header.tool-header h1 { font-size: 19px; }
+    .result-value { font-size: 17px; }
+  }
+  .invalid{border-color:#ef4444!important;background:#fef2f2!important}
+  .warn-box{margin-top:12px;padding:10px 12px;background:#fef2f2;border-left:3px solid #ef4444;border-radius:6px;font-size:12.5px;color:#991b1b;line-height:1.7}
+  .warn-box.soft{background:#fffbeb;border-left-color:#f59e0b;color:#92400e}
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Tính toán công nghệ</a>
+  <span class="sep">/</span>
+  <span class="current">Lượng khí sục</span>
+</div>
+
+<main class="main-wrap">
+
+<div class="container">
+  <header class="tool-header">
+    <h1>💨 Công cụ tính lượng khí sục</h1>
+    <p>Theo GB 50014 và HJ 576, dùng để ước tính nhu cầu oxy và lượng khí cấp cho quá trình bùn hoạt tính</p>
+  </header>
+
+  <div class="body">
+
+    <div class="section-title">Thông số cơ bản về chất lượng và lưu lượng nước</div>
+    <div class="grid">
+      <div class="field">
+        <label for="Q">Lưu lượng nước xử lý Q <span class="unit">m³/d</span></label>
+        <input type="number" id="Q" value="10000" step="100">
+      </div>
+      <div class="field">
+        <label for="So">BOD₅ đầu vào <span class="unit">mg/L</span></label>
+        <input type="number" id="So" value="200" step="10">
+      </div>
+      <div class="field">
+        <label for="Se">BOD₅ đầu ra <span class="unit">mg/L</span></label>
+        <input type="number" id="Se" value="10" step="1">
+      </div>
+      <div class="field">
+        <label for="TKNo">TKN đầu vào <span class="unit">mg/L</span></label>
+        <input type="number" id="TKNo" value="40" step="1">
+      </div>
+      <div class="field">
+        <label for="Ne">NH₃-N đầu ra <span class="unit">mg/L</span></label>
+        <input type="number" id="Ne" value="1.5" step="0.1">
+      </div>
+      <div class="field">
+        <label for="ONe">Nitơ hữu cơ đầu ra <span class="unit">mg/L</span></label>
+        <input type="number" id="ONe" value="1.5" step="0.1">
+      </div>
+      <div class="field">
+        <label for="dNO3">Lượng nitơ loại bỏ bằng khử nitrat ΔNO₃-N <span class="unit">mg/L</span></label>
+        <input type="number" id="dNO3" value="0" step="1">
+      </div>
+    </div>
+
+    <div class="section-title">Thông số phản ứng sinh học</div>
+    <div class="grid">
+      <div class="field">
+        <label for="Y">Hệ số sinh khối bùn Y <span class="unit">kgVSS/kgBOD</span></label>
+        <input type="number" id="Y" value="0.6" step="0.05">
+      </div>
+      <div class="field">
+        <label for="Kd">Hệ số phân huỷ nội sinh của bùn Kd₂₀ (20 ℃) <span class="unit">d⁻¹</span></label>
+        <input type="number" id="Kd" value="0.05" step="0.01">
+      </div>
+      <div class="field">
+        <label for="SRT">Tuổi bùn SRT <span class="unit">d</span></label>
+        <input type="number" id="SRT" value="15" step="1">
+      </div>
+      <div class="field">
+        <label for="sf">Hệ số an toàn (nhu cầu oxy) <span class="unit">—</span></label>
+        <input type="number" id="sf" value="1.1" step="0.05">
+      </div>
+    </div>
+
+    <div class="section-title">Điều kiện môi trường và hiệu chỉnh cấp oxy</div>
+    <div class="grid">
+      <div class="field">
+        <label for="T">Nhiệt độ nước T <span class="unit">℃</span></label>
+        <input type="number" id="T" value="20" step="1">
+      </div>
+      <div class="field">
+        <label for="alt">Độ cao so với mực nước biển <span class="unit">m</span></label>
+        <input type="number" id="alt" value="0" step="50">
+      </div>
+      <div class="field">
+        <label for="H">Độ sâu nước bể sục khí H (chỉ dùng để kiểm tra Hd ≤ H) <span class="unit">m</span></label>
+        <input type="number" id="H" value="5.0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="Hd">Độ sâu lắp đặt bộ phân phối khí <span class="unit">m</span></label>
+        <input type="number" id="Hd" value="4.8" step="0.1">
+      </div>
+      <div class="field">
+        <label for="alpha">α (hiệu chỉnh truyền khối) <span class="unit">—</span></label>
+        <input type="number" id="alpha" value="0.82" step="0.01">
+      </div>
+      <div class="field">
+        <label for="beta">β (hiệu chỉnh độ bão hoà) <span class="unit">—</span></label>
+        <input type="number" id="beta" value="0.95" step="0.01">
+      </div>
+      <div class="field">
+        <label for="Cw">DO của hỗn hợp trong bể khi vận hành <span class="unit">mg/L</span></label>
+        <input type="number" id="Cw" value="2.0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="EA">Hiệu suất truyền oxy của bộ phân phối khí EA <span class="unit">%</span></label>
+        <input type="number" id="EA" value="25" step="1">
+      </div>
+      <div class="field">
+        <label for="kh">Hệ số đỉnh cấp khí Kz <span class="unit">—</span></label>
+        <input type="number" id="kh" value="1.5" step="0.1">
+      </div>
+    </div>
+
+    <div class="results">
+      <h2>Kết quả tính toán</h2>
+      <div class="result-row">
+        <span class="result-label">Lượng bùn dư ΔXv</span>
+        <span><span class="result-value" id="r_Px">—</span><span class="result-unit">kgVSS/d</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lượng oxy cần để loại bỏ BOD O₁</span>
+        <span><span class="result-value" id="r_O1">—</span><span class="result-unit">kgO₂/d</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lượng oxy cần cho nitrat hoá O₂</span>
+        <span><span class="result-value" id="r_O2">—</span><span class="result-unit">kgO₂/d</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lượng oxy thu hồi nhờ khử nitrat O₃</span>
+        <span><span class="result-value" id="r_O3">—</span><span class="result-unit">kgO₂/d</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Nhu cầu oxy thực tế AOR</span>
+        <span><span class="result-value" id="r_AOR">—</span><span class="result-unit">kgO₂/d</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Nhu cầu oxy tiêu chuẩn SOR</span>
+        <span><span class="result-value" id="r_SOR">—</span><span class="result-unit">kgO₂/d</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lượng khí cấp tiêu chuẩn Gs</span>
+        <span><span class="result-value" id="r_Gs">—</span><span class="result-unit">m³/min (điều kiện tiêu chuẩn 20 ℃, 101.325 kPa)</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tỷ số khí/nước trung bình</span>
+        <span><span class="result-value" id="r_ratio">—</span><span class="result-unit">m³ khí/m³ nước</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lượng khí cấp giờ lớn nhất (hệ số đỉnh <span id="r_kh">1.5</span>)</span>
+        <span><span class="result-value" id="r_Gmax">—</span><span class="result-unit">m³/min (điều kiện tiêu chuẩn)</span></span>
+      </div>
+      <div class="warn-box" id="warnBox" style="display:none;"></div>
+      <div class="warn-box soft" id="hintBox" style="display:none;"></div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="copyResults()">📋 Sao chép kết quả</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">🔄 Khôi phục mặc định</button>
+      <button class="btn btn-secondary" onclick="toggleFormula()">📖 Xem công thức</button>
+    </div>
+
+    <div class="formula-box" id="formulaBox" style="display:none;">
+      <h3>Nguyên lý và công thức tính</h3>
+      <p><strong>① Lượng oxy cần để loại bỏ BOD</strong></p>
+      <p>Theo phương pháp tuổi bùn, trước hết tính lượng bùn dư thuần Px (kgVSS/d), sau đó lấy nhu cầu oxy cuối cùng của BOD₅ (1.47 kgO₂/kgBOD₅, tức BOD_u/BOD₅ ≈ 1/0.68) trừ đi lượng oxy tương đương theo bùn thải ra (1.42 kgO₂/kgVSS):</p>
+      <code>ΔXv = Px = Y · Q · (So − Se) / (1 + Kd_T · SRT) / 1000</code>
+      <code>Kd_T = Kd₂₀ · 1.04^(T − 20)</code>
+      <code>O₁ = 1.47 · Q · (So − Se) / 1000 − 1.42 · Px</code>
+
+      <p><strong>② Lượng oxy cần cho nitrat hoá</strong> (Oxy hoá mỗi 1 kg NH₃-N cần khoảng 4.57 kg O₂; nitơ bị oxy hoá = TKN đầu vào − NH₃-N đầu ra − nitơ hữu cơ đầu ra, đồng thời trừ lượng nitơ đồng hoá vào bùn 0.12 kgN/kgVSS)</p>
+      <code>O₂ = 4.57 · [Q · (TKNo − Ne − ONe) / 1000 − 0.12 · Px]</code>
+
+      <p><strong>③ Nhu cầu oxy thực tế</strong> (Khử nitrat thu hồi 2.86 kg O₂ cho mỗi 1 kg NO₃-N được khử; chỉ nhập ΔNO₃-N đối với công nghệ có ngăn thiếu khí)</p>
+      <code>O₃ = 2.86 · Q · ΔNO₃-N / 1000</code>
+      <code>AOR = (O₁ + O₂ − O₃) × Hệ số an toàn</code>
+
+      <p><strong>④ Nhu cầu oxy tiêu chuẩn (SOR) — hiệu chỉnh về điều kiện 20℃, nước sạch, DO=0</strong></p>
+      <code>SOR = AOR · Cs20 / [α · (β · Csm(T) − Cw) · 1.024^(T−20)]</code>
+      <code>Csm(T) = Cs(T) · [ρ + Hd · 9.81 / 101.325 + ρ · Ot / 21] / 2</code>
+      <p>Trong đó Cs20 = Cs(20) = 9.09 mg/L (cùng bảng với Cs(T)); ρ là tỷ số áp suất khí quyển theo độ cao P/P₀; Hd·9.81/101.325 là áp suất thuỷ tĩnh tại độ sâu bộ phân phối khí (atm); Ot = 21·(1 − EA) / [79 + 21·(1 − EA)] × 100 là hàm lượng oxy trong khí thoát ra (%) (công thức 5-67 của Metcalf &amp; Eddy). Áp suất ở đáy bể là tổng áp suất khí quyển địa phương và áp suất do độ sâu bộ phân phối khí; khí thoát tại mặt bể ở áp suất khí quyển địa phương, vì vậy số hạng mặt bể cũng nhân với ρ; không nhân lại toàn bộ biểu thức trong ngoặc với ρ. Cs(T) lấy từ bảng oxy hoà tan bão hoà của nước ngọt ở 101.325 kPa (APHA Standard Methods 4500-O, công thức Benson &amp; Krause; từ 0–40 ℃ với bước 1 ℃, ví dụ 20 ℃ 9.09, 25 ℃ 8.26, 30 ℃ 7.56, 35 ℃ 6.95, 40 ℃ 6.41 mg/L), nội suy tuyến tính giữa các giá trị; nhiệt độ nước giới hạn trong 0–40 ℃ và độ cao trong −500–6000 m. Độ sâu bể H chỉ dùng để kiểm tra Hd ≤ H, không tham gia tính toán. Nếu Cw ≥ β·Csm thì không có động lực truyền khối và không thể tính SOR.</p>
+
+      <p><strong>⑤ Lượng khí cấp tiêu chuẩn</strong></p>
+      <code>Gs = SOR / (0.28 · EA · 1440)  [m³/min, điều kiện tiêu chuẩn 20 ℃, 101.325 kPa]</code>
+      <code>Gmax = Kz · Gs</code>
+      <p>Lưu ý: 0.28 kgO₂/m³ = khối lượng riêng không khí 1.2 kg/m³ ở điều kiện tiêu chuẩn (20 ℃, 101.325 kPa) × phần khối lượng oxy 23.2%; nếu tính theo Nm³ ở 0 ℃, hệ số là 0.30, chênh lệch khoảng 7%. Chia cho 1440 để đổi từ kg/d sang mỗi phút. Kz là hệ số đỉnh cấp khí, có thể chọn theo hệ số biến đổi tổng lưu lượng nước thải trong GB 50014 (khoảng 1.2–2.3, tăng khi quy mô giảm).</p>
+    </div>
+
+    <div class="note">
+      ⚠️ Công cụ này dùng để ước tính và kiểm tra ở giai đoạn lập phương án. Thiết kế bản vẽ thi công cần được kiểm tra lại theo công nghệ cụ thể, đặc tính nước và thông số thiết bị. Nên chọn α, β và EA theo dữ liệu thử nghiệm của nhà sản xuất thiết bị.
+    </div>
+
+  </div>
+
+  <footer class="tool-inner-footer">Bộ công cụ xử lý nước · Chỉ dùng tham khảo để ước tính kỹ thuật</footer>
+</div>
+</main>
+
+<!-- 统一页脚 -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = id => parseFloat($(id).value) || 0;
+
+  // 清水饱和溶解氧 (mg/L)：0–40 ℃ 每 1 ℃，101.325 kPa，淡水（盐度 0），与水饱和空气接触
+  // 来源：APHA Standard Methods 4500-O 溶解度表（Benson & Krause 1984 式），数值同 YSI《Oxygen Solubility Table》
+  const CS_TABLE = [14.62,14.22,13.83,13.46,13.11,12.77,12.45,12.14,11.84,11.56,
+    11.29,11.03,10.78,10.54,10.31,10.08,9.87,9.67,9.47,9.28,
+    9.09,8.92,8.74,8.58,8.42,8.26,8.11,7.97,7.83,7.69,
+    7.56,7.43,7.31,7.18,7.07,6.95,6.84,6.73,6.62,6.52,6.41];
+  function Cs_T(T) {
+    // 表内线性插值；T 已在 calc() 中限定为 0–40 ℃
+    const t = Math.min(Math.max(T, 0), 40);
+    const i = Math.min(Math.floor(t), 39);
+    return CS_TABLE[i] + (CS_TABLE[i + 1] - CS_TABLE[i]) * (t - i);
+  }
+
+  // 大气压修正因子（按Độ cao，标准大气压为1）
+  function rho_alt(alt) {
+    // P/P0 = (1 - 0.0000225577*alt)^5.25588
+    return Math.pow(1 - 0.0000225577 * alt, 5.25588);
+  }
+
+  const VALIDATE = [
+    ['Q', 'Lưu lượng nước xử lý Q', 'pos'], ['So', 'BOD₅ đầu vào', 'nn'], ['Se', 'BOD₅ đầu ra', 'nn'],
+    ['TKNo', 'TKN đầu vào', 'nn'], ['Ne', 'NH₃-N đầu ra', 'nn'], ['ONe', 'Nitơ hữu cơ đầu ra', 'nn'], ['dNO3', 'Lượng nitơ loại bỏ bằng khử nitrat', 'nn'],
+    ['Y', 'Hệ số sinh khối bùn Y', 'nn'], ['Kd', 'Hệ số phân huỷ nội sinh của bùn Kd₂₀', 'nn'], ['SRT', 'Tuổi bùn SRT', 'pos'],
+    ['sf', 'Hệ số an toàn', 'pos'], ['H', 'Độ sâu nước bể sục khí H', 'pos'], ['Hd', 'Độ sâu lắp đặt bộ phân phối khí', 'nn'],
+    ['alpha', 'α', 'pos'], ['beta', 'β', 'pos'], ['Cw', 'DO vận hành', 'nn'],
+    ['EA', 'Hiệu suất truyền oxy EA', 'pos'], ['kh', 'Hệ số đỉnh cấp khí', 'pos']
+  ];
+  const OUT_IDS = ['r_Px','r_O1','r_O2','r_O3','r_AOR','r_SOR','r_Gs','r_ratio','r_Gmax'];
+
+  function showMsg(id, html) {
+    const el = $(id);
+    el.innerHTML = html || '';
+    el.style.display = html ? 'block' : 'none';
+  }
+
+  function calc() {
+    // 输入校验：作除数或物理上不可能为负的输入
+    const errs = [];
+    VALIDATE.forEach(([id, name, rule]) => {
+      const v = parseFloat($(id).value);
+      const bad = isNaN(v) || (rule === 'pos' ? v <= 0 : v < 0);
+      $(id).classList.toggle('invalid', bad);
+      if (bad) errs.push(rule === 'pos' ? `Vui lòng nhập ${name} lớn hơn 0` : `${name} không được âm`);
+    });
+    {
+      const vTK = parseFloat($('TKNo').value), vNe = parseFloat($('Ne').value), vON = parseFloat($('ONe').value);
+      if (!isNaN(vTK) && !isNaN(vNe) && !isNaN(vON) && vNe >= 0 && vON >= 0 && vNe + vON > vTK) {
+        ['Ne','ONe'].forEach(id => $(id).classList.add('invalid'));
+        errs.push('Tổng NH₃-N và nitơ hữu cơ đầu ra không được lớn hơn TKN đầu vào');
+      }
+    }
+    if (num('EA') > 100) { $('EA').classList.add('invalid'); errs.push('Hiệu suất truyền oxy EA không được vượt quá 100%'); }
+    // Nhiệt độ nước、Độ cao：空/非数字或超出适用范围均按无效处理
+    const vT = parseFloat($('T').value), vAlt = parseFloat($('alt').value);
+    const badT = isNaN(vT) || vT < 0 || vT > 40;
+    const badAlt = isNaN(vAlt) || vAlt < -500 || vAlt > 6000;
+    $('T').classList.toggle('invalid', badT);
+    $('alt').classList.toggle('invalid', badAlt);
+    if (badT) errs.push(isNaN(vT) ? 'Vui lòng nhập nhiệt độ nước T' : 'Nhiệt độ nước T phải nằm trong khoảng 0–40 ℃ (phạm vi áp dụng của bảng oxy hoà tan bão hoà)');
+    if (badAlt) errs.push(isNaN(vAlt) ? 'Vui lòng nhập độ cao so với mực nước biển' : 'Độ cao so với mực nước biển phải nằm trong khoảng −500–6000 m');
+    if (errs.length) {
+      OUT_IDS.forEach(id => $(id).textContent = '—');
+      showMsg('warnBox', '⚠️ ' + errs.join('；'));
+      showMsg('hintBox', '');
+      return;
+    }
+
+    const Q = num('Q'), So = num('So'), Se = num('Se');
+    const TKNo = num('TKNo'), Ne = num('Ne'), ONe = num('ONe'), dNO3 = num('dNO3');
+    const Y = num('Y'), Kd20 = num('Kd'), SRT = num('SRT'), sf = num('sf');
+    const T = num('T'), alt = num('alt');
+    const Kd = Kd20 * Math.pow(1.04, T - 20);  // Kd_T = Kd₂₀·1.04^(T−20)
+    const H = num('H'), Hd = num('Hd');
+    const alpha = num('alpha'), beta = num('beta'), Cw = num('Cw'), EA = num('EA')/100;
+    const kh = num('kh');
+
+    const hints = [];
+    if (Hd > H) hints.push(`Độ sâu lắp đặt bộ phân phối khí Hd (${Hd} m) lớn hơn độ sâu nước bể sục khí H (${H} m), vui lòng kiểm tra`);
+
+    // ① Oxy cần để loại bỏ BOD量（Tuổi bùn法）：净剩余污泥 Px，1.47 = BOD_u/BOD5，1.42 = VSS 氧当量
+    const Px = Y * Q * (So - Se) / (1 + Kd * SRT) / 1000;  // kgVSS/d
+    const O1 = Math.max(1.47 * Q * (So - Se) / 1000 - 1.42 * Px, 0);
+
+    // ② Oxy cần cho nitrat hoá量（扣除污泥同化氮 0.12 kgN/kgVSS）
+    const O2 = 4.57 * Math.max(Q * (TKNo - Ne - ONe) / 1000 - 0.12 * Px, 0);
+
+    // ③ Lượng oxy thu hồi nhờ khử nitrat（2.86 kgO2/kgNO3-N），AOR
+    const O3 = 2.86 * Q * dNO3 / 1000;
+    const AOR = Math.max(O1 + O2 - O3, 0) * sf;
+
+    // ④ SOR：修正因子
+    const Cs20 = Cs_T(20);  // mg/L, 20℃清水饱和DO = 9.09，与 Cs_T 同一张表
+    const CsT = Cs_T(T);
+    const rho = rho_alt(alt);
+    // 出气氧浓度%（Metcalf & Eddy 5-67）：Ot = 21(1−EA)/[79+21(1−EA)]×100
+    const Ot_out = 21 * (1 - EA) / (79 + 21 * (1 - EA)) * 100;
+    // 池中平均饱和DO：海拔大气压与扩散器深度静水压按压力叠加
+    const Csm = CsT * ((rho + Hd * 9.81 / 101.325 + rho * Ot_out / 21) / 2);   // 池面出气在当地气压下: 池面项也乘 ρ
+
+    const denom = alpha * (beta * Csm - Cw) * Math.pow(1.024, T - 20);
+    $('r_Px').textContent = Px.toFixed(1);
+    $('r_O1').textContent = O1.toFixed(1);
+    $('r_O2').textContent = O2.toFixed(1);
+    $('r_O3').textContent = O3.toFixed(1);
+    $('r_AOR').textContent = AOR.toFixed(1);
+    $('r_kh').textContent = kh;
+    showMsg('hintBox', hints.length ? '💡 ' + hints.join('；') : '');
+
+    if (!(denom > 0)) {
+      ['r_SOR','r_Gs','r_ratio','r_Gmax'].forEach(id => $(id).textContent = '—');
+      $('Cw').classList.add('invalid');
+      showMsg('warnBox', `⚠️ DO vận hành quá cao, không thể truyền khối: DO hỗn hợp (${Cw} mg/L) ≥ β·Csm (${(beta*Csm).toFixed(2)} mg/L). Hãy giảm DO vận hành hoặc kiểm tra β, nhiệt độ nước và độ cao.`);
+      return;
+    }
+    showMsg('warnBox', '');
+    const SOR = AOR * Cs20 / denom;
+
+    // ⑤ Lượng khí cấp tiêu chuẩn：điều kiện tiêu chuẩn（20℃、101.325 kPa）1 m³ 空气含氧约 0.28 kg
+    // SOR [kg/d] / 0.28 [kgO2/m³] / EA / 1440 [min/d] = m³/min
+    const Gs = SOR / 0.28 / EA / 1440;
+    const Gmax = Gs * kh;
+    const ratio = (Gs * 1440) / Q;
+
+    $('r_SOR').textContent = SOR.toFixed(1);
+    $('r_Gs').textContent = Gs.toFixed(2);
+    $('r_Gmax').textContent = Gmax.toFixed(2);
+    $('r_ratio').textContent = ratio.toFixed(2);
+  }
+
+  function copyResults() {
+    const txt = `Kết quả tính lượng khí sục
+————————————————
+Lưu lượng nước xử lý: ${num('Q')} m³/d
+BOD đầu vào/đầu ra: ${num('So')}/${num('Se')} mg/L
+TKN đầu vào/NH3-N đầu ra/nitơ hữu cơ đầu ra: ${num('TKNo')}/${num('Ne')}/${num('ONe')} mg/L
+Kd₂₀: ${num('Kd')} d⁻¹  →  Kd_T: ${(num('Kd') * Math.pow(1.04, num('T') - 20)).toFixed(4)} d⁻¹
+Lượng nitơ loại bỏ bằng khử nitrat ΔNO3-N: ${num('dNO3')} mg/L
+Nhiệt độ nước: ${num('T')} ℃  Độ cao: ${num('alt')} m
+Độ sâu bể H / độ sâu bộ phân phối khí Hd: ${num('H')} / ${num('Hd')} m
+α / β / DO / EA: ${num('alpha')} / ${num('beta')} / ${num('Cw')} mg/L / ${num('EA')}%
+
+Lượng bùn dư ΔXv = ${$('r_Px').textContent} kgVSS/d
+Oxy cần để loại bỏ BOD O1 = ${$('r_O1').textContent} kgO₂/d
+Oxy cần cho nitrat hoá  O2 = ${$('r_O2').textContent} kgO₂/d
+Oxy thu hồi nhờ khử nitrat O3 = ${$('r_O3').textContent} kgO₂/d
+Nhu cầu oxy thực tế AOR = ${$('r_AOR').textContent} kgO₂/d
+Nhu cầu oxy tiêu chuẩn SOR = ${$('r_SOR').textContent} kgO₂/d
+Lượng khí cấp tiêu chuẩn Gs = ${$('r_Gs').textContent} m³/min (điều kiện tiêu chuẩn 20 ℃, 101.325 kPa)
+Lượng khí cấp giờ lớn nhất (hệ số đỉnh ${num('kh')}) = ${$('r_Gmax').textContent} m³/min (điều kiện tiêu chuẩn)
+Tỷ số khí/nước trung bình   = ${$('r_ratio').textContent} m³ khí/m³ nước${$('warnBox').style.display !== 'none' ? '\n\n' + $('warnBox').textContent : ''}`;
+    navigator.clipboard.writeText(txt).then(() => {
+      alert('Đã sao chép kết quả vào bộ nhớ tạm');
+    }).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() {
+    const defaults = {Q:10000, So:200, Se:10, TKNo:40, Ne:1.5, ONe:1.5, dNO3:0,
+      Y:0.6, Kd:0.05, SRT:15, sf:1.1,
+      T:20, alt:0, H:5.0, Hd:4.8,
+      alpha:0.82, beta:0.95, Cw:2.0, EA:25, kh:1.5};
+    Object.keys(defaults).forEach(k => $(k).value = defaults[k]);
+    calc();
+  }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // 实时计算
+  document.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', calc);
+  });
+
+  // 初始计算
+  calc();
+</script>
+
+</body>
+</html>

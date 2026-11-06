@@ -1,0 +1,2220 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nền tảng thiết kế bể sinh học màng (MBR) | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Nền tảng thiết kế bể sinh học màng (MBR): tính toán thiết kế, lựa chọn màng, làm sạch, phân tích năng lượng, thư viện công trình và lịch sử phát triển. Theo HJ 2010-2011 / Metcalf&Eddy.">
+<meta name="keywords" content="MBR,bể sinh học màng,màng sợi rỗng,màng phẳng,thông lượng màng,tắc nghẽn màng,ZeeWeed,Kubota,OriginWater,Mitsubishi Chemical,xử lý nước,WaterKit">
+<style>
+  :root {
+    --brand: #0891b2; --brand-dark: #0e7490; --brand-light: #e0f2fe;
+    --text: #0f172a; --text-muted: #64748b; --text-faint: #94a3b8;
+    --border: #e2e8f0; --bg: #f8fafc; --white: #ffffff;
+    --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --info: #2563eb;
+    --radius: 8px;
+    --ink: #0f172a; --bg-section: #f1f5f9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  a { color: var(--brand); text-decoration: none; }
+
+  /* ===== Hero ===== */
+  .hero { background: linear-gradient(135deg, #0c4a6e 0%, #0e7490 60%, #0891b2 100%); color: white; padding: 28px 24px 0; }
+  .hero-inner { max-width: 1280px; margin: 0 auto; }
+  .breadcrumb { font-size: 12px; opacity: 0.7; margin-bottom: 10px; }
+  .breadcrumb a { color: white; opacity: 0.8; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.15); padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .hero-title { font-size: clamp(22px,4vw,32px); font-weight: 700; margin-bottom: 8px; }
+  .hero-sub { font-size: 13px; opacity: 0.85; line-height: 1.6; max-width: 760px; margin-bottom: 16px; }
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 4px; font-size: 12px; opacity: 0.8; }
+
+  /* ===== Tab Nav ===== */
+  .tab-nav-wrap { background: white; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .tab-nav { max-width: 1280px; margin: 0 auto; display: flex; overflow-x: auto; padding: 0 12px; scrollbar-width: none; }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; padding: 14px 18px 12px; border: none; border-bottom: 3px solid transparent; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 2px; transition: color 0.15s; }
+  .tab-btn:hover:not(.disabled) { color: var(--brand); }
+  .tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); }
+  .tab-sub { font-size: 10px; font-weight: 500; opacity: 0.65; }
+
+  /* ===== Main Layout ===== */
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== Common Components ===== */
+  .section-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 24px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title .num { width: 22px; height: 22px; background: var(--brand); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .section-title .sub { font-weight: 400; font-size: 12px; color: var(--text-muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 10px; margin-bottom: 14px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .field input, .field select { border: 1.5px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 14px; background: white; color: var(--text); width: 100%; transition: border-color 0.15s; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--brand); }
+  .unit { font-size: 11px; font-weight: 400; color: var(--text-faint); }
+  .helper { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+  .results { background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin-top: 20px; }
+  .results h2 { font-size: 17px; color: var(--brand-dark); margin-bottom: 16px; }
+  .result-group { margin-bottom: 16px; }
+  .result-group-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .result-group-title .ic { font-style: normal; }
+  .auto-tag { background: #dcfce7; color: #166534; font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 700; margin-left: 4px; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 13px; }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: var(--text-muted); }
+  .result-value { font-weight: 600; color: var(--text); }
+  .result-value.big { font-size: 18px; color: var(--brand-dark); }
+  .result-unit { font-size: 11px; color: var(--text-faint); margin-left: 3px; }
+  .highlight-row { background: rgba(8,145,178,0.05); border-radius: 4px; padding: 7px 4px; }
+  .highlight-row .result-label { font-weight: 600; color: var(--text); }
+  .check-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: 6px; font-size: 12px; line-height: 1.5; }
+  .check-item .ic { font-size: 14px; flex-shrink: 0; }
+  .check-ok { background: #f0fdf4; }
+  .check-warn { background: #fefce8; }
+  .check-bad { background: #fef2f2; }
+  .check-info { background: #eff6ff; }
+  .note { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 1.7; margin-top: 14px; color: var(--text); }
+  .auto-calc-notice { background: #f0f9ff; border-left: 3px solid var(--brand); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 14px; font-size: 12px; line-height: 1.7; }
+  .notice-head { display: flex; gap: 8px; align-items: flex-start; }
+  .notice-ic { font-size: 16px; flex-shrink: 0; }
+  .score-ring { display: flex; gap: 20px; align-items: center; margin-top: 10px; }
+  .score-num { font-size: 36px; font-weight: 700; color: var(--brand-dark); }
+  .score-label { font-size: 12px; color: var(--text-muted); }
+  .score-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .water-preset { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .preset-tab { padding: 6px 16px; border: 1.5px solid var(--border); border-radius: 6px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-muted); transition: all 0.15s; }
+  .preset-tab.active { background: var(--brand); color: white; border-color: var(--brand); }
+  .subtype-tabs { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .subtype-tab { padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 12px; text-align: left; transition: all 0.15s; min-width: 140px; }
+  .subtype-tab.active { border-color: var(--brand); background: var(--brand-light); }
+  .subtype-tab b { display: block; font-size: 13px; color: var(--text); }
+  .subtype-tab span { color: var(--text-muted); font-size: 11px; }
+  .advanced-toggle { cursor: pointer; font-size: 12px; color: var(--brand); display: flex; align-items: center; gap: 6px; padding: 6px 0; user-select: none; }
+  .advanced-params { display: none; }
+  .advanced-params.open { display: block; }
+  .flow-diagram { background: white; border-radius: 8px; padding: 12px; border: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; }
+  .buttons { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn { padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+  .btn-primary { background: var(--brand); color: white; }
+  .btn-primary:hover { background: var(--brand-dark); }
+  .btn-secondary { background: white; color: var(--text-muted); border: 1.5px solid var(--border); }
+  .carrier-intro { background: linear-gradient(135deg,#ecfeff 0%,#f0fdf4 100%); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; border-left: 4px solid var(--brand); }
+  .carrier-intro h3 { font-size: 18px; color: var(--brand-dark); margin-bottom: 8px; }
+  .carrier-intro p { font-size: 13px; line-height: 1.7; color: var(--text); }
+  .mini-spec { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+
+  /* ===== 膜选型专用 ===== */
+  .membrane-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 16px; margin: 14px 0 20px; }
+  .mem-card { background: white; border-radius: 10px; border: 2px solid var(--border); overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; cursor: pointer; }
+  .mem-card:hover { border-color: var(--brand); box-shadow: 0 4px 12px rgba(8,145,178,0.12); }
+  .mem-card.selected { border-color: var(--brand); background: var(--brand-light); }
+  .mem-card-head { padding: 12px 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .mem-card-type { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
+  .mem-hf { background: #dbeafe; color: #1e40af; }
+  .mem-fs { background: #dcfce7; color: #166534; }
+  .mem-card-brand { font-size: 15px; font-weight: 700; color: var(--text); }
+  .mem-card-product { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .mem-card-origin { font-size: 11px; color: var(--text-faint); }
+  .mem-specs { padding: 0 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mem-spec-item { }
+  .mem-spec-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .mem-spec-value { font-size: 13px; font-weight: 600; color: var(--text); }
+  .mem-card-footer { padding: 10px 16px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .mem-selector-notice { background: #eff6ff; border-left: 3px solid var(--info); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 13px; line-height: 1.7; }
+
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin: 14px 0; }
+  .compare-table th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--border); }
+  .compare-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table .td-hf { background: #eff6ff; }
+  .compare-table .td-fs { background: #f0fdf4; }
+  .compare-table .td-label { font-weight: 600; color: var(--text); background: #f8fafc; }
+  .tag-good { background: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+  .tag-warn { background: #fef9c3; color: #713f12; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+
+  .decision-tree { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 14px 0; }
+  .dt-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--brand-dark); }
+  .dt-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+  .dt-row:last-child { border-bottom: none; margin-bottom: 0; }
+  .dt-condition { flex: 1; font-size: 12px; line-height: 1.6; }
+  .dt-arrow { font-size: 16px; flex-shrink: 0; padding-top: 1px; }
+  .dt-result { flex: 1; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; }
+  .dt-hf { background: #eff6ff; color: #1e40af; }
+  .dt-fs { background: #f0fdf4; color: #166534; }
+  .dt-both { background: #fef9c3; color: #713f12; }
+
+  .calc-area { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; }
+  .calc-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+
+  /* ===== Tab 3 清洗方案 ===== */
+  .cleaning-stage-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 12px 0 20px; }
+  @media(max-width: 900px) { .cleaning-stage-grid { grid-template-columns: 1fr; } }
+  .clean-card { padding: 14px 16px; border-radius: 10px; border-left: 4px solid; }
+  .clean-online { background: #f0fdf4; border-left-color: #16a34a; }
+  .clean-ceb { background: #fefce8; border-left-color: #ca8a04; }
+  .clean-cip { background: #fef2f2; border-left-color: #dc2626; }
+  .clean-head { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .clean-trigger { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-style: italic; }
+  .clean-params { font-size: 12px; line-height: 1.8; }
+  .clean-params b { color: var(--text); }
+
+  .tmp-gauge { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 14px 0; }
+  .tmp-bar-wrap { position: relative; height: 28px; border-radius: 6px; overflow: hidden; margin: 12px 0; display: flex; }
+  .tmp-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
+  .tmp-normal { background: #16a34a; flex: 20; }
+  .tmp-op { background: #f59e0b; flex: 15; }
+  .tmp-alert { background: #dc2626; flex: 15; }
+  .tmp-marker { position: absolute; top: -4px; width: 3px; height: 36px; background: var(--text); border-radius: 2px; }
+  .tmp-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+
+  /* ===== Tab 4 能耗分析 ===== */
+  .energy-bar-chart { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 14px 0; }
+  .energy-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .energy-label { width: 130px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; text-align: right; }
+  .energy-bar-bg { flex: 1; height: 22px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+  .energy-bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 700; color: white; min-width: 30px; transition: width 0.4s; }
+  .energy-value { width: 80px; font-size: 12px; font-weight: 600; color: var(--text); }
+
+  /* ===== Tab 5 案例库 ===== */
+  .case-cards-mbr { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 16px; margin: 14px 0; }
+  .case-card-mbr { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .ccm-head { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .ccm-tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 700; margin-bottom: 6px; }
+  .ccm-tag-muni { background: #dbeafe; color: #1e40af; }
+  .ccm-tag-ind { background: #fce7f3; color: #9d174d; }
+  .ccm-tag-leach { background: #d1fae5; color: #065f46; }
+  .ccm-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .ccm-scale { font-size: 12px; color: var(--text-muted); }
+  .ccm-specs { padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ccm-spec { }
+  .ccm-spec-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; }
+  .ccm-spec-value { font-size: 13px; font-weight: 600; color: var(--text); }
+  .ccm-footer { padding: 10px 16px; background: #f8fafc; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border); line-height: 1.6; }
+
+  /* ===== Tab 6 发展史 ===== */
+  .history-intro { padding: 20px 24px; background: linear-gradient(135deg,#ecfeff 0%,#f0fdf4 100%); border-radius: 12px; margin-bottom: 20px; border-left: 4px solid var(--brand); }
+  .history-intro h3 { font-size: 20px; color: var(--brand-dark); margin: 0 0 10px 0; }
+  .history-intro p { font-size: 13px; line-height: 1.7; color: var(--text); }
+  .inventor-card { padding: 18px 22px; background: linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%); border-radius: 12px; margin: 14px 0 20px; border: 1px solid #bfdbfe; }
+  .inventor-name { font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 4px; }
+  .inventor-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+  .inventor-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; font-size: 12px; line-height: 1.7; }
+  @media(max-width:700px) { .inventor-info-grid { grid-template-columns: 1fr; } }
+  .timeline-wrap { position: relative; padding: 10px 0; margin: 14px 0 20px; }
+  .timeline-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg,#3b82f6 0%,#0891b2 50%,#16a34a 100%); transform: translateX(-50%); }
+  .tl-node { position: relative; display: flex; margin-bottom: 22px; min-height: 70px; }
+  .tl-node.tl-left { justify-content: flex-start; }
+  .tl-node.tl-right { justify-content: flex-end; }
+  .tl-dot { position: absolute; left: 50%; top: 13px; width: 14px; height: 14px; border-radius: 50%; background: white; border: 3px solid var(--brand); transform: translateX(-50%); z-index: 2; }
+  .tl-dot.tl-key { background: #f59e0b; border-color: #d97706; width: 18px; height: 18px; top: 11px; box-shadow: 0 0 0 4px rgba(245,158,11,0.2); }
+  .tl-content { width: 44%; padding: 10px 14px; background: white; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .tl-content.tl-highlight { background: #fffbeb; border-color: #fcd34d; }
+  .tl-year { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 3px; }
+  .tl-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .tl-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  @media(max-width:700px) {
+    .timeline-line { left: 20px; }
+    .tl-dot { left: 20px; }
+    .tl-node,.tl-node.tl-right { justify-content: flex-start; }
+    .tl-content { width: calc(100% - 44px); margin-left: 36px; }
+  }
+  .china-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0 20px; }
+  @media(max-width:800px) { .china-grid { grid-template-columns: 1fr; } }
+  .china-phase { padding: 14px 16px; border-radius: 10px; background: white; border: 1px solid var(--border); border-top: 4px solid; }
+  .china-phase.cp-1 { border-top-color: #dc2626; background: #fef2f2; }
+  .china-phase.cp-2 { border-top-color: #f59e0b; background: #fffbeb; }
+  .china-phase.cp-3 { border-top-color: #16a34a; background: #f0fdf4; }
+  .china-phase.cp-4 { border-top-color: #0891b2; background: #ecfeff; }
+  .cp-year { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+  .cp-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .cp-body { font-size: 12px; line-height: 1.7; color: var(--text); }
+  .cp-body ul { margin: 6px 0 0 18px; padding: 0; }
+  .cp-body li { margin-bottom: 3px; }
+
+  /* ===== 统一顶部导航（与 pipe 等页一致；本页 Tab 栏已吸顶，故顶栏不吸顶） ===== */
+  .topbar { background: rgba(255,255,255,0.92); border-bottom: 1px solid var(--border); position: relative; z-index: 101; }
+  .topbar-inner { max-width: 1280px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+  .brand-mark { width: 34px; height: 34px; background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%); border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 16px; letter-spacing: -1px; box-shadow: 0 2px 6px rgba(8,145,178,0.25); }
+  .brand-name { font-weight: 600; font-size: 16.5px; color: var(--ink); letter-spacing: -0.2px; }
+  .brand-sub { font-size: 11px; color: var(--text-faint); margin-top: 1px; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; align-items: center; }
+  .nav-links a { color: var(--text); text-decoration: none; transition: color 0.15s; font-weight: 500; }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before { content: "←"; margin-right: 4px; color: var(--brand); }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+  .beta-bar { background: #fffbeb; border-bottom: 1px solid #fcd34d; color: #92400e; font-size: 12.5px; line-height: 1.6; padding: 8px 16px; text-align: center; }
+  .beta-bar b { color: #b45309; }
+  .disclaimer-wrap { max-width: 1280px; margin: 0 auto 24px; padding: 0 16px; }
+  .sync-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .sync-row input { width: auto; }
+  .sync-note { font-size: 11px; color: var(--text-faint); }
+  input[readonly] { background: #f8fafc !important; color: var(--text-muted) !important; }
+  .invalid{border-color:#ef4444!important;background:#fef2f2!important}
+  .warn-box{margin-top:12px;padding:10px 12px;background:#fef2f2;border-left:3px solid #ef4444;border-radius:6px;font-size:12.5px;color:#991b1b;line-height:1.7}
+
+/* ===== 统一页脚 ===== */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: auto;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px;
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+
+  @media(max-width:600px) {
+    main { padding: 14px 10px 40px; }
+    .grid { grid-template-columns: 1fr 1fr; }
+    .membrane-cards { grid-template-columns: 1fr; }
+  }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+<div class="beta-bar">🚧 <b>Beta · Đang phát triển</b>：Công cụ đang được phát triển và kiểm tra; kết quả chỉ dùng để tham khảo khi ước tính phương án. Nếu phát hiện vấn đề, vui lòng <a href="https://github.com/chengsunmail/waterkit/issues" target="_blank" rel="noopener">gửi Issue</a>。</div>
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="breadcrumb">
+      <a href="../xu-ly-nuoc">WaterKit</a> / <a href="../xu-ly-nuoc">Tính toán công nghệ</a> / Nền tảng thiết kế bể sinh học màng (MBR)
+    </div>
+    <div class="hero-badge">🧫 Thiết kế bể sinh học màng (MBR)</div>
+    <h1 class="hero-title">Nền tảng thiết kế bể sinh học màng (MBR)</h1>
+    <p class="hero-sub">
+      Nền tảng thiết kế bể sinh học màng (MBR), bao gồm tính toán thiết kế, lựa chọn màng chi tiết, thiết kế phương án làm sạch, phân tích năng lượng, công trình tiêu biểu và lịch sử phát triển công nghệ.
+      Theo HJ 2010-2011 / Metcalf&Eddy, áp dụng cho tái sử dụng nước thải đô thị, nước rỉ rác và nước thải công nghiệp.
+    </p>
+    <div class="hero-meta">
+      <span>📘 <b>Theo HJ 2010-2011</b></span>
+      <span>🌡️ <b>Hiệu chỉnh thông lượng theo nhiệt độ 3%/°C (giá trị kinh nghiệm)</b></span>
+      <span>🧫 <b>Cơ sở dữ liệu thông số của 4 thương hiệu, 5 dòng sản phẩm</b></span>
+      <span>⚠️ Dùng để ước tính phương án; khi thi công phải theo bản vẽ của đơn vị thiết kế</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Tab Nav ===== -->
+<div class="tab-nav-wrap">
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="design" onclick="switchTab('design')">
+      Tính toán thiết kế chính<span class="tab-sub">Design</span>
+    </button>
+    <button class="tab-btn" data-tab="membrane" onclick="switchTab('membrane')">
+      Lựa chọn màng<span class="tab-sub">Membrane</span>
+    </button>
+    <button class="tab-btn" data-tab="cleaning" onclick="switchTab('cleaning')">
+      Phương án làm sạch<span class="tab-sub">Cleaning</span>
+    </button>
+    <button class="tab-btn" data-tab="energy" onclick="switchTab('energy')">
+      Phân tích năng lượng<span class="tab-sub">Energy</span>
+    </button>
+    <button class="tab-btn" data-tab="cases" onclick="switchTab('cases')">
+      Thư viện công trình<span class="tab-sub">Cases</span>
+    </button>
+    <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+      Lịch sử phát triển MBR<span class="tab-sub">History</span>
+    </button>
+  </div>
+</div>
+
+<main>
+
+<!-- ===== Tab 1: 主设计计算 ===== -->
+<div class="tab-panel active" id="panel-design">
+
+  <div class="section-title"><span class="num">1</span>Loại nước thải & cấu hình công đoạn sinh học</div>
+  <div class="water-preset">
+    <button class="preset-tab active" data-preset="municipal" onclick="setPreset('municipal')">Nước thải đô thị</button>
+    <button class="preset-tab" data-preset="industrial" onclick="setPreset('industrial')">Nước thải công nghiệp</button>
+    <button class="preset-tab" data-preset="leachate" onclick="setPreset('leachate')">Nước rỉ rác</button>
+    <button class="preset-tab" data-preset="reuse" onclick="setPreset('reuse')">Tái sử dụng nước</button>
+  </div>
+  <div class="subtype-tabs">
+    <button class="subtype-tab active" data-bio="aao" onclick="setBioConfig('aao')">
+      <b>MBR + AAO</b><span>Khử nitơ và phốt pho · phổ biến nhất</span>
+    </button>
+    <button class="subtype-tab" data-bio="ao_an" onclick="setBioConfig('ao_an')">
+      <b>MBR + AO thiếu khí</b><span>Khử nitơ · không cần ngăn kỵ khí</span>
+    </button>
+    <button class="subtype-tab" data-bio="single_o" onclick="setBioConfig('single_o')">
+      <b>MBR + chỉ hiếu khí</b><span>Chỉ loại bỏ COD · đơn giản nhất</span>
+    </button>
+  </div>
+
+  <div class="section-title"><span class="num">2</span>Điều kiện nước đầu vào</div>
+  <div class="grid">
+    <div class="field"><label for="d_Q">Q <span class="unit">vạn m³/d</span></label>
+      <input type="number" id="d_Q" value="3" step="0.5" oninput="calc()"></div>
+    <div class="field"><label for="d_T">T <span class="unit">°C</span></label>
+      <input type="number" id="d_T" value="20" step="1" oninput="calc()"></div>
+    <div class="field"><label for="d_COD0">COD₀ <span class="unit">mg/L（chỉ kiểm tra）</span></label>
+      <input type="number" id="d_COD0" value="400" step="10" oninput="calc()">
+      <div class="helper">Chỉ kiểm tra COD₀ > COD đầu ra; nhu cầu oxy và lượng bùn tính theo BOD₅</div></div>
+    <div class="field"><label for="d_BOD0">BOD₅₀ <span class="unit">mg/L</span></label>
+      <input type="number" id="d_BOD0" value="180" step="5" oninput="calc()"></div>
+    <div class="field"><label for="d_TN0">TN₀ <span class="unit">mg/L</span></label>
+      <input type="number" id="d_TN0" value="45" step="1" oninput="calc()"></div>
+    <div class="field"><label for="d_NH40">NH₄-N₀ <span class="unit">mg/L（chỉ ghi nhận）</span></label>
+      <input type="number" id="d_NH40" value="35" step="1" oninput="calc()">
+      <div class="helper">Không dùng trong tính toán: lượng nitrat hóa được tính với TN₀ thay cho TKN₀</div></div>
+    <div class="field"><label for="d_TP0">TP₀ <span class="unit">mg/L</span></label>
+      <input type="number" id="d_TP0" value="5" step="0.2" oninput="calc()"></div>
+    <div class="field"><label for="d_SS0">SS₀ <span class="unit">mg/L</span></label>
+      <input type="number" id="d_SS0" value="200" step="10" oninput="calc()"></div>
+  </div>
+
+  <div class="section-title"><span class="num">3</span>Mục tiêu nước đầu ra</div>
+  <div class="grid">
+    <div class="field"><label for="d_standard">Tiêu chuẩn xả thải</label>
+      <select id="d_standard" onchange="applyStandard()">
+        <option value="1A">Cấp 1 A (GB18918)</option>
+        <option value="grade4" selected>Tương đương loại IV (tiêu chuẩn địa phương)</option>
+        <option value="grade3">Nước mặt loại III (TP theo sông 0.2; hồ và hồ chứa là 0.05, cần kiểm tra riêng)</option>
+        <option value="reuse">Nước tái sử dụng cho mục đích đô thị</option>
+        <option value="gb16889">GB 16889 nước rỉ rác (sau đó qua NF/RO)</option>
+        <option value="custom">Tùy chỉnh</option>
+      </select>
+      <div class="helper" id="d_std_helper">Tương đương loại IV là tiêu chuẩn địa phương; điều chỉnh giới hạn theo địa điểm dự án</div></div>
+    <div class="field"><label for="d_CODe">COD đầu ra <span class="unit">（chỉ kiểm tra）</span></label><input type="number" id="d_CODe" value="30" step="1" oninput="calc()"></div>
+    <div class="field"><label for="d_BODe">BOD đầu ra</label><input type="number" id="d_BODe" value="6" step="0.5" oninput="calc()"></div>
+    <div class="field"><label for="d_NH4e">NH₄-N đầu ra</label><input type="number" id="d_NH4e" value="1.5" step="0.5" oninput="calc()"></div>
+    <div class="field"><label for="d_TNe">TN đầu ra</label><input type="number" id="d_TNe" value="10" step="0.5" oninput="calc()"></div>
+    <div class="field"><label for="d_TPe">TP đầu ra</label><input type="number" id="d_TPe" value="0.3" step="0.1" oninput="calc()"></div>
+  </div>
+
+  <div class="section-title"><span class="num">4</span>Thông số công đoạn sinh học</div>
+  <div class="grid">
+    <div class="field"><label for="d_MLSS">MLSS <span class="unit">mg/L</span></label>
+      <input type="number" id="d_MLSS" value="10000" step="500" oninput="calc()">
+      <div class="helper">MBR thường 8000-12000</div></div>
+    <div class="field"><label for="d_VSS_SS">MLVSS/MLSS</label>
+      <input type="number" id="d_VSS_SS" value="0.72" step="0.01" oninput="calc()"></div>
+    <div class="field"><label for="d_SRT">SRT <span class="unit">d</span></label>
+      <input type="number" id="d_SRT" value="30" step="1" oninput="calc()">
+      <div class="helper">MBR thường 20-30d</div></div>
+    <div class="field"><label for="d_SF">Hệ số an toàn nitrat hóa SF</label>
+      <input type="number" id="d_SF" value="2.0" step="0.1" oninput="calc()">
+      <div class="helper">Tức F trong công thức GB 50014 (nên chọn 1.5～3.0; mặc định đô thị 2.0, công nghiệp 3.0). Chỉ dùng để kiểm tra tuổi bùn hiếu khí ≥ F × SRT_min(T_min), không nhân với thể tích bể</div></div>
+    <div class="field"><label for="d_HRT_AN">HRT ngăn kỵ khí <span class="unit">h</span></label>
+      <input type="number" id="d_HRT_AN" value="1.0" step="0.1" oninput="calc()">
+      <div class="helper">Chỉ áp dụng cho cấu hình AAO</div></div>
+    <div class="field"><label for="d_bioP">Lượng phốt pho loại bỏ bằng sinh học <span class="unit">mg/L</span></label>
+      <input type="number" id="d_bioP" value="1.5" step="0.1" oninput="calc()">
+      <div class="helper">Chỉ áp dụng cho cấu hình AAO có ngăn kỵ khí (trang này không có cấu hình kỵ khí - hiếu khí riêng); lấy 1.5 như trang tính hóa chất và trừ khỏi lượng phốt pho cần loại bỏ bằng hóa chất</div></div>
+  </div>
+
+  <div class="section-title"><span class="num">5</span>Thông số hệ thống màng</div>
+  <div class="auto-calc-notice">
+    <div class="notice-head"><span class="notice-ic">🌡️</span>
+      <span>Hiệu chỉnh thông lượng màng theo nhiệt độ: J(T) = J₂₀ × 1.03^(T-20). Mỗi khi nhiệt độ giảm 1°C, thông lượng giảm khoảng 3%. Chọn diện tích màng lớn hơn trong hai chế độ: ① nhiệt độ thấp mùa đông (nhiệt độ nước thiết kế tối thiểu T_min, lưu lượng trung bình Q) A = Q / J(T_min); ② lưu lượng đỉnh (hệ số đỉnh × Q, nhiệt độ nước trung bình T) A = PF·Q / giới hạn thông lượng.</span>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="field"><label for="d_memType">Loại màng</label>
+      <select id="d_memType" onchange="applyMemType()">
+        <option value="hf">Màng sợi rỗng (HF)</option>
+        <option value="fs">Màng phẳng (FS)</option>
+      </select></div>
+    <div class="field"><label for="d_J20">Thông lượng thiết kế J₂₀ <span class="unit">LMH @20°C</span></label>
+      <input type="number" id="d_J20" value="20" step="1" oninput="calc()">
+      <div class="helper" id="d_J_helper">Sợi rỗng: 12-30, màng phẳng: 16-50</div></div>
+    <div class="field"><label for="d_peakFactor">Hệ số đỉnh</label>
+      <input type="number" id="d_peakFactor" value="1.3" step="0.1" oninput="calc()">
+      <div class="helper">Đáp ứng lưu lượng đỉnh 1.3-1.8; thông lượng ở lưu lượng đỉnh không vượt quá 1.5×J(T_min) và giới hạn của loại màng</div></div>
+    <div class="field"><label for="d_Tmin">Nhiệt độ nước thiết kế tối thiểu T_min <span class="unit">°C</span></label>
+      <input type="number" id="d_Tmin" value="12" step="1" oninput="calc()">
+      <div class="helper">Nhiệt độ nước dùng để kiểm tra vào mùa đông; tính diện tích màng theo thông lượng ở nhiệt độ này</div></div>
+    <div class="field"><label for="d_runRatio">Tỷ lệ thời gian vận hành <span class="unit">%</span></label>
+      <input type="number" id="d_runRatio" value="95" step="1" oninput="calc()">
+      <div class="helper">Tạo nước 95%, dừng 5% (thư giãn/làm sạch); chưa trừ lượng nước sản phẩm dùng để rửa ngược (HF khoảng 2-5%), có thể giảm tỷ lệ khi cần</div></div>
+    <div class="field"><label for="d_moduleArea">Diện tích màng mỗi mô-đun <span class="unit">m²</span></label>
+      <input type="number" id="d_moduleArea" value="25" step="1" oninput="calc()">
+      <div class="helper" id="d_mod_helper">Mitsubishi 25m², ZeeWeed 500D khoảng 31.6-40.9m²</div></div>
+    <div class="field"><label for="d_TMP">TMP thiết kế <span class="unit">kPa</span></label>
+      <input type="number" id="d_TMP" value="25" step="5" oninput="calc()">
+      <div class="helper">Bình thường 10-35; >35-40 bố trí CIP</div></div>
+  </div>
+
+  <div class="advanced-toggle" onclick="toggleAdv()">
+    <span id="advChev">▸</span>
+    <span>Thông số nâng cao (động học / sục khí / α β)</span>
+  </div>
+  <div class="advanced-params" id="advParams">
+    <div class="grid">
+      <div class="field"><label for="d_Y">Y</label><input type="number" id="d_Y" value="0.55" step="0.05" oninput="calc()"></div>
+      <div class="field"><label for="d_Kd">Kd</label><input type="number" id="d_Kd" value="0.05" step="0.01" oninput="calc()"></div>
+      <div class="field"><label for="d_Kn">Hằng số bán bão hòa nitrat hoá K_N <span class="unit">mg/L</span></label><input type="number" id="d_Kn" value="1.0" step="0.1" oninput="calc()">
+        <div class="helper">Giá trị thống nhất trên toàn trang là 1.0 (GB 50014); thay đổi sẽ làm kết quả không thống nhất với công cụ bùn hoạt tính. SRT_min = 1/μ, μ = 0.47·N_a/(K_N+N_a)·e^0.098(T_min−15), theo công thức (7.6.17) GB 50014-2021, θ theo e^0.098≈1.103/℃, không tính phân huỷ</div></div>
+      <div class="field"><label for="d_SDNR20">SDNR₂₀ <span class="unit">g N/g VSS·d</span></label><input type="number" id="d_SDNR20" value="0.08" step="0.01" oninput="calc()">
+        <div class="helper">Dùng để kiểm tra thể tích bể thiếu khí (θ=1.08, theo GB 50014)</div></div>
+      <div class="field"><label for="d_fss">Hệ số chuyển đổi SS đầu vào thành bùn f</label><input type="number" id="d_fss" value="0.5" step="0.05" oninput="calc()">
+        <div class="helper">Theo GB 50014 lấy 0.5-0.7; tính cả chất rắn trơ đầu vào, SSₑ sau màng lấy bằng 0</div></div>
+      <div class="field"><label for="d_alpha">α (FOC bể màng)</label><input type="number" id="d_alpha" value="0.55" step="0.05" oninput="calc()">
+        <div class="helper">MBR có α tương đối thấp 0.5-0.6</div></div>
+      <div class="field"><label for="d_beta">β</label><input type="number" id="d_beta" value="0.95" step="0.01" oninput="calc()"></div>
+      <div class="field"><label for="d_SADm">Cường độ sục khí màng SADm <span class="unit">m³ không khí/m² màng·h</span></label>
+        <input type="number" id="d_SADm" value="0.20" step="0.02" oninput="calc()">
+        <div class="helper">HF 0.15-0.30; FS sục khí liên tục, thường dùng 0.30-0.75, thường cao hơn HF (theo nhà sản xuất; tính điện năng cùng cơ sở với Tab 4)</div></div>
+      <div class="field"><label for="d_cleanCycle">Chu kỳ rửa hoá chất <span class="unit">tháng</span></label>
+        <input type="number" id="d_cleanCycle" value="4" step="1" oninput="calc()">
+        <div class="helper">HF khoảng 3-4, FS khoảng 6</div></div>
+      <div class="field"><label for="d_Hd">Độ sâu ngập của bộ phân phối khí H_d <span class="unit">m</span></label>
+        <input type="number" id="d_Hd" value="5.5" step="0.1" oninput="calc()">
+        <div class="helper">Dùng để hiệu chỉnh SOR theo độ sâu nước (Pb = Pa + 9.81·H_d) và tính hiệu suất sục khí</div></div>
+      <div class="field"><label for="d_alt">Độ cao <span class="unit">m</span></label>
+        <input type="number" id="d_alt" value="0" step="100" oninput="calc()">
+        <div class="helper">P_b của SOR và áp suất khí vào máy thổi khí tính theo áp suất khí quyển địa phương; mặc định 0 = mực nước biển</div></div>
+      <div class="field"><label for="d_OTE">Hiệu suất truyền oxy OTE <span class="unit">%/m</span></label>
+        <input type="number" id="d_OTE" value="6" step="0.5" oninput="calc()">
+        <div class="helper">Lỗ mịn 5-7 %/m; EE = OTE × H_d</div></div>
+      <div class="field"><label for="d_blowerEff">Hiệu suất máy thổi khí <span class="unit">%</span></label>
+        <input type="number" id="d_blowerEff" value="70" step="5" oninput="calc()">
+        <div class="helper">Tính điện năng theo công suất nén đoạn nhiệt (cùng cơ sở với Tab 4)</div></div>
+      <div class="field"><label for="d_recirc">Tỷ lệ tuần hoàn nội <span class="unit">% of Q</span></label>
+        <input type="number" id="d_recirc" value="300" step="50" oninput="calc()">
+        <div class="helper">Tuần hoàn hỗn hợp đã nitrat hoá từ hiếu khí → thiếu khí; tính điện năng với cột áp 2 m, η 0.65</div></div>
+      <div class="field"><label for="d_memRecirc">Tỷ lệ tuần hoàn bể màng <span class="unit">% of Q</span></label>
+        <input type="number" id="d_memRecirc" value="400" step="50" oninput="calc()">
+        <div class="helper">Tuần hoàn bùn từ bể màng → bể sinh học, bể màng đặt riêng thường 400-500%; nhập 0 khi mô-đun màng đặt trực tiếp trong bể hiếu khí. Tính điện năng với cột áp 2 m, η 0.65</div></div>
+    </div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="results">
+    <h2>🎯 <span id="d_titleSub">MBR + AAO</span> Kết quả thiết kế</h2>
+
+    <div class="flow-diagram">
+      <svg id="mbrFlowSvg" width="100%" height="240" viewBox="0 0 960 240" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">📐</span> Thể tích bể sinh học</div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Tổng thể tích bể sinh học V</b></span>
+        <span><span class="result-value big" id="d_r_V">—</span><span class="result-unit">m³</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Tổng HRT</b></span>
+        <span><span class="result-value big" id="d_r_HRT">—</span><span class="result-unit">h</span></span></div>
+      <div class="result-row"><span class="result-label">Tỷ lệ bùn hoá học trong ΔX (tương ứng tỷ lệ thể tích bể sinh học)</span>
+        <span><span class="result-value" id="d_r_chemShare">—</span><span class="result-unit">%</span></span></div>
+      <div class="result-row" id="row_AN"><span class="result-label">Ngăn kỵ khí V_AN</span>
+        <span><span class="result-value" id="d_r_VAN">—</span><span class="result-unit">m³</span></span></div>
+      <div class="result-row" id="row_AX"><span class="result-label">Ngăn thiếu khí V_AX</span>
+        <span><span class="result-value" id="d_r_VAX">—</span><span class="result-unit">m³</span></span></div>
+      <div class="result-row"><span class="result-label">Ngăn hiếu khí/màng V_O</span>
+        <span><span class="result-value" id="d_r_VO">—</span><span class="result-unit">m³</span></span></div>
+      <div class="result-row"><span class="result-label">Tiết kiệm thể tích bể so với bùn hoạt tính truyền thống (quy đổi theo MLSS 3500, thể tích truyền thống nhân thêm ×1.15 để tính bể lắng thứ cấp, giá trị lý thuyết)</span>
+        <span><span class="result-value" id="d_r_saveV">—</span><span class="result-unit">%</span></span></div>
+      <div class="result-row"><span class="result-label">Tuổi bùn nitrat hoá tối thiểu SRT_min / SF×SRT_min</span>
+        <span><span class="result-value" id="d_r_SRTmin">—</span><span class="result-unit">d</span></span></div>
+      <div class="result-row" id="row_AXreq"><span class="result-label">Nhu cầu đoạn thiếu khí V_AX,req (kiểm tra SDNR)</span>
+        <span><span class="result-value" id="d_r_VAXreq">—</span><span class="result-unit">m³</span></span></div>
+      <div class="result-row" id="row_Cext"><span class="result-label">Lượng nitơ khử nitrat bằng cacbon nội tại / cần bổ sung nguồn cacbon (giới hạn nguồn cacbon ΔBOD·(1−1.42·Yobs)/2.86)</span>
+        <span><span class="result-value" id="d_r_Ndn">—</span><span class="result-unit">kg N/d</span></span></div>
+      <div class="result-row" id="row_Cext2"><span class="result-label">Nguồn cacbon bổ sung (tính theo COD, theo metanol Y≈0.3 kgVSS/kgCOD, giá trị kinh nghiệm)</span>
+        <span><span class="result-value" id="d_r_Cext">—</span><span class="result-unit">kg COD/d</span></span></div>
+      <div class="result-row"><span class="result-label">TN nước ra dự kiến (chỉ hiếu khí = TN₀ − nitơ đồng hoá; giới hạn tuần hoàn AO/AAO = NH₄-N ra + nitơ hữu cơ 1.5 + nitơ nitrat hoá/(1+R_nội+R_màng), không vượt mục tiêu thì lấy mục tiêu)</span>
+        <span><span class="result-value" id="d_r_TNpred">—</span><span class="result-unit">mg/L</span></span></div>
+    </div>
+
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">🧫</span> Thiết kế hệ thống màng</div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Tổng diện tích màng A_m</b></span>
+        <span><span class="result-value big" id="d_r_Am">—</span><span class="result-unit">m²</span></span></div>
+      <div class="result-row"><span class="result-label">Điều kiện chi phối diện tích màng</span>
+        <span><span class="result-value" id="d_r_ctrl">—</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Thông lượng cho phép J(T) / J(T_min)</b></span>
+        <span><span class="result-value big" id="d_r_JT">—</span><span class="result-unit">LMH</span></span></div>
+      <div class="result-row"><span class="result-label">Thông lượng vận hành ở lưu lượng trung bình</span>
+        <span><span class="result-value" id="d_r_Javg">—</span><span class="result-unit">LMH</span></span></div>
+      <div class="result-row"><span class="result-label">Số mô-đun màng</span>
+        <span><span class="result-value" id="d_r_modules">—</span><span class="result-unit">cái</span></span></div>
+      <div class="result-row"><span class="result-label">Thông lượng vận hành ở lưu lượng cực đại</span>
+        <span><span class="result-value" id="d_r_Jpeak">—</span><span class="result-unit">LMH</span></span></div>
+      <div class="result-row"><span class="result-label">Thông lượng cực đại cho phép min(giới hạn loại màng, 1.5×J(T_min))</span>
+        <span><span class="result-value" id="d_r_Jlim">—</span><span class="result-unit">LMH</span></span></div>
+      <div class="result-row"><span class="result-label">Hệ số hiệu chỉnh nhiệt độ 1.03^(T-20) / 1.03^(T_min-20)</span>
+        <span><span class="result-value" id="d_r_Tfactor">—</span><span class="result-unit">×</span></span></div>
+    </div>
+
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">💨</span> Nhu cầu oxy & bùn</div>
+      <div class="result-row highlight-row"><span class="result-label"><b>AOR</b></span>
+        <span><span class="result-value big" id="d_r_AOR">—</span><span class="result-unit">kg O₂/d</span></span></div>
+      <div class="result-row"><span class="result-label">SOR (oxy tiêu chuẩn; P_b theo áp suất khí quyển tại độ cao + độ sâu nước)</span>
+        <span><span class="result-value" id="d_r_SOR">—</span><span class="result-unit">kg O₂/d</span></span></div>
+      <div class="result-row"><span class="result-label">Lưu lượng khí sinh học G = SOR/(24·0.28·EE), EE = OTE×H_d (0.28 kg O₂/m³ ở điều kiện chuẩn 20 °C)</span>
+        <span><span class="result-value" id="d_r_bioAir">—</span><span class="result-unit">m³/h (điều kiện chuẩn 20°C)</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Bùn dư ΔX</b>(bùn sinh học + SS trơ đầu vào + bùn hoá học + bùn sinh ra từ nguồn carbon bổ sung)</span>
+        <span><span class="result-value big" id="d_r_dX">—</span><span class="result-unit">kg DS/d</span></span></div>
+      <div class="result-row"><span class="result-label">Tỷ lệ cô đặc MLSS (so với SS đầu vào)</span>
+        <span><span class="result-value" id="d_r_MLSS_ratio">—</span><span class="result-unit">×</span></span></div>
+    </div>
+
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">🧪</span> Ước tính PAC khử phốt pho bằng hoá chất</div>
+      <div class="result-row"><span class="result-label">P cần loại hoá học (TP₀−TPe − photpho đồng hoá vào bùn 0.02·ΔX_VSS − khử photpho sinh học [AAO])</span>
+        <span><span class="result-value" id="d_r_Pchem">—</span><span class="result-unit">kg P/d</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Liều lượng PAC thương phẩm</b></span>
+        <span><span class="result-value big" id="d_r_PAC">—</span><span class="result-unit">kg/d</span></span></div>
+      <div class="result-row"><span class="result-label">Nồng độ định lượng quy đổi</span>
+        <span><span class="result-value" id="d_r_PACmg">—</span><span class="result-unit">mg/L</span></span></div>
+      <div class="result-row"><span class="result-label">Bùn hoá học (AlPO₄ 122/31 + Al(OH)₃ dư 78/31, tính vào ΔX)</span>
+        <span><span class="result-value" id="d_r_chemSl">—</span><span class="result-unit">kg DS/d</span></span></div>
+      <div class="helper">Tỷ số mol Al/P 2; PAC chứa Al₂O₃ 10% (phần khối lượng Al 0.0529). Đã trừ photpho đồng hoá vào bùn (theo 0.02 gP/gVSS, giá trị kinh nghiệm) và lượng khử photpho sinh học AAO (giá trị nhập).</div>
+    </div>
+
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">⚡</span> Ước tính điện năng <span class="auto-tag">AUTO</span></div>
+      <div class="result-row"><span class="result-label">Điện năng sục khí sinh học</span>
+        <span><span class="result-value" id="d_r_eBio">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Điện năng sục khí màng</span>
+        <span><span class="result-value" id="d_r_eMem">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Điện năng máy bơm nước sản phẩm</span>
+        <span><span class="result-value" id="d_r_ePump">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Điện năng máy bơm tuần hoàn nội</span>
+        <span><span class="result-value" id="d_r_eRecirc">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Điện năng máy bơm tuần hoàn bể màng</span>
+        <span><span class="result-value" id="d_r_eMemRecirc">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Khác (điều khiển/chiếu sáng, v.v.)</span>
+        <span><span class="result-value">0.05</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Điện năng công đoạn sinh học + màng</b>(cùng cơ sở với Tab 4)<br><small style="font-weight:400;color:var(--text-faint);">Phạm vi thống kê: sục khí sinh học, sục khí màng, bơm hút nước sản phẩm, tuần hoàn nội, tuần hoàn bể màng, điều khiển và chiếu sáng; không gồm bơm nâng nước vào, song chắn rác/tiền xử lý, khuấy kỵ khí/thiếu khí, xử lý và tách nước bùn; điện năng toàn nhà máy thường cộng thêm 0.1-0.3 kWh/m³</small></span>
+        <span><span class="result-value big" id="d_r_eTotal">—</span><span class="result-unit">kWh/m³</span></span></div>
+    </div>
+
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">🔎</span> Kiểm tra thiết kế & cảnh báo</div>
+      <div class="check-list" id="d_checkList"></div>
+      <div class="score-ring">
+        <div><div class="score-num" id="d_scoreNum">—</div><div class="score-label">/ 100</div></div>
+        <div><div class="score-title" id="d_scoreTitle">Điểm đánh giá thiết kế</div>
+          <div class="score-label" id="d_scoreDesc">Đánh giá tổng hợp</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn btn-primary" onclick="copyDesignResult()">📋 Sao chép kết quả</button>
+    <button class="btn btn-secondary" onclick="resetAll()">🔄 Khôi phục mặc định</button>
+  </div>
+
+  <div class="note">
+    ℹ️ <b>Kiểm tra tuổi bùn nitrat hoá:</b>θ_co = F · SRT_min，SRT_min = 1/μ，μ = 0.47 · N_a/(K_N + N_a) · e^{0.098(T_min − 15)}; N_a lấy NH₄-N nước ra (tối thiểu 0.5 mg/L), K_N lấy 1.0 mg/L, T lấy nhiệt độ nước thiết kế thấp nhất T_min, không có số hạng DO. Theo GB 50014-2021 công thức (7.6.17), θ theo e^0.098≈1.103/℃, không tính phân huỷ. So sánh tuổi bùn hiếu khí SRT × V_O / V với F × SRT_min.
+  </div>
+
+  <div class="note">
+    ℹ️ <b>Khác biệt chính giữa MBR và bùn hoạt tính truyền thống:</b>MBR dùng màng tách thay cho bể lắng thứ cấp, duy trì được MLSS 8000-12000 mg/L (giá trị công trình thường dùng; HJ 2010-2011 bảng 2 giá trị thiết kế sợi rỗng 6000-12000, màng tấm 6000-20000; truyền thống 3000-4000),
+    thể tích bể sinh học về lý thuyết giảm theo tỷ lệ MLSS (mục «tiết kiệm thể tích bể» ở trên là giá trị lý thuyết quy đổi theo MLSS 3500 mg/L), tính thêm dư thiết kế thì thực tế công trình thường tiết kiệm 30-50%; SS nước ra &lt;1 mg/L, độ đục &lt;0.5 NTU; không cần bơm tuần hoàn bùn và bể lắng thứ cấp.
+    Đánh đổi là màng cần bảo trì, rửa; năng lượng cao hơn công nghệ truyền thống 0.3-0.6 kWh/m³.
+  </div>
+
+</div>
+<!-- ===== Tab 1 end ===== -->
+
+
+<!-- ===== Tab 2: 膜选型 ===== -->
+<div class="tab-panel" id="panel-membrane">
+
+  <div class="carrier-intro">
+    <h3>🧫 Hướng dẫn chi tiết lựa chọn màng</h3>
+    <p>Lựa chọn cấu hình màng là một trong những quyết định quan trọng nhất khi thiết kế MBR, ảnh hưởng trực tiếp đến chi phí vận hành, tần suất rửa và tuổi thọ màng. Hướng dẫn này bao gồm
+    <b>thông số của 5 dòng sản phẩm thuộc 4 thương hiệu phổ biến</b>、<b>so sánh chi tiết màng sợi rỗng và màng tấm phẳng</b>、<b>cây quyết định lựa chọn theo ứng dụng</b>và<b>tính số mô-đun</b>。</p>
+    <div class="mini-spec">
+      <span>🏭 4 thương hiệu · 5 dòng sản phẩm</span>
+      <span>📐 Dải thông lượng theo HJ 2010-2011</span>
+      <span>🔄 So sánh chu kỳ rửa</span>
+    </div>
+  </div>
+
+  <!-- 1. 两类构型深度对比 -->
+  <div class="section-title"><span class="num">1</span>Màng sợi rỗng và màng tấm phẳng · So sánh chi tiết</div>
+  <div style="overflow-x:auto;">
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th style="width:160px;">Thông số</th>
+        <th class="td-hf">Sợi rỗng (HF)</th>
+        <th class="td-fs">Tấm phẳng (FS)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-label">Sản phẩm tiêu biểu</td>
+        <td class="td-hf">GE/Veolia ZeeWeed · Mitsubishi Chemical STERAPORE™ · OriginWater (Bích Thủy Nguyên) S-MBR</td>
+        <td class="td-fs">Kubota SMU · OriginWater (Bích Thủy Nguyên) H-MBR</td>
+      </tr>
+      <tr>
+        <td class="td-label">Thông lượng thiết kế (nước thải đô thị)</td>
+        <td class="td-hf">12-30 LMH <span class="tag-good">Thông lượng cao</span></td>
+        <td class="td-fs">16-50 LMH <span class="tag-good">Phạm vi ứng dụng rộng</span></td>
+      </tr>
+      <tr>
+        <td class="td-label">MLSS vận hành<br><small style="font-weight:400;color:var(--text-faint);">Giá trị điển hình từ tài liệu nhà sản xuất; xem giá trị theo tiêu chuẩn tại dòng HJ bên dưới</small></td>
+        <td class="td-hf">8-12 g/L</td>
+        <td class="td-fs">10-15 g/L <span class="tag-good">Chịu nồng độ cao</span></td>
+      </tr>
+      <tr>
+        <td class="td-label">Phương thức rửa bằng sục khí</td>
+        <td class="td-hf">Sục khí gián đoạn + rửa ngược gián đoạn</td>
+        <td class="td-fs">Sục khí tạo bọt liên tục <span class="tag-good">Không cần rửa ngược</span></td>
+      </tr>
+      <tr>
+        <td class="td-label">CIP Chu kỳ rửa hoá chất</td>
+        <td class="td-hf">3-4 tháng <span class="tag-warn">Khá thường xuyên</span></td>
+        <td class="td-fs">6 tháng+ <span class="tag-good">Ít hơn</span></td>
+      </tr>
+      <tr>
+        <td class="td-label">Yêu cầu tiền xử lý cho màng</td>
+        <td class="td-hf">Nghiêm ngặt, cần song chắn rác tinh ≤3mm <span class="tag-warn">Nghiêm ngặt</span></td>
+        <td class="td-fs">Ít nghiêm ngặt hơn, chịu được SS cao</td>
+      </tr>
+      <tr>
+        <td class="td-label">Vấn đề tóc/sợi quấn vào màng</td>
+        <td class="td-hf">⚠️ Dễ quấn vào sợi màng, cần song chắn giữ tóc</td>
+        <td class="td-fs">✅ Không có nguy cơ quấn nhờ cấu trúc tấm phẳng</td>
+      </tr>
+      <tr>
+        <td class="td-label">Khả năng rửa ngược</td>
+        <td class="td-hf">✅ Có thể rửa ngược, kiểm soát tắc nghẽn màng linh hoạt</td>
+        <td class="td-fs">❌ Màng tấm phẳng không thể rửa ngược</td>
+      </tr>
+      <tr>
+        <td class="td-label">Điện năng (sục khí màng)</td>
+        <td class="td-hf">0.2-0.35 kWh/m³</td>
+        <td class="td-fs">0.3-0.6 kWh/m³ <span class="tag-warn">Thường cao hơn</span>(sục khí liên tục)</td>
+      </tr>
+      <tr>
+        <td class="td-label">Mật độ lắp đặt mô-đun màng</td>
+        <td class="td-hf">Cao (dạng rèm xếp nhiều lớp)</td>
+        <td class="td-fs">Trung bình (dạng tấm chiếm nhiều không gian hơn)</td>
+      </tr>
+      <tr>
+        <td class="td-label">Ứng dụng phù hợp</td>
+        <td class="td-hf">Đô thị quy mô lớn và vừa · tái sử dụng nước · yêu cầu chất lượng nước đầu ra cao</td>
+        <td class="td-fs">Nước thải công nghiệp nồng độ cao · nước chứa nhiều SS/tóc · công trình nhỏ</td>
+      </tr>
+      <tr>
+        <td class="td-label">Phạm vi HJ 2010-2011<br><small style="font-weight:400;color:var(--text-faint);">Thông lượng xem 7.1.3; MLSS thiết kế xem bảng 2, kiểm soát vận hành xem 8.2.2.1</small></td>
+        <td class="td-hf">Sợi rỗng: 12-30 LMH · MLSS 6-12 g/L (kiểm soát vận hành 3-10)</td>
+        <td class="td-fs">Tấm phẳng: 16-50 LMH · MLSS 6-20 g/L</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <!-- 2. 4 大品牌 5 个系列Thông số库 -->
+  <div class="section-title"><span class="num">2</span>Thông số các thương hiệu phổ biến <span class="sub">Nhấn vào thẻ để xem chi tiết</span></div>
+  <div class="mem-selector-notice">
+    ℹ️ Các thông số dưới đây là quy cách điển hình của hãng và phạm vi kinh nghiệm công trình. Dự án thực tế hãy theo tài liệu kỹ thuật mới nhất của hãng. Khoảng giá là giá tham khảo đã gồm thuế tại cảng đến, dao động theo quy mô mua và thị trường.
+  </div>
+  <div class="membrane-cards">
+
+    <!-- GE/Veolia ZeeWeed -->
+    <div class="mem-card" onclick="toggleMemCard('zw')">
+      <div class="mem-card-head">
+        <div>
+          <div class="mem-card-brand">GE/Veolia ZeeWeed 500D</div>
+          <div class="mem-card-product">Dòng LEAPmbr · sợi rỗng PVDF</div>
+          <div class="mem-card-origin">🇺🇸 Mỹ/Canada → sản xuất tại Hungary (thuộc Veolia)</div>
+        </div>
+        <span class="mem-card-type mem-hf">Sợi rỗng HF</span>
+      </div>
+      <div class="mem-specs">
+        <div class="mem-spec-item"><div class="mem-spec-label">Vật liệu màng</div><div class="mem-spec-value">PVDF + gia cường dệt</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Kích thước lỗ</div><div class="mem-spec-value">0.04 µm (UF)</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Diện tích mỗi mô-đun</div><div class="mem-spec-value">27.9 / 31.6 / 34.4 / 40.9 m²</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Thông lượng thiết kế</div><div class="mem-spec-value">15-25 LMH</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">MLSS vận hành (tài liệu mẫu)</div><div class="mem-spec-value">8-12 g/L</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Đường kính ngoài</div><div class="mem-spec-value">1.9 mm</div></div>
+      </div>
+      <div class="mem-card-footer" id="detail-zw" style="display:none;">
+        <b>Ưu điểm:</b>Ứng dụng rộng nhất toàn cầu, công nghệ chín muồi, bốn mươi năm kiểm chứng, tuổi thọ màng &gt;10 năm (chính thức 15 năm)<br>
+        <b>Đặc điểm:</b>Công nghệ LEAPmbr tiết kiệm 30-50% năng lượng sục khí nhờ sục khí xung; zeeDENSE™ tăng cường kiểm soát MLSS<br>
+        <b>Áp dụng:</b>Nhà máy xử lý nước thải đô thị vừa và lớn, tái sử dụng nước, tái sử dụng nước thải công nghiệp<br>
+        <b>Chu kỳ CIP:</b>HF tiêu chuẩn 3-4 tháng một lần<br>
+        <b>Giá tham khảo:</b>Giá nhập khẩu cao, công trình trong nước giá đã gồm thuế khoảng ¥800-1500/m² (khác biệt lớn theo quy mô dự án)
+      </div>
+    </div>
+
+    <!-- 三菱化学 STERAPORE -->
+    <div class="mem-card" onclick="toggleMemCard('mmc')">
+      <div class="mem-card-head">
+        <div>
+          <div class="mem-card-brand">Mitsubishi Chemical STERAPORE™</div>
+          <div class="mem-card-product">Dòng 60E · sợi rỗng PVDF dạng rèm</div>
+          <div class="mem-card-origin">🇯🇵 Nhật Bản (Mitsubishi Chemical Corporation)</div>
+        </div>
+        <span class="mem-card-type mem-hf">Sợi rỗng HF</span>
+      </div>
+      <div class="mem-specs">
+        <div class="mem-spec-item"><div class="mem-spec-label">Vật liệu màng</div><div class="mem-spec-value">PVDF hai lớp composite</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Kích thước lỗ</div><div class="mem-spec-value">0.1-0.4 µm</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Diện tích mỗi mô-đun</div><div class="mem-spec-value">6 / 15 / 25 / 40 m²</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Thông lượng thiết kế</div><div class="mem-spec-value">20-33 LMH</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">MLSS vận hành (tài liệu mẫu)</div><div class="mem-spec-value">8-12 g/L</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Đường kính ngoài</div><div class="mem-spec-value">2.8 mm</div></div>
+      </div>
+      <div class="mem-card-footer" id="detail-mmc" style="display:none;">
+        <b>Ưu điểm:</b>Cấu trúc màng hai lớp, lớp ngoài hỏng lớp trong vẫn hiệu quả; thiết kế hút nước một phía, sợi màng đồng đều hơn; nhiều model, có thể chọn linh hoạt theo kích thước bể màng<br>
+        <b>Đặc điểm:</b>Không cần rửa ngược (hút nước hai đầu trên dưới), không cần bơm tuần hoàn ngoài, bảo trì đơn giản; lực kéo đứt &gt;200 N, tỷ lệ đứt sợi thấp<br>
+        <b>Áp dụng:</b>Nhiều loại như nước thải đô thị/nước thải công nghiệp/nước rỉ rác, thị phần trong nước cao<br>
+        <b>Chu kỳ CIP:</b>3-4 tháng<br>
+        <b>Giá tham khảo:</b>Nhập khẩu nguyên chiếc, 25 m²/module, giá thị trường khoảng ¥600-1000/m²
+      </div>
+    </div>
+
+    <!-- Kubota SMU -->
+    <div class="mem-card" onclick="toggleMemCard('kbt')">
+      <div class="mem-card-head">
+        <div>
+          <div class="mem-card-brand">Kubota SMU</div>
+          <div class="mem-card-product">Submerged Membrane Unit · kiểu tấm phẳng</div>
+          <div class="mem-card-origin">🇯🇵 Nhật Bản (Kubota Corporation)</div>
+        </div>
+        <span class="mem-card-type mem-fs">Tấm phẳng FS</span>
+      </div>
+      <div class="mem-specs">
+        <div class="mem-spec-item"><div class="mem-spec-label">Vật liệu màng</div><div class="mem-spec-value">CPE (polyetylen clo hoá)</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Kích thước lỗ</div><div class="mem-spec-value">Danh nghĩa 0.4 µm (trung bình khoảng 0.2 µm, MF)</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Diện tích mỗi mô-đun</div><div class="mem-spec-value">10 m²/module (dòng SP, 40 tấm)</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Thông lượng thiết kế</div><div class="mem-spec-value">8-20 LMH</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">MLSS vận hành (tài liệu mẫu)</div><div class="mem-spec-value">10-15 g/L</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Hút nước tự chảy</div><div class="mem-spec-value">✅ Có thể hút nước tự chảy</div></div>
+      </div>
+      <div class="mem-card-footer" id="detail-kbt" style="display:none;">
+        <b>Ưu điểm:</b>MLSS tối đa 15 g/L, tiết kiệm thể tích bể nhất; hút nước tự chảy không cần bơm hút, năng lượng thấp; cấu trúc tấm phẳng không bị tóc quấn; phù hợp cải tạo mở rộng tận dụng bể hiện hữu<br>
+        <b>Đặc điểm:</b>Không rửa ngược được (đặc tính màng tấm), kiểm soát bẩn bằng sục khí tạo bọt liên tục; Kubota "Combined MBR" gộp sục khí sinh học và sục khí màng để tiết kiệm năng lượng<br>
+        <b>Áp dụng:</b>Nước thải công nghiệp (SS cao), công trình nhỏ, cải tạo mở rộng, nước thải chứa tóc/sợi<br>
+        <b>Chu kỳ CIP:</b>6 tháng+ (ưu thế màng tấm)<br>
+        <b>Giá tham khảo:</b>Nhập khẩu, gồm khung và hệ sục khí, chi phí tổng khoảng ¥1200-2000/m²
+      </div>
+    </div>
+
+    <!-- 碧水源 S-MBR -->
+    <div class="mem-card" onclick="toggleMemCard('bws')">
+      <div class="mem-card-head">
+        <div>
+          <div class="mem-card-brand">OriginWater (Bích Thủy Nguyên) S-MBR</div>
+          <div class="mem-card-product">Sợi rỗng PVDF gia cường sợi</div>
+          <div class="mem-card-origin">🇨🇳 Bắc Kinh (Beijing OriginWater Technology Co., Ltd.)</div>
+        </div>
+        <span class="mem-card-type mem-hf">Sợi rỗng HF</span>
+      </div>
+      <div class="mem-specs">
+        <div class="mem-spec-item"><div class="mem-spec-label">Vật liệu màng</div><div class="mem-spec-value">PVDF + biến tính ưa nước</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Kích thước lỗ</div><div class="mem-spec-value">0.1 µm</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Diện tích mỗi mô-đun</div><div class="mem-spec-value">5 / 10 / 35 m²</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Thông lượng thiết kế</div><div class="mem-spec-value">20-30 LMH</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">MLSS vận hành (tài liệu mẫu)</div><div class="mem-spec-value">8-12 g/L</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Tuổi thọ</div><div class="mem-spec-value">&gt;5 năm (thực tế 8-10 năm)</div></div>
+      </div>
+      <div class="mem-card-footer" id="detail-bws" style="display:none;">
+        <b>Ưu điểm:</b>Năm 2010 phá thế độc quyền nhập khẩu, nay là thương hiệu dẫn đầu thị trường trong nước; hiệu năng đạt nhóm đầu thế giới; thông lượng màng bản mới đạt 30 LMH, năng lượng mỗi tấn nước &lt;0.3 kWh/m³<br>
+        <b>Dự án tiêu biểu:</b>Công trình nước tái sinh Mật Vân, Bắc Kinh (4.5 vạn t/d) · Nhà máy nước tái sinh Thanh Hà (15 vạn t/d) · Thần Định Hà, Hồ Bắc (11 vạn t/d)<br>
+        <b>Chu kỳ CIP:</b>3-6 tháng<br>
+        <b>Giá tham khảo:</b>Sản xuất trong nước, tỷ lệ hiệu năng/giá nổi bật, khoảng ¥200-400/m² (gồm khung module khoảng ¥400-600/m²)
+      </div>
+    </div>
+
+    <!-- 碧水源 H-MBR -->
+    <div class="mem-card" onclick="toggleMemCard('bwh')">
+      <div class="mem-card-head">
+        <div>
+          <div class="mem-card-brand">OriginWater (Bích Thủy Nguyên) H-MBR</div>
+          <div class="mem-card-product">Màng tấm dạng mảng vân dây</div>
+          <div class="mem-card-origin">🇨🇳 Bắc Kinh (Beijing OriginWater Technology Co., Ltd.)</div>
+        </div>
+        <span class="mem-card-type mem-fs">Tấm phẳng FS</span>
+      </div>
+      <div class="mem-specs">
+        <div class="mem-spec-item"><div class="mem-spec-label">Vật liệu màng</div><div class="mem-spec-value">PVDF</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Kích thước lỗ</div><div class="mem-spec-value">0.1 µm</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Diện tích mỗi mô-đun</div><div class="mem-spec-value">2.3 / 5 m²</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Thông lượng thiết kế</div><div class="mem-spec-value">16-30 LMH</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">MLSS vận hành (tài liệu mẫu)</div><div class="mem-spec-value">8-15 g/L</div></div>
+        <div class="mem-spec-item"><div class="mem-spec-label">Vấn đề tóc</div><div class="mem-spec-value">✅ Không quấn</div></div>
+      </div>
+      <div class="mem-card-footer" id="detail-bwh" style="display:none;">
+        <b>Ưu điểm:</b>Cấu trúc vân dây (không phải tấm cứng truyền thống), mật độ nạp cao hơn màng tấm truyền thống 200%+; năng lượng thấp hơn màng tấm truyền thống 50%; không bị tóc quấn<br>
+        <b>Đặc điểm:</b>Độc đáo"kênh khí trên dưới"thiết kế thông thoáng, không đọng bùn; công trình lớn chọn khoảng cách nhỏ xếp tầng cao để tiết kiệm năng lượng, công trình nhỏ chọn khoảng cách lớn để giảm bảo trì<br>
+        <b>Áp dụng:</b>Nước thải chứa tóc/sợi, nước thải thực phẩm/chăn nuôi, nước thải công nghiệp SS cao<br>
+        <b>Chu kỳ CIP:</b>Khoảng 6 tháng (ưu thế màng tấm)<br>
+        <b>Giá tham khảo:</b>Sản xuất trong nước, khoảng ¥300-500/m² (gồm khung module khoảng ¥500-800/m²)
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. cây quyết định lựa chọn theo ứng dụng -->
+  <div class="section-title"><span class="num">3</span>cây quyết định lựa chọn theo ứng dụng</div>
+  <div class="decision-tree">
+    <div class="dt-title">Theo kịch bản công trình của bạn, kiểu màng khuyến nghị:</div>
+    <div class="dt-row">
+      <div class="dt-condition">🏙️ <b>Nước thải đô thị vừa và lớn</b>(&gt;1 vạn m³/d) · nước ra tái sử dụng</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-hf">Sợi rỗng HF<br><small>Khuyến nghị ZeeWeed hoặc OriginWater S-MBR</small></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-condition">🐄 <b>Chứa tóc/sợi</b> nước thải (giết mổ/chăn nuôi/dệt may)</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-fs">Tấm phẳng FS<br><small>Khuyến nghị OriginWater H-MBR hoặc Kubota</small></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-condition">🏭 <b>Nước thải công nghiệp nồng độ cao</b>(MLSS cần &gt;12 g/L)</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-fs">Tấm phẳng FS<br><small>Kubota SMU (chịu MLSS cao 15 g/L)</small></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-condition">🗑️ <b>Nước rỉ rác</b>(COD cao, SS cao, khó phân huỷ)</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-hf">Sợi rỗng HF · cần tiền xử lý nghiêm ngặt<br><small>Mitsubishi STERAPORE™ được ứng dụng rộng rãi</small></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-condition">🔧 <b>Cải tạo mở rộng nhà máy cũ</b>(tận dụng bể hiện hữu, không xây mới)</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-both">HF hoặc FS đều được<br><small>Kubota có thể tận dụng bể hiện hữu để mở rộng; OriginWater S-MBR chi phí thấp</small></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-condition">💰 <b>Dự án nhạy cảm về ngân sách</b>(ưu tiên hàng trong nước, tỷ lệ hiệu năng/giá)</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-hf">Sợi rỗng HF (trong nước)<br><small>OriginWater S-MBR · giá khoảng 1/3-1/5 hàng nhập khẩu</small></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-condition">⚡ <b>Năng lượng cực thấp</b>ưu tiên (nhạy cảm chi phí vận hành)</div>
+      <div class="dt-arrow">→</div>
+      <div class="dt-result dt-hf">Sợi rỗng HF (sục khí xung/gián đoạn)<br><small>Điện năng sục khí màng thường thấp hơn màng tấm; ưu điểm của màng tấm là chống bẩn tắc, không cần rửa ngược, Kubota có thể hút nước tự chảy tiết kiệm bơm hút</small></div>
+    </div>
+  </div>
+
+  <!-- 4. tính số mô-đun -->
+  <div class="section-title"><span class="num">4</span>Diện tích màng và tính số mô-đun</div>
+  <div class="calc-area">
+    <div class="calc-title">📐 Tự tính dựa trên kết quả thiết kế chính hiện tại</div>
+    <label class="sync-row"><input type="checkbox" id="m_sync" checked onchange="syncTabs()"> Đồng bộ với thiết kế chính <span class="sync-note">(số liệu lấy từ Tab 1 thiết kế chính: A_m, diện tích màng mỗi module)</span></label>
+    <div class="grid" style="max-width:600px;">
+      <div class="field"><label for="m_Am">Tổng diện tích màng thiết kế A_m <span class="unit">m²</span></label>
+        <input type="number" id="m_Am" value="" step="10" oninput="calcModules()" placeholder="Lấy từ kết quả Tab 1">
+        <div class="helper">Khi tích đồng bộ sẽ theo Tab 1; bỏ tích để nhập tay</div></div>
+      <div class="field"><label for="m_singleArea">Diện tích mỗi mô-đun <span class="unit">m²/cái</span></label>
+        <input type="number" id="m_singleArea" value="25" step="1" oninput="calcModules()">
+        <div class="helper">Mitsubishi 6/15/25/40 · ZeeWeed 500D 31.6-40.9 · Kubota SP 10/module</div></div>
+      <div class="field"><label for="m_redundancy">Hệ số dự phòng</label>
+        <input type="number" id="m_redundancy" value="1.15" step="0.05" oninput="calcModules()">
+        <div class="helper">Thường lấy 1.1-1.2 (dự phòng 10-20%)</div></div>
+    </div>
+    <div style="background:#f0fdf4;border-radius:8px;padding:14px;margin-top:10px;display:flex;gap:30px;flex-wrap:wrap;">
+      <div><div style="font-size:11px;color:var(--text-muted);">Số module tối thiểu</div>
+        <div style="font-size:28px;font-weight:700;color:var(--brand-dark);" id="m_r_modules_min">—</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);">Số module sau khi gồm dự phòng</div>
+        <div style="font-size:28px;font-weight:700;color:var(--brand-dark);" id="m_r_modules_total">—</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);">Diện tích màng thực tế</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text);" id="m_r_Am_actual">—</div></div>
+    </div>
+    <div class="warn-box" id="m_warn" style="display:none;"></div>
+  </div>
+
+  <div class="note">
+    ℹ️ <b>Lưu ý quan trọng nhất khi chọn màng:</b>
+    <br>(1) <b>Tiền xử lý quyết định tuổi thọ màng</b>: màng sợi rỗng rất nhạy với tóc/sợi, bắt buộc có song chắn rác tinh 1-3mm; màng tấm chịu tốt hơn nhưng vẫn cần song chắn rác thô
+    <br>(2) <b>Thông lượng không phải càng cao càng tốt</b>: vận hành vượt thông lượng tới hạn sẽ đẩy nhanh bẩn không thuận nghịch, nên để thông lượng thiết kế không vượt 80% thông lượng tới hạn
+    <br>(3) <b>Bắt buộc hiệu chỉnh nhiệt độ</b>: mùa đông T=10°C thông lượng giảm khoảng 26%, nếu không hiệu chỉnh nhiệt độ thì lượng nước sản phẩm mùa đông thiếu nghiêm trọng
+  </div>
+
+</div>
+<!-- ===== Tab 2 end ===== -->
+
+<!-- ===== Tab 3: 清洗方案 ===== -->
+<div class="tab-panel" id="panel-cleaning">
+  <div class="carrier-intro">
+    <h3>🧪 Thiết kế phương án rửa MBR</h3>
+    <p>Rửa màng là công việc cốt lõi của vận hành MBR, gồm ba cấp: rửa vật lý trực tuyến (bảo trì hằng ngày),
+    rửa ngược tăng cường hoá chất CEB (kiểm soát bẩn định kỳ), rửa hoá chất phục hồi CIP (đại tu định kỳ).
+    Thiết kế phương án rửa ảnh hưởng trực tiếp đến tuổi thọ màng và chi phí vận hành.</p>
+  </div>
+
+  <div class="section-title"><span class="num">1</span>Hệ thống rửa ba cấp</div>
+  <div class="cleaning-stage-grid">
+    <div class="clean-card clean-online">
+      <div class="clean-head">🔄 Rửa vật lý trực tuyến</div>
+      <div class="clean-trigger">Kích hoạt: tự động thực hiện mỗi chu kỳ hút nước</div>
+      <div class="clean-params">
+        <b>Thư giãn (Relaxation)</b><br>
+        · dừng hút 2-5 min, chỉ sục khí<br>
+        · lớp bùn bám tự bong ra<br><br>
+        <b>Rửa ngược (Backpulse)</b><br>
+        · chỉ áp dụng cho sợi rỗng<br>
+        · tần suất: 30-120 min/lần<br>
+        · thời gian: 20-30 giây/lần<br>
+        · áp suất: khoảng TMP × 1.5<br><br>
+        <b>Tăng cường sục khí (Air Scour)</b><br>
+        · sục khí liên tục hoặc gián đoạn<br>
+        · HF: sục khí gián đoạn (tiết kiệm 30-50%)<br>
+        · FS：Sục khí tạo bọt liên tục
+      </div>
+    </div>
+    <div class="clean-card clean-ceb">
+      <div class="clean-head">⚗️ Rửa bảo trì (MC / CEB)</div>
+      <div class="clean-trigger">Kích hoạt: TMP tăng 5-10 kPa / mỗi tuần 1-2 lần (giá trị tham khảo, theo quy trình rửa của hãng màng)</div>
+      <div class="clean-params">
+        <b>Rửa kiềm (loại bẩn hữu cơ)</b><br>
+        · hoá chất: NaOCl (có thể thêm NaOH chỉnh pH)<br>
+        · nồng độ: MBR ngập thường 200-500 ppm<br>
+        · thời gian tiếp xúc: 20-60 min<br><br>
+        <b>Rửa axit (loại cáu cặn vô cơ)</b><br>
+        · hoá chất: axit citric<br>
+        · nồng độ: 2000-3000 ppm<br>
+        · thời gian tiếp xúc: 20-30 min<br><br>
+        <b>Tần suất</b><br>
+        · rửa bảo trì NaOCl mỗi tuần 1-2 lần<br>
+        · rửa axit tuỳ chất lượng nước (tăng tần suất khi xu hướng đóng cặn mạnh như nước rỉ rác)<br>
+        · CEB 1000-2000 ppm mỗi ngày thường gặp ở UF áp lực, không nên áp dụng trực tiếp
+      </div>
+    </div>
+    <div class="clean-card clean-cip">
+      <div class="clean-head">🔬 Rửa hoá chất phục hồi (CIP)</div>
+      <div class="clean-trigger">Kích hoạt: TMP &gt;35-40 kPa hoặc định kỳ (đại tu ngoại tuyến)</div>
+      <div class="clean-params">
+        <b>Quy trình chuẩn: rửa kiềm → rửa nước → rửa axit</b><br><br>
+        <b>Rửa kiềm (loại bẩn sinh học)</b><br>
+        · hoá chất: NaOCl + NaOH (1:1)<br>
+        · nồng độ: 1000-2000 ppm<br>
+        · thời gian: 1-4 h, có thể gia nhiệt<br><br>
+        <b>Rửa axit (loại cáu cặn vô cơ)</b><br>
+        · hoá chất: axit citric (3000-5000 ppm)<br>
+        &nbsp;&nbsp;&nbsp;hoặc axit clohydric (2000-3000 ppm)<br>
+        · thời gian: 1-4 h<br><br>
+        <b>Chu kỳ (HJ 2010-2011)</b><br>
+        · sợi rỗng: khoảng 3-4 tháng<br>
+        · màng tấm: khoảng 6 tháng+
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="num">2</span>Giám sát vùng vận hành TMP</div>
+  <div class="tmp-gauge">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Vùng điển hình chênh áp qua màng TMP (MBR ngập)</div>
+    <div class="tmp-bar-wrap">
+      <div class="tmp-seg tmp-normal">Vận hành bình thường<br>0-25 kPa</div>
+      <div class="tmp-seg tmp-op">Vùng cảnh báo<br>25-35 kPa</div>
+      <div class="tmp-seg tmp-alert">Cần CIP<br>&gt;35-40 kPa</div>
+    </div>
+    <div class="tmp-labels">
+      <span>0 kPa</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50+ kPa</span>
+    </div>
+    <div style="margin-top:12px;font-size:12px;line-height:1.8;color:var(--text);">
+      <b>📌 Điểm vận hành:</b><br>
+      · <b>TMP thiết kế</b>: 10-35 kPa (màng mới giai đoạn đầu khoảng 5-10 kPa)<br>
+      · <b>Kích hoạt CEB</b>: khi TMP tăng 5-10 kPa thì khởi động rửa ngược tăng cường hoá chất<br>
+      · <b>Kích hoạt CIP</b>: TMP &gt; 35-40 kPa hoặc sau CEB không phục hồi được<br>
+      · <b>Dừng máy kiểm tra</b>: TMP &gt; 50 kPa hoặc lượng nước sản phẩm giảm liên tục &gt; 30%<br>
+      · <b>Ảnh hưởng nhiệt độ</b>: mùa đông TMP tự nhiên cao hơn (độ nhớt tăng), nên đặt ngưỡng theo mùa
+    </div>
+  </div>
+
+  <div class="section-title"><span class="num">3</span>Ước tính lượng hoá chất</div>
+  <label class="sync-row"><input type="checkbox" id="c_sync" checked onchange="syncTabs()"> Đồng bộ với thiết kế chính <span class="sync-note">(số liệu lấy từ Tab 1 thiết kế chính: Q, loại màng, A_m, chu kỳ rửa hoá chất)</span></label>
+  <div class="grid" style="max-width:760px;">
+    <div class="field"><label for="c_Q">Công suất thiết kế Q <span class="unit">vạn m³/ngày</span></label>
+      <input type="number" id="c_Q" value="3" step="0.5" oninput="calcChem()"></div>
+    <div class="field"><label for="c_memType">Loại màng</label>
+      <select id="c_memType" onchange="calcChem()">
+        <option value="hf">Sợi rỗng HF</option>
+        <option value="fs">Tấm phẳng FS</option>
+      </select></div>
+    <div class="field"><label for="c_cipCycle">Chu kỳ CIP <span class="unit">tháng</span></label>
+      <input type="number" id="c_cipCycle" value="4" step="1" oninput="calcChem()">
+      <div class="helper">HF khuyến nghị 3-4, FS khuyến nghị 6; khi đồng bộ lấy «chu kỳ rửa hoá chất» trong thông số nâng cao Tab 1</div></div>
+    <div class="field"><label for="c_days">Số ngày vận hành của nhà máy/năm</label>
+      <input type="number" id="c_days" value="365" step="1" oninput="calcChem()"></div>
+    <div class="field"><label for="c_cebFreq">Tần suất rửa bảo trì <span class="unit">lần/tuần</span></label>
+      <input type="number" id="c_cebFreq" value="2" step="0.5" oninput="calcChem()">
+      <div class="helper">Rửa bảo trì NaOCl; giá trị tham khảo, theo quy trình rửa của hãng màng</div></div>
+    <div class="field"><label for="c_cebPpm">Nồng độ NaOCl rửa bảo trì <span class="unit">ppm</span></label>
+      <input type="number" id="c_cebPpm" value="500" step="50" oninput="calcChem()">
+      <div class="helper">Kiểu ngập thường 200-500; giá trị tham khảo, theo quy trình rửa của hãng màng</div></div>
+    <div class="field"><label for="c_acidFreq">Tần suất rửa axit bảo trì <span class="unit">lần/tuần</span></label>
+      <input type="number" id="c_acidFreq" value="1" step="0.5" oninput="calcChem()">
+      <div class="helper">Axit citric; giá trị tham khảo, theo quy trình rửa của hãng màng</div></div>
+    <div class="field"><label for="c_acidPpm">Nồng độ axit citric rửa axit bảo trì <span class="unit">ppm</span></label>
+      <input type="number" id="c_acidPpm" value="2000" step="100" oninput="calcChem()">
+      <div class="helper">Thường 2000-3000; giá trị tham khảo, theo quy trình rửa của hãng màng</div></div>
+  </div>
+  <div class="results" style="margin-top:14px;">
+    <h2>🧪 Ước tính tiêu hao hoá chất năm</h2>
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">⚗️</span> Rửa bảo trì MC / CEB (giá trị tham khảo, theo quy trình rửa của hãng màng)</div>
+      <div class="result-row"><span class="result-label">Lượng NaOCl năm (rửa kiềm bảo trì, tính theo clo hoạt tính)</span>
+        <span><span class="result-value" id="c_r_naocl_ceb">—</span><span class="result-unit">kg/năm</span></span></div>
+      <div class="result-row"><span class="result-label">Lượng axit citric năm (rửa axit bảo trì)</span>
+        <span><span class="result-value" id="c_r_citric_ceb">—</span><span class="result-unit">kg/năm</span></span></div>
+    </div>
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">🔬</span> Đại tu phục hồi CIP</div>
+      <div class="result-row"><span class="result-label">Số lần CIP/năm</span>
+        <span><span class="result-value" id="c_r_cip_times">—</span><span class="result-unit">lần</span></span></div>
+      <div class="result-row"><span class="result-label">Lượng NaOCl năm (CIP, tính theo clo hoạt tính)</span>
+        <span><span class="result-value" id="c_r_naocl_cip">—</span><span class="result-unit">kg/năm</span></span></div>
+      <div class="result-row"><span class="result-label">Lượng axit citric năm (CIP)</span>
+        <span><span class="result-value" id="c_r_citric_cip">—</span><span class="result-unit">kg/năm</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Tổng chi phí hoá chất năm (gồm CEB+CIP)</b><br><small style="font-weight:400;color:var(--text-faint);">NaOCl quy ra dung dịch thương phẩm 10% (clo hoạt tính ÷ 0.10) × 0.8 NDT/kg; axit citric 5 NDT/kg</small></span>
+        <span><span class="result-value big" id="c_r_cost">—</span><span class="result-unit">vạn NDT/năm</span></span></div>
+    </div>
+    <div class="helper" id="c_note"></div>
+    <div class="warn-box" id="c_warn" style="display:none;"></div>
+  </div>
+
+  <div class="note">
+    ℹ️ <b>Lưu ý khi rửa:</b>
+    <br>(1) Sau rửa kiềm NaOCl<b>bắt buộc rửa nước kỹ</b>rồi mới rửa axit, tránh sinh khí clo
+    <br>(2) Trong nước thải khó xử lý như nước rỉ rác<b>cáu cặn vô cơ (cacbonat canxi magie)</b>nghiêm trọng hơn, nên tăng tần suất rửa axit
+    <br>(3) Màng trong nước như OriginWater nên dùng công thức hãng khuyến nghị, NaOCl nồng độ quá cao sẽ đẩy nhanh phân huỷ PVDF
+    <br>(4) Dừng máy quá 1 tuần, phải<b>bảo quản ẩm</b>(ngâm nước sạch), mùa đông chống đóng băng
+  </div>
+</div>
+<!-- Tab 3 end -->
+
+<!-- ===== Tab 4: 能耗分析 ===== -->
+<div class="tab-panel" id="panel-energy">
+  <div class="carrier-intro">
+    <h3>⚡ Phân tích năng lượng MBR</h3>
+    <p>Năng lượng MBR mỗi tấn nước thường 0.6-1.2 kWh/m³, cao hơn bùn hoạt tính truyền thống (0.3-0.5 kWh/m³) khoảng 0.3-0.6 kWh/m³.
+    Phần tăng chủ yếu từ sục khí màng (kiểm soát bẩn màng) và bơm hút nước sản phẩm (TMP dẫn động). Thiết kế hợp lý có thể khống chế tổng năng lượng dưới 0.8 kWh/m³.
+    <br><b>Lưu ý:</b>Bộ tính dưới đây chỉ thống kê phần sinh hoá + màng (sục khí sinh học, sục khí màng, bơm hút nước sản phẩm, tuần hoàn nội, tuần hoàn bể màng, điều khiển và chiếu sáng), không gồm bơm nâng nước vào, song chắn rác/tiền xử lý, khuấy kỵ khí/thiếu khí, xử lý và tách nước bùn; khi so với phạm vi toàn nhà máy ở trên cần cộng thêm khoảng 0.1-0.3 kWh/m³. Oxy từ khí sục màng không được trừ vào lượng sục khí sinh học, điện năng sục khí sinh học thiên an toàn; tuần hoàn bể màng nên đưa về vùng hiếu khí, tránh mang DO cao vào vùng thiếu khí.</p>
+    <div class="mini-spec">
+      <span>📐 Căn cứ: chương năng lượng MBR của Metcalf&Eddy</span>
+      <span>🏭 Phạm vi điển hình: 0.6-1.2 kWh/m³</span>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="num">1</span>Bộ tính năng lượng theo hạng mục</div>
+  <label class="sync-row"><input type="checkbox" id="e_sync" checked onchange="syncTabs()"> Đồng bộ với thiết kế chính <span class="sync-note">(số liệu lấy từ Tab 1 thiết kế chính: Q, loại màng, A_m, SADm, TMP, lượng sục khí sinh học, hiệu suất máy thổi khí, tỷ lệ tuần hoàn nội, tỷ lệ tuần hoàn bể màng)</span></label>
+  <div class="grid">
+    <div class="field"><label for="e_Q">Q <span class="unit">vạn m³/ngày</span></label>
+      <input type="number" id="e_Q" value="3" step="0.5" oninput="calcEnergy()"></div>
+    <div class="field"><label for="e_memType">Loại màng</label>
+      <select id="e_memType" onchange="onEnergyMemType()">
+        <option value="hf">Sợi rỗng HF</option>
+        <option value="fs">Tấm phẳng FS</option>
+      </select></div>
+    <div class="field"><label for="e_Am">Diện tích màng A_m <span class="unit">m²</span></label>
+      <input type="number" id="e_Am" value="5000" step="100" oninput="calcEnergy()">
+      <div class="helper">Lấy từ thiết kế chính Tab 1</div></div>
+    <div class="field"><label for="e_SADm">SADm <span class="unit">m³ không khí/m² màng·h</span></label>
+      <input type="number" id="e_SADm" value="0.20" step="0.02" oninput="calcEnergy()">
+      <div class="helper">HF 0.15-0.30; FS 0.30-0.75; khi không đồng bộ, đổi loại màng sẽ đưa vào giá trị mặc định của loại màng đó; áp suất đầu ra sục khí sinh học theo H_d trong thông số nâng cao Tab 1; áp suất hút máy thổi khí theo cao độ Tab 1</div></div>
+    <div class="field"><label for="e_TMP">TMP thiết kế <span class="unit">kPa</span></label>
+      <input type="number" id="e_TMP" value="25" step="5" oninput="calcEnergy()"></div>
+    <div class="field"><label for="e_pumpEff">Hiệu suất bơm hút nước sản phẩm <span class="unit">%</span></label>
+      <input type="number" id="e_pumpEff" value="65" step="5" oninput="calcEnergy()"></div>
+    <div class="field"><label for="e_bioAir">Lượng sục khí sinh học <span class="unit">m³/h (điều kiện chuẩn 20°C)</span></label>
+      <input type="number" id="e_bioAir" value="2000" step="100" oninput="calcEnergy()">
+      <div class="helper">Khi đồng bộ = SOR/(24·0.28·EE) của Tab 1, EE = OTE×H_d</div></div>
+    <div class="field"><label for="e_blowerEff">Hiệu suất máy thổi khí <span class="unit">%</span></label>
+      <input type="number" id="e_blowerEff" value="70" step="5" oninput="calcEnergy()"></div>
+    <div class="field"><label for="e_recirc">Tỷ lệ tuần hoàn nội <span class="unit">% of Q</span></label>
+      <input type="number" id="e_recirc" value="300" step="50" oninput="calcEnergy()">
+      <div class="helper">Tuần hoàn dịch nitrat hoá hiếu khí→thiếu khí 200-400%</div></div>
+    <div class="field"><label for="e_memRecirc">Tỷ lệ tuần hoàn bể màng <span class="unit">% of Q</span></label>
+      <input type="number" id="e_memRecirc" value="400" step="50" oninput="calcEnergy()">
+      <div class="helper">Bể màng→bể sinh học 400-500%; cột áp 2 m, η 0.65</div></div>
+    <div class="field"><label for="e_price">Giá điện <span class="unit">NDT/kWh</span></label>
+      <input type="number" id="e_price" value="0.7" step="0.05" oninput="calcEnergy()"></div>
+  </div>
+
+  <div class="results">
+    <h2>⚡ Kết quả phân tích năng lượng</h2>
+    <div class="warn-box" id="e_warn" style="display:none;"></div>
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">📊</span> Năng lượng theo hạng mục</div>
+      <div class="result-row"><span class="result-label">① Sục khí sinh học</span>
+        <span><span class="result-value" id="e_r_bio">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">② Sục khí màng (riêng để kiểm soát bẩn màng)</span>
+        <span><span class="result-value" id="e_r_mem">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">③ Bơm hút nước sản phẩm (TMP dẫn động)</span>
+        <span><span class="result-value" id="e_r_pump">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">④ Bơm tuần hoàn nội</span>
+        <span><span class="result-value" id="e_r_recirc">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">⑤ Bơm tuần hoàn bể màng</span>
+        <span><span class="result-value" id="e_r_memRecirc">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">⑥ Khác (điều khiển/chiếu sáng, v.v.)</span>
+        <span><span class="result-value">khoảng 0.05</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Điện năng công đoạn sinh học + màng</b><br><small style="font-weight:400;color:var(--text-faint);">Không gồm bơm nâng nước vào, song chắn rác/tiền xử lý, khuấy kỵ khí/thiếu khí, xử lý và tách nước bùn</small></span>
+        <span><span class="result-value big" id="e_r_total">—</span><span class="result-unit">kWh/m³</span></span></div>
+    </div>
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">💰</span> Chi phí vận hành năm</div>
+      <div class="result-row"><span class="result-label">Điện năng tiêu thụ năm</span>
+        <span><span class="result-value" id="e_r_kwhYear">—</span><span class="result-unit">vạn kWh/năm</span></span></div>
+      <div class="result-row highlight-row"><span class="result-label"><b>Tiền điện năm</b></span>
+        <span><span class="result-value big" id="e_r_costYear">—</span><span class="result-unit">vạn NDT/năm</span></span></div>
+      <div class="result-row"><span class="result-label">Tiền điện mỗi tấn nước</span>
+        <span><span class="result-value" id="e_r_costTon">—</span><span class="result-unit">NDT/m³</span></span></div>
+    </div>
+    <div class="energy-bar-chart">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Phân bố năng lượng</div>
+      <div class="energy-row">
+        <div class="energy-label">Sục khí sinh học</div>
+        <div class="energy-bar-bg"><div class="energy-bar-fill" id="e_bar_bio" style="width:0%;background:#3b82f6;"></div></div>
+        <div class="energy-value" id="e_val_bio">—</div>
+      </div>
+      <div class="energy-row">
+        <div class="energy-label">Sục khí màng</div>
+        <div class="energy-bar-bg"><div class="energy-bar-fill" id="e_bar_mem" style="width:0%;background:#0891b2;"></div></div>
+        <div class="energy-value" id="e_val_mem">—</div>
+      </div>
+      <div class="energy-row">
+        <div class="energy-label">Bơm hút nước sản phẩm</div>
+        <div class="energy-bar-bg"><div class="energy-bar-fill" id="e_bar_pump" style="width:0%;background:#16a34a;"></div></div>
+        <div class="energy-value" id="e_val_pump">—</div>
+      </div>
+      <div class="energy-row">
+        <div class="energy-label">Bơm tuần hoàn nội</div>
+        <div class="energy-bar-bg"><div class="energy-bar-fill" id="e_bar_recirc" style="width:0%;background:#d97706;"></div></div>
+        <div class="energy-value" id="e_val_recirc">—</div>
+      </div>
+      <div class="energy-row">
+        <div class="energy-label">Bơm tuần hoàn bể màng</div>
+        <div class="energy-bar-bg"><div class="energy-bar-fill" id="e_bar_memRecirc" style="width:0%;background:#a16207;"></div></div>
+        <div class="energy-value" id="e_val_memRecirc">—</div>
+      </div>
+    </div>
+    <div class="result-group">
+      <div class="result-group-title"><span class="ic">📈</span> So sánh với công nghệ truyền thống</div>
+      <div class="result-row"><span class="result-label">Bùn hoạt tính truyền thống (AAO, toàn nhà máy)</span>
+        <span><span class="result-value">0.3-0.5</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Năng lượng tăng thêm của MBR (hệ màng: sục khí màng + bơm hút nước sản phẩm + tuần hoàn bể màng)<br><small style="font-weight:400;color:var(--text-faint);">Công nghệ truyền thống không có ba hạng mục này; bể sinh học MBR tiết kiệm được gạt bùn bể lắng thứ cấp và một phần tuần hoàn bùn, ở đây chưa trừ</small></span>
+        <span><span class="result-value" id="e_r_extra">—</span><span class="result-unit">kWh/m³</span></span></div>
+      <div class="result-row"><span class="result-label">Tiền điện tăng thêm hằng năm của MBR</span>
+        <span><span class="result-value" id="e_r_extraCost">—</span><span class="result-unit">vạn NDT/năm</span></span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    ℹ️ <b>Hướng tối ưu năng lượng:</b>
+    <br>(1) <b>Sục khí gián đoạn (HF)</b>: ZeeWeed LEAPmbr và các loại khác nhờ sục khí xung có thể tiết kiệm 30-50% điện năng sục khí màng
+    <br>(2) <b>Tối ưu thông lượng màng</b>: tăng thông lượng hợp lý giảm được diện tích màng, từ đó giảm lượng sục khí màng
+    <br>(3) <b>Kubota hút nước tự chảy</b>: bỏ bơm hút, tiết kiệm năng lượng bơm
+    <br>(4) <b>Phiên bản mới nhất của OriginWater</b>năng lượng mỗi tấn nước đã giảm xuống dưới 0.3 kWh/m³ (không gồm sục khí sinh học)
+  </div>
+</div>
+<!-- Tab 4 end -->
+
+<!-- ===== Tab 5: 案例库 ===== -->
+<div class="tab-panel" id="panel-cases">
+  <div class="carrier-intro">
+    <h3>📂 Thư viện công trình MBR điển hình</h3>
+    <p>Tổng hợp thông số các công trình MBR điển hình như tái sử dụng nước thải đô thị, nước thải công nghiệp nồng độ cao, nước rỉ rác, chỉ để tham khảo phương án công trình, không trích dẫn dự án thực tế cụ thể.</p>
+  </div>
+
+  <div class="case-cards-mbr" id="casesContainer"></div>
+
+  <div class="note">
+    ℹ️ <b>Thư viện này là mẫu tham khảo điển hình, không chỉ dự án thực tế cụ thể nào.</b>Thông số lấy từ phạm vi kinh nghiệm công trình và tài liệu công khai, dự án cụ thể phải theo bản vẽ thi công của viện thiết kế.
+  </div>
+</div>
+<!-- Tab 5 end -->
+
+<!-- ===== Tab 6: MBR 发展史 ===== -->
+<div class="tab-panel" id="panel-history">
+  <div class="history-intro">
+    <h3>📜 Sự ra đời và phát triển của MBR</h3>
+    <p>Bể sinh học màng (MBR) từ nguyên mẫu đặt ngoài năm 1969 đến cuộc cách mạng kiểu ngập năm 1989, rồi ứng dụng quy mô lớn tại Trung Quốc, đã trải qua hơn 50 năm.
+    Đổi mới cốt lõi của MBR là dùng màng tách thay cho bể lắng thứ cấp — ý tưởng này thay đổi triệt để logic thiết kế công nghệ xử lý nước thải.</p>
+  </div>
+
+  <div class="section-title"><span class="num">1</span>MBR giải quyết vấn đề gì?</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0 20px;">
+    <div style="padding:14px 16px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626;">
+      <div style="font-weight:700;margin-bottom:8px;">⚠️ Điểm yếu của bùn hoạt tính truyền thống</div>
+      <ul style="font-size:12px;line-height:1.8;padding-left:18px;">
+        <li>Bể lắng thứ cấp chiếm diện tích lớn, phụ thuộc lắng trọng lực</li>
+        <li>Nước ra chứa nhiều chất rắn lơ lửng</li>
+        <li>Khi bùn trương nở thì lắng thất bại, nước ra xấu đi</li>
+        <li>Hiệu suất tách bùn–nước có giới hạn trần</li>
+        <li>Muốn tái sử dụng phải thêm lọc cấp ba</li>
+      </ul>
+    </div>
+    <div style="padding:14px 16px;background:#ecfeff;border-radius:8px;border-left:3px solid #0891b2;">
+      <div style="font-weight:700;margin-bottom:8px;">💡 Ý tưởng đổi mới của MBR</div>
+      <ul style="font-size:12px;line-height:1.8;padding-left:18px;">
+        <li>Dùng màng (0.04-0.4 µm) thay bể lắng thứ cấp</li>
+        <li>SS nước ra &lt;1 mg/L, đạt thẳng tiêu chuẩn nước tái sử dụng</li>
+        <li>Không bị ảnh hưởng bởi bùn trương nở</li>
+        <li>MLSS nâng lên 8000-12000 mg/L</li>
+        <li>Thể tích bể sinh học giảm rõ rệt (lý thuyết theo tỷ lệ MLSS)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="num">2</span>Nhân vật then chốt và mốc phát minh</div>
+  <div class="inventor-card">
+    <div class="inventor-name">👨‍🔬 Mạch phát triển của MBR</div>
+    <div class="inventor-sub">Từ kiểu đặt ngoài ở Mỹ (1969) đến kiểu ngập ở Nhật (1989) — hai bước nhảy then chốt</div>
+    <div class="inventor-info-grid">
+      <div><span>🇺🇸 1969</span> Công ty Dorr-Oliver (Mỹ) phát triển MBR đặt ngoài đầu tiên, dùng cho nước thải dệt</div>
+      <div><span>⚡ Vấn đề</span> Bơm tuần hoàn kiểu đặt ngoài tiêu thụ năng lượng rất cao (3-5 kWh/m³), hạn chế phổ biến</div>
+      <div><span>🇯🇵 1989</span> Yamamoto và cs. (Đại học Tokyo, Nhật Bản) phát minh MBR kiểu ngập, năng lượng giảm 80-90%</div>
+      <div><span>🏭 1991</span> Kubota thương mại hoá MBR màng tấm kiểu ngập, công trình quy mô đầy đủ đầu tiên</div>
+      <div><span>🇨🇦 1992</span> Zenon (Canada) ra mắt màng sợi rỗng kiểu ngập ZeeWeed, trở thành dòng chủ lưu thị trường</div>
+      <div><span>🇨🇳 2003+</span> Trung Quốc du nhập MBR quy mô lớn, OriginWater là đơn vị đi đầu</div>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="num">3</span>Dòng thời gian phát triển toàn cầu</div>
+  <div class="timeline-wrap">
+    <div class="timeline-line"></div>
+    <div class="tl-node tl-left">
+      <div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-year">1969</div><div class="tl-title">MBR đặt ngoài ra đời</div><div class="tl-desc">Dorr-Oliver (Mỹ) kết hợp màng siêu lọc với bùn hoạt tính, dùng cho nước thải công nghiệp, năng lượng rất cao</div></div>
+    </div>
+    <div class="tl-node tl-right">
+      <div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-year">1980s</div><div class="tl-title">Thời kỳ nghiên cứu học thuật sôi động</div><div class="tl-desc">Nhật Bản, Âu Mỹ nghiên cứu nhiều trong phòng thí nghiệm, tìm hướng giảm năng lượng</div></div>
+    </div>
+    <div class="tl-node tl-left">
+      <div class="tl-dot tl-key"></div>
+      <div class="tl-content tl-highlight"><div class="tl-year">⭐ 1989</div><div class="tl-title">Phát minh MBR kiểu ngập</div><div class="tl-desc">Yamamoto và cs. ở Đại học Tokyo nhúng màng trực tiếp vào bể sinh học, năng lượng giảm từ 3-5 xuống 0.3-0.5 kWh/m³, đột phá mang tính cách mạng</div></div>
+    </div>
+    <div class="tl-node tl-right">
+      <div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-year">1991</div><div class="tl-title">Kubota FS-MBR thương mại đầu tiên</div><div class="tl-desc">Kubota Nhật Bản ra mắt MBR màng tấm kiểu ngập, nhanh chóng phổ biến tại thị trường Nhật</div></div>
+    </div>
+    <div class="tl-node tl-left">
+      <div class="tl-dot tl-key"></div>
+      <div class="tl-content tl-highlight"><div class="tl-year">⭐ 1992</div><div class="tl-title">Sợi rỗng ZeeWeed ra đời</div><div class="tl-desc">Zenon Canada ra mắt ZeeWeed, sợi rỗng PVDF, trở thành sản phẩm MBR thương mại thành công nhất thế giới</div></div>
+    </div>
+    <div class="tl-node tl-right">
+      <div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-year">1990s</div><div class="tl-title">Phổ biến quy mô lớn ở châu Âu</div><div class="tl-desc">Đức, Anh, Pháp lần lượt xây dựng các nhà máy MBR lớn, trở thành công nghệ chủ lưu cho nước tái sinh</div></div>
+    </div>
+    <div class="tl-node tl-left">
+      <div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-year">2001</div><div class="tl-title">Các công trình đầu tiên trong nước</div><div class="tl-desc">Trung Quốc du nhập MBR đợt đầu, chủ yếu cho nước thải công nghiệp và tái sử dụng nước ở vùng thiếu nước</div></div>
+    </div>
+    <div class="tl-node tl-right">
+      <div class="tl-dot tl-key"></div>
+      <div class="tl-content tl-highlight"><div class="tl-year">⭐ 2006</div><div class="tl-title">GE mua lại Zenon</div><div class="tl-desc">GE mua Zenon với khoảng 760 triệu CAD (khoảng 656 triệu USD), ZeeWeed bước vào giai đoạn mở rộng nhanh toàn cầu</div></div>
+    </div>
+    <div class="tl-node tl-left">
+      <div class="tl-dot tl-key"></div>
+      <div class="tl-content tl-highlight"><div class="tl-year">⭐ 2010</div><div class="tl-title">OriginWater phá thế độc quyền nhập khẩu</div><div class="tl-desc">OriginWater phát triển màng sợi rỗng PVDF gia cường trong nước, chấm dứt lịch sử MBR trong nước phụ thuộc nhập khẩu, chi phí giảm 3-5 lần</div></div>
+    </div>
+    <div class="tl-node tl-right">
+      <div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-year">2017</div><div class="tl-title">SUEZ mua lại GE Water</div><div class="tl-desc">SUEZ mua GE Water &amp; Process Technologies với 3.4 tỷ USD, ZeeWeed thuộc SUEZ; năm 2022 sau khi Veolia sáp nhập SUEZ, ZeeWeed chuyển về Veolia</div></div>
+    </div>
+    <div class="tl-node tl-left">
+      <div class="tl-dot tl-key"></div>
+      <div class="tl-content tl-highlight"><div class="tl-year">🌍 Ngày nay</div><div class="tl-title">Hàng nghìn nhà máy MBR trên toàn cầu</div><div class="tl-desc">Trung Quốc đã thành thị trường MBR lớn nhất thế giới; màng trong nước đạt nhóm đầu quốc tế; tổng công suất xử lý vượt hàng trăm triệu tấn/ngày</div></div>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="num">4</span>MBR tại Trung Quốc · quá trình phát triển</div>
+  <div class="china-grid">
+    <div class="china-phase cp-1">
+      <div class="cp-year">1990s-2005</div>
+      <div class="cp-title">🚪 Thời kỳ du nhập và khám phá</div>
+      <div class="cp-body">
+        <ul>
+          <li>Giới học thuật trong nước bắt đầu quan tâm công nghệ MBR</li>
+          <li>Khoảng năm 2001 màng nhập khẩu đợt đầu vào thị trường Trung Quốc</li>
+          <li>Ứng dụng ban đầu tập trung ở nước thải công nghiệp và các thành phố thiếu nước</li>
+          <li>Kubota và GE ZeeWeed là các thương hiệu nhập khẩu chính</li>
+          <li>Chi phí tổng ¥5-8 NDT/m³, chỉ dùng cho trường hợp giá trị gia tăng cao</li>
+        </ul>
+      </div>
+    </div>
+    <div class="china-phase cp-2">
+      <div class="cp-year">2006-2010</div>
+      <div class="cp-title">📈 Thời kỳ bùng nổ ứng dụng đô thị</div>
+      <div class="cp-body">
+        <ul>
+          <li>Công trình nước tái sinh Mật Vân của OriginWater (4.5 vạn t/d), Thanh Hà (15 vạn t/d) đi vào hoạt động</li>
+          <li>Giai đoạn 2006-2008 quy mô MBR trong nước tăng 67%/100%/78% mỗi năm</li>
+          <li>Nhu cầu nước ra đạt loại 1A thúc đẩy ứng dụng quy mô lớn</li>
+          <li>Nhà máy Thần Định Hà (11 vạn t/d) trở thành công trình MBR lớn nhất trong nước lúc đó</li>
+          <li>Các viện thiết kế trong nước bắt đầu nắm vững hệ thống phương pháp thiết kế MBR</li>
+        </ul>
+      </div>
+    </div>
+    <div class="china-phase cp-3">
+      <div class="cp-year">2010-2020</div>
+      <div class="cp-title">🏭 Hàng trong nước trỗi dậy và trưởng thành</div>
+      <div class="cp-body">
+        <ul>
+          <li>Năm 2010 màng PVDF gia cường trong nước của OriginWater ra đời</li>
+          <li>Giá màng trong nước khoảng 1/3-1/5 hàng nhập khẩu, giảm mạnh chi phí</li>
+          <li>Nhu cầu nâng chuẩn loại 1A tăng mạnh, MBR trở thành phương án chủ lưu</li>
+          <li>Chất lượng màng trong nước dần đạt nhóm đầu quốc tế</li>
+          <li>Mở rộng ứng dụng: nước rỉ rác, dược phẩm, thực phẩm, nước thải chăn nuôi</li>
+        </ul>
+      </div>
+    </div>
+    <div class="china-phase cp-4">
+      <div class="cp-year">2020-nay</div>
+      <div class="cp-title">🌐 Thời đại nâng chất lượng, giảm năng lượng</div>
+      <div class="cp-body">
+        <ul>
+          <li>Trung Quốc trở thành thị trường MBR lớn nhất thế giới</li>
+          <li>Thông lượng màng mới nhất của OriginWater 30 LMH, năng lượng mỗi tấn nước &lt;0.3 kWh/m³</li>
+          <li>Hướng công nghệ: năng lượng thấp, thông lượng cao, tích hợp màng–điện cực</li>
+          <li>Trong bối cảnh mục tiêu carbon kép, tối ưu năng lượng MBR trở thành điểm nóng nghiên cứu</li>
+          <li>Tiêu chuẩn nước mặt loại IV trở lên thúc đẩy yêu cầu nước ra nghiêm ngặt hơn</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="background:#f0fdf4;border-left-color:#16a34a;margin-top:16px;">
+    ✅ <b>MBR và MBBR: hai công nghệ hay bị nhầm lẫn</b>
+    <br>MBR (bể sinh học màng) = bùn hoạt tính + màng tách, thay bể lắng thứ cấp,<b>chất lượng nước ra rất cao (SS &lt;1 mg/L)</b>, phù hợp tái sử dụng nước
+    <br>MBBR (bể sinh học giá thể di động) = bùn hoạt tính + màng sinh học trên giá thể,<b>tăng cường năng lực nitrat hoá/khử nitơ</b>, phù hợp nâng chuẩn cải tạo
+    <br>Hai công nghệ đi theo hướng hoàn toàn khác nhau, WaterKit có công cụ thiết kế riêng cho cả hai.
+  </div>
+</div>
+<!-- Tab 6 end -->
+
+</main>
+
+<div class="disclaimer-wrap">
+  <div style="padding:12px 16px;background:#fef9c3;border-left:3px solid #ca8a04;border-radius:4px;font-size:12px;color:#713f12;line-height:1.6;">
+    ⚠️ <b>Tuyên bố miễn trừ trách nhiệm:</b>Các số liệu như thông lượng màng, khoảng giá, thông số công nghệ mà công cụ cung cấp chỉ để tham khảo ước tính phương án, thực tế theo số liệu chính thức mới nhất của hãng và tình hình cụ thể của dự án. Tên thương hiệu và sản phẩm chỉ dùng để nhận diện kỹ thuật, không thể hiện công cụ có quan hệ uỷ quyền hay bảo trợ với các hãng liên quan. Triển khai công trình phải theo bản vẽ thi công do viện thiết kế chính quy lập. Căn cứ HJ 2010-2011.
+  </div>
+</div>
+
+<!-- ===== 页脚 ===== -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ============ 常量 ============
+const STANDARDS = {
+  '1A':    { CODe:50, BODe:10, NH4e:5,  TNe:15, TPe:0.5 },
+  'grade4':{ CODe:30, BODe:6,  NH4e:1.5,TNe:10, TPe:0.3 },  // 准 IV 类：地方标准，限值按项目所在地调整
+  'grade3':{ CODe:20, BODe:4,  NH4e:1.0,TNe:5,  TPe:0.2 },   // 与活性污泥工艺计算器一致
+  'reuse': { CODe:30, BODe:6,  NH4e:5,  TNe:15, TPe:1.0 },
+  'gb16889':{ CODe:100, BODe:30, NH4e:25, TNe:40, TPe:3 },   // GB 16889 表 2（渗滤液 MBR 段，后接 NF/RO 深度处理）
+};
+const STD_HELPER = {
+  '1A': 'Loại 1A: GB 18918-2002',
+  'grade4': 'Gần loại IV là tiêu chuẩn địa phương, giới hạn điều chỉnh theo địa phương của dự án',
+  'grade3': 'Nước mặt loại III: giới hạn GB 3838, cần phối hợp xử lý sâu',
+  'reuse': 'Nước dùng cho mục đích đô thị: GB/T 18920, giới hạn điều chỉnh theo mục đích',
+  'gb16889': 'Giới hạn bảng 2 GB 16889 (COD 100 / BOD 30 / NH₄ 25 / TN 40 / TP 3); sau MBR nối tiếp xử lý sâu NF/RO',
+  'custom': 'Giới hạn nước ra tự định nghĩa',
+};
+
+// 预设显式设置出水标准与最低设计水温（不沿用上一个预设）
+const PRESETS = {
+  municipal: { d_SF:2.0, d_Q:3, d_T:20, d_Tmin:12, d_COD0:400, d_BOD0:180, d_TN0:45, d_NH40:35, d_TP0:5, d_SS0:200, d_MLSS:10000, d_SRT:30, d_standard:'grade4' },
+  industrial: { d_SF:3.0, d_Q:2, d_T:25, d_Tmin:15, d_COD0:800, d_BOD0:350, d_TN0:60, d_NH40:45, d_TP0:8, d_SS0:400, d_MLSS:10000, d_SRT:30, d_standard:'1A' },
+  leachate: { d_SF:3.0, d_Q:0.1, d_T:20, d_Tmin:15, d_COD0:8000, d_BOD0:3000, d_TN0:2000, d_NH40:1800, d_TP0:20, d_SS0:1000, d_MLSS:12000, d_SRT:40, d_standard:'gb16889' },
+  reuse: { d_SF:2.0, d_Q:5, d_T:20, d_Tmin:12, d_COD0:300, d_BOD0:120, d_TN0:35, d_NH40:25, d_TP0:3.5, d_SS0:150, d_MLSS:10000, d_SRT:30, d_standard:'grade4' },
+};
+
+// ============ 案例库数据 ============
+const MBR_CASES = [
+  {
+    type:'muni', tag:'Nước thải đô thị', title:'Tái sử dụng nước thải đô thị miền Bắc',
+    scale:'3 vạn m³/d', bio:'AAO+MBR', membrane:'Sợi rỗng HF',
+    data:{ Q:3, T:15, COD0:400, BOD0:180, NH40:35, TN0:45, TP0:5 },
+    outlet:'Loại 1A / tái sử dụng nước', J_design:'20 LMH', MLSS:'10000 mg/L',
+    Am:'62500 m²', energy:'0.95 kWh/m³', note:'Mùa đông T=10°C cần kiểm tra diện tích màng theo thông lượng 0.74 lần, khuyến nghị hệ số dự phòng 1.2'
+  },
+  {
+    type:'muni', tag:'Nước thải đô thị', title:'Nâng chuẩn cải tạo nước thải đô thị miền Nam',
+    scale:'5 vạn m³/d', bio:'AAO+MBR', membrane:'Sợi rỗng HF',
+    data:{ Q:5, T:22, COD0:350, BOD0:160, NH40:30, TN0:40, TP0:4 },
+    outlet:'Nước mặt loại IV', J_design:'25 LMH', MLSS:'10000 mg/L',
+    Am:'83300 m²', energy:'0.85 kWh/m³', note:'Miền Nam nhiệt độ nước cao, thông lượng có thể lấy cận trên; nước ra xả thẳng ra sông, TP phải ≤0.3 mg/L cần kết hợp PAC'
+  },
+  {
+    type:'ind', tag:'Nước thải công nghiệp', title:'Xử lý MBR nước thải chế biến thực phẩm',
+    scale:'0.5 vạn m³/d', bio:'AO thiếu khí + MBR', membrane:'Tấm phẳng FS',
+    data:{ Q:0.5, T:25, COD0:2000, BOD0:800, NH40:80, TN0:100, TP0:15 },
+    outlet:'Tiêu chuẩn xả thải khu công nghiệp', J_design:'16 LMH', MLSS:'12000 mg/L',
+    Am:'13000 m²', energy:'1.1 kWh/m³', note:'Nước thải thực phẩm chứa nhiều dầu mỡ/protein, chọn màng tấm để tránh tóc quấn; cần tăng cường khử photpho (PAC)'
+  },
+  {
+    type:'ind', tag:'Nước thải công nghiệp', title:'Xử lý sâu nước thải dược phẩm',
+    scale:'0.2 vạn m³/d', bio:'AAO+MBR', membrane:'Sợi rỗng HF',
+    data:{ Q:0.2, T:30, COD0:3000, BOD0:1200, NH40:120, TN0:150, TP0:10 },
+    outlet:'Tiêu chuẩn xả thải ngành dược', J_design:'18 LMH', MLSS:'10000 mg/L',
+    Am:'4600 m²', energy:'1.2 kWh/m³', note:'Nước thải dược chứa chất ức chế, SRT cần kéo dài đến 30-40d; chú ý tốc độ tăng TMP, có thể cần CIP thường xuyên hơn'
+  },
+  {
+    type:'leach', tag:'Nước rỉ rác', title:'Xử lý nước rỉ rác bãi chôn lấp',
+    scale:'200 m³/d', bio:'AAO+MBR+NF/RO', membrane:'Sợi rỗng HF',
+    data:{ Q:0.02, T:20, COD0:8000, BOD0:3000, NH40:1800, TN0:2000, TP0:20 },
+    outlet:'Tiêu chuẩn kiểm soát ô nhiễm bãi chôn lấp', J_design:'12 LMH', MLSS:'12000 mg/L',
+    Am:'700 m²', energy:'1.5 kWh/m³ (phần MBR)', note:'Amoni cao cần thổi khí loại trước; sau MBR phải nối NF/RO mới xả đạt chuẩn; SRT 40-60d; tốc độ bẩn màng nhanh, chu kỳ CIP rút ngắn còn 2-3 tháng'
+  },
+  {
+    type:'muni', tag:'Tái sử dụng nước', title:'Tái sử dụng nước · tiền xử lý RO',
+    scale:'2 vạn m³/d', bio:'Chỉ hiếu khí + MBR', membrane:'Sợi rỗng HF',
+    data:{ Q:2, T:20, COD0:300, BOD0:120, NH40:25, TN0:35, TP0:3.5 },
+    outlet:'Nước cấp RO / nước công nghiệp', J_design:'22 LMH', MLSS:'9000 mg/L',
+    Am:'37900 m²', energy:'0.8 kWh/m³', note:'Nước ra MBR vào thẳng RO, không cần xử lý cấp ba như lọc cát; SDI &lt;3, đáp ứng yêu cầu nước cấp RO; chi phí vận hành thấp hơn"cấp hai + lọc cấp ba + RO"tuyến công nghệ'
+  },
+];
+
+// ============ 生物段配置 ============
+let bioConfig = 'aao';
+
+function setBioConfig(cfg) {
+  bioConfig = cfg;
+  document.querySelectorAll('[data-bio]').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-bio="${cfg}"]`).classList.add('active');
+  // 厌氧/缺氧段显示
+  $('row_AN').style.display = (cfg === 'aao') ? '' : 'none';
+  $('row_AX').style.display = (cfg !== 'single_o') ? '' : 'none';
+  const sub = { aao:'MBR + AAO', ao_an:'MBR + AO thiếu khí', single_o:'MBR + chỉ hiếu khí' };
+  $('d_titleSub').textContent = sub[cfg];
+  calc();
+}
+
+function setPreset(key) {
+  document.querySelectorAll('[data-preset]').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-preset="${key}"]`).classList.add('active');
+  const p = PRESETS[key];
+  Object.keys(p).forEach(id => { if ($(id)) $(id).value = p[id]; });
+  applyStandard(); // 同时写入该预设的出水限值并重算
+}
+
+function applyStandard() {
+  const std = $('d_standard').value;
+  if ($('d_std_helper')) $('d_std_helper').textContent = STD_HELPER[std] || '';
+  const s = STANDARDS[std];
+  if (std !== 'custom' && s) {
+    $('d_CODe').value = s.CODe; $('d_BODe').value = s.BODe;
+    $('d_NH4e').value = s.NH4e; $('d_TNe').value = s.TNe;
+    $('d_TPe').value = s.TPe;
+  }
+  calc();
+}
+
+function applyMemType() {
+  const t = $('d_memType').value;
+  if (t === 'hf') {
+    $('d_J20').value = 20;
+    $('d_moduleArea').value = 25;
+    $('d_J_helper').textContent = 'Sợi rỗng (HJ 2010): 12-30 LMH';
+    $('d_mod_helper').textContent = 'Mitsubishi 25m², ZeeWeed 500D khoảng 31.6-40.9m², OriginWater 5/10/35m²';
+    $('d_cleanCycle').value = 4;
+    $('d_SADm').value = 0.20;
+  } else {
+    $('d_J20').value = 18;
+    $('d_moduleArea').value = 10;
+    $('d_J_helper').textContent = 'Màng tấm (HJ 2010): 16-50 LMH';
+    $('d_mod_helper').textContent = 'Kubota dòng SP 10m²/module, OriginWater H-MBR 2.3/5m²';
+    $('d_cleanCycle').value = 6;
+    $('d_SADm').value = 0.40;
+  }
+  calc();
+}
+
+function toggleAdv() {
+  const p = $('advParams'), c = $('advChev').parentElement;
+  p.classList.toggle('open');
+  $('advChev').textContent = p.classList.contains('open') ? '▾' : '▸';
+}
+
+// ============ 主设计计算 ============
+const FLUX_LIMIT = { hf: 30, fs: 50 };          // 与页面「HJ 2010-2011 范围」文字一致
+const PEAK_FLUX_RATIO = 1.5;                     // 短时峰值允许通量 = 1.5 × 冬季Thông lượng thiết kế J(T_min)，且不超过膜型上限
+const MEM_NAME = { hf: 'Màng sợi rỗng', fs: 'Màng tấm' };
+const RESULT_IDS_D = ['d_r_V','d_r_HRT','d_r_VAN','d_r_VAX','d_r_VO','d_r_saveV','d_r_SRTmin','d_r_VAXreq','d_r_Am','d_r_ctrl','d_r_JT','d_r_Javg','d_r_modules','d_r_Jpeak','d_r_Jlim','d_r_Tfactor','d_r_AOR','d_r_SOR','d_r_bioAir','d_r_dX','d_r_MLSS_ratio','d_r_Pchem','d_r_PAC','d_r_PACmg','d_r_chemSl','d_r_chemShare','d_r_Ndn','d_r_Cext','d_r_TNpred','d_r_eBio','d_r_eMem','d_r_ePump','d_r_eRecirc','d_r_eMemRecirc','d_r_eTotal'];
+
+// 输入校验：rules = [[id, 名称, 'pos'(>0) | 'nn'(≥0) | 'num'(任意数)]]，返回错误提示数组
+function validateInputs(rules) {
+  const bad = [];
+  rules.forEach(([id, name, kind]) => {
+    const el = $(id); if (!el) return;
+    const v = parseFloat(el.value);
+    const ok = !isNaN(v) && (kind === 'pos' ? v > 0 : kind === 'nn' ? v >= 0 : true);
+    el.classList.toggle('invalid', !ok);
+    if (!ok) bad.push(kind === 'pos' ? `Hãy nhập giá trị lớn hơn 0 cho${name}` : kind === 'nn' ? `Hãy nhập giá trị không nhỏ hơn 0 cho${name}` : `Hãy nhập${name}`);
+  });
+  return bad;
+}
+function showWarn(boxId, bad) {
+  const el = $(boxId); if (!el) return;
+  if (bad.length) { el.innerHTML = '⚠️ ' + bad.join('；'); el.style.display = ''; }
+  else { el.innerHTML = ''; el.style.display = 'none'; }
+}
+
+// 跨 Tab 同步：Tab 1 为主。勾选「与主设计同步」时 Tab 2/3/4 的 Q、A_m 等每次都跟随 Tab 1，且只读
+let lastDesign = null;
+function syncTabs() {
+  const r = lastDesign;
+  const lock = (ids, on) => ids.forEach(id => { const el = $(id); if (!el) return; if (el.tagName === 'SELECT') el.disabled = on; else el.readOnly = on; });
+  const mS = $('m_sync').checked, cS = $('c_sync').checked, eS = $('e_sync').checked;
+  lock(['m_Am', 'm_singleArea'], mS); lock(['c_Q', 'c_memType', 'c_cipCycle'], cS);
+  lock(['e_Q', 'e_Am', 'e_memType', 'e_recirc', 'e_memRecirc', 'e_bioAir', 'e_SADm', 'e_TMP', 'e_pumpEff', 'e_blowerEff'], eS);
+  if (r) {
+    if (mS) { $('m_Am').value = r.A_m; $('m_singleArea').value = r.moduleArea; }
+    if (cS) { $('c_Q').value = r.Q_wan; $('c_memType').value = r.memType; $('c_cipCycle').value = r.cleanCycle; }
+    if (eS) {
+      $('e_Q').value = r.Q_wan; $('e_Am').value = r.A_m; $('e_memType').value = r.memType;
+      $('e_recirc').value = r.recircPct; $('e_memRecirc').value = r.memRecircPct; $('e_bioAir').value = r.bioAir.toFixed(0); $('e_SADm').value = r.SADm;
+      $('e_TMP').value = r.TMP; $('e_pumpEff').value = r.pumpEffPct; $('e_blowerEff').value = r.blowerEffPct;
+    }
+  }
+  // Tab 1 输入无效（r 为空）时，勾选同步的 Tab 不再显示旧结果
+  const pause = (ids, warnId) => {
+    ids.forEach(id => { if ($(id)) $(id).textContent = '—'; });
+    showWarn(warnId, ['Dữ liệu nhập Tab 1 thiết kế chính không hợp lệ, đã tạm dừng đồng bộ; hãy sửa các ô tô đỏ ở Tab 1 trước, hoặc bỏ tích «Đồng bộ với thiết kế chính» rồi nhập tay']);
+  };
+  if (mS && !r) pause(['m_r_modules_min','m_r_modules_total','m_r_Am_actual'], 'm_warn'); else calcModules();
+  if (cS && !r) { pause(['c_r_naocl_ceb','c_r_citric_ceb','c_r_cip_times','c_r_naocl_cip','c_r_citric_cip','c_r_cost'], 'c_warn'); $('c_note').textContent = ''; } else calcChem();
+  if (eS && !r) pause(['e_r_bio','e_r_mem','e_r_pump','e_r_recirc','e_r_memRecirc','e_r_total','e_r_kwhYear','e_r_costYear','e_r_costTon','e_r_extra','e_r_extraCost'], 'e_warn'); else calcEnergy();
+}
+
+// ============ 共用口径 ============
+// 饱和溶解氧 Cs(T)（清水、101.325 kPa），Cs(20) 与 Cs(T) 用同一式
+function csSat(T) { return 14.652 - 0.41022 * T + 0.007991 * T * T - 0.000077774 * T * T * T; }
+// 标准需氧量 SOR = AOR·Cs(20) / [α·(β·Csm(T) − C)·1.024^(T−20)]
+// 鼓风曝气水深修正：Csm = Cs(T)·(Pb/2.026×10⁵ + (Pa/101325)·Ot/42)，Pb = Pa + 9810·H_d (Pa)（池面出气在当地气压下），Ot = 21(1−E_A)/[79+21(1−E_A)]×100
+// Độ cao修正（标准大气式，与曝气量/鼓风机选型页一致）：Pa = 101.325·(1 − 2.25577×10⁻⁵·h)^5.25588 kPa，h = 0 时为海平面
+function atmRatio(alt) { return Math.pow(1 - 2.25577e-5 * (alt || 0), 5.25588); } // P/P₀
+function calcSORstd(AOR, T, alpha, beta, Hd, CL, EA, alt) {
+  const Cs20 = csSat(20), CsT = csSat(T);
+  const Pb = 101325 * atmRatio(alt) + 9810 * Hd;
+  const Ot = 21 * (1 - EA) / (79 + 21 * (1 - EA)) * 100;
+  const Csm = CsT * (Pb / 2.026e5 + atmRatio(alt) * Ot / 42);
+  const den = alpha * (beta * Csm - CL) * Math.pow(1.024, T - 20);
+  return den > 0 ? AOR * Cs20 / den : NaN;
+}
+// 吨水能耗（Tab 1 与 Tab 4 共用）：鼓风机绝热压缩功率 P = p1·q/(0.283·η)·[(p2/p1)^0.283 − 1]
+// p1 = 当地大气压 Pa，p2 = Pa + 出口表压；q 为实际进气量 = 标态气量（20 ℃、101.325 kPa）× 101.325/Pa（进气温度按 20 ℃，同鼓风机选型页）
+// 生物池出口表压 = 9.81×H_d + 6 kPa（管路/扩散器损失；H_d 5.5 m 时约 60 kPa），膜池取 50 kPa；回流泵 H = 2 m、η = 0.65；其他（仪控/照明）0.05
+const E_OTHER = 0.05;
+function blowerKW(air_m3h, pOut_kPa, eff, alt) {
+  const r = atmRatio(alt), p1 = 101.325 * r;                    // kPa(abs)
+  const q = air_m3h / r;                                        // 实际进气量 m³/h
+  return p1 * 1e3 * (q / 3600) / (0.283 * eff) * (Math.pow((p1 + pOut_kPa) / p1, 0.283) - 1) / 1000;
+}
+// 统计范围：生化 + 膜段（生物曝气、膜曝气、产水泵、内回流、膜池回流、仪控照明），不含进水提升、格栅、厌氧/缺氧搅拌、污泥处理
+function energyBreakdown({ Q, bioAir, Am, SADm, TMP, pumpEff, blowerEff, recirc, memRecirc, Hd, alt }) {
+  const pBio = 9.81 * (Hd > 0 ? Hd : 5.5) + 6;                  // kPa
+  const h = isFinite(alt) && alt > -500 && alt < 6000 ? alt : 0; // Độ cao m（无效时按海平面）
+  const eBio = blowerKW(bioAir, pBio, blowerEff, h) * 24 / Q;
+  const eMem = blowerKW(SADm * Am, 50, blowerEff, h) * 24 / Q;
+  const ePump = TMP * 1000 / (pumpEff * 3.6e6);                 // kWh/m³
+  const eRecirc = recirc * 1000 * 9.81 * 2 / (0.65 * 3.6e6);    // kWh/m³（好氧→缺氧内回流）
+  const eMemRecirc = memRecirc * 1000 * 9.81 * 2 / (0.65 * 3.6e6); // kWh/m³（膜池→生物池回流）
+  return { eBio, eMem, ePump, eRecirc, eMemRecirc, eTotal: eBio + eMem + ePump + eRecirc + eMemRecirc + E_OTHER };
+}
+const PUMP_EFF_D = 0.65; // Tab 1 产水泵效率（同步到 Tab 4）
+
+function calc() {
+  const g = id => parseFloat($(id)?.value) || 0;
+  const bad = validateInputs([
+    ['d_Q','Lưu lượng nước vào Q','pos'], ['d_T','Nhiệt độ nước T','num'],
+    ['d_COD0','COD₀','nn'], ['d_BOD0','BOD₅₀','nn'], ['d_TN0','TN₀','nn'], ['d_NH40','NH₄-N₀','nn'], ['d_TP0','TP₀','nn'], ['d_SS0','SS₀','nn'],
+    ['d_CODe','COD ra','nn'], ['d_BODe','BOD ra','nn'], ['d_NH4e','NH₄-N ra','nn'], ['d_TNe','TN ra','nn'], ['d_TPe','TP ra','nn'],
+    ['d_MLSS','MLSS','pos'], ['d_VSS_SS','MLVSS/MLSS','pos'], ['d_SRT','SRT','pos'], ['d_SF','Hệ số an toàn SF','pos'], ['d_HRT_AN','HRT đoạn kỵ khí','nn'],
+    ['d_J20','Thông lượng thiết kế J₂₀','pos'], ['d_peakFactor','Hệ số đỉnh','pos'], ['d_Tmin','Nhiệt độ nước thiết kế thấp nhất T_min','num'], ['d_runRatio','Tỷ lệ thời gian vận hành','pos'], ['d_moduleArea','Diện tích màng mỗi module','pos'], ['d_TMP','TMP thiết kế','nn'],
+    ['d_Y','Y','nn'], ['d_Kd','Kd','nn'], ['d_fss','Tỷ lệ chuyển SS thành bùn f','nn'], ['d_Kn','K_N','pos'], ['d_SDNR20','SDNR₂₀','pos'], ['d_bioP','Lượng khử photpho sinh học','nn'], ['d_alpha','α','pos'], ['d_beta','β','pos'],
+    ['d_SADm','Cường độ sục khí màng SADm','nn'], ['d_Hd','Độ ngập H_d','pos'], ['d_alt','Độ cao','num'], ['d_OTE','OTE','pos'], ['d_blowerEff','Hiệu suất máy thổi khí','pos'], ['d_recirc','Tỷ lệ tuần hoàn nội','nn'], ['d_memRecirc','Tỷ lệ tuần hoàn bể màng','nn'], ['d_cleanCycle','Chu kỳ rửa hoá chất','pos'],
+  ]);
+  // 进出水逻辑校验：COD₀ > 0，且进水须高于出水
+  const pv = id => parseFloat($(id).value);
+  const relRule = (ok, ids, msg) => { if (!ok) { ids.forEach(id => $(id).classList.add('invalid')); bad.push(msg); } };
+  if (!bad.length) {
+    relRule(pv('d_COD0') > 0, ['d_COD0'], 'Hãy nhập COD₀ lớn hơn 0');
+    relRule(pv('d_COD0') > pv('d_CODe'), ['d_COD0', 'd_CODe'], 'COD₀ nước vào phải lớn hơn COD nước ra');
+    relRule(pv('d_BOD0') > pv('d_BODe'), ['d_BOD0', 'd_BODe'], 'BOD₅ nước vào phải lớn hơn BOD nước ra');
+    relRule(pv('d_alt') > -500 && pv('d_alt') < 6000, ['d_alt'], 'Cao độ phải trong khoảng −500 ~ 6000 m');
+    relRule(pv('d_OTE') * pv('d_Hd') < 100, ['d_OTE', 'd_Hd'], 'Hiệu suất sục khí EE = OTE × H_d phải nhỏ hơn 100%');
+    relRule(pv('d_T') >= 0 && pv('d_T') <= 40, ['d_T'], 'Nhiệt độ nước trung bình T phải trong khoảng 0–40 ℃');
+    relRule(pv('d_Tmin') >= 0 && pv('d_Tmin') <= 40, ['d_Tmin'], 'Nhiệt độ nước thiết kế thấp nhất T_min phải trong khoảng 0–40 ℃');
+    const tIn = t => t >= 0 && t <= 40;   // 两者都在范围内时才比较大小，避免重复报错
+    relRule(!(tIn(pv('d_T')) && tIn(pv('d_Tmin'))) || pv('d_Tmin') <= pv('d_T') + 1e-6, ['d_Tmin', 'd_T'], 'Nhiệt độ nước thiết kế thấp nhất T_min không được cao hơn nhiệt độ nước trung bình T');
+  }
+  if (bad.length) {
+    RESULT_IDS_D.forEach(id => { if ($(id)) $(id).textContent = '—'; });
+    $('d_checkList').innerHTML = bad.map(t => `<div class="check-item check-bad"><span class="ic">✗</span><span>${t}</span></div>`).join('');
+    $('d_scoreNum').textContent = '—'; $('d_scoreTitle').textContent = 'Dữ liệu nhập không hợp lệ'; $('d_scoreDesc').textContent = 'Hãy sửa các ô nhập tô đỏ';
+    lastDesign = null; syncTabs(); // Tab 2/3/4 同步项不显示旧值
+    return;
+  }
+  const Q_wan = g('d_Q'), Q = Q_wan * 1e4;
+  const T = g('d_T');
+  const COD0 = g('d_COD0'), BOD0 = g('d_BOD0'), BODe = g('d_BODe');
+  const TN0 = g('d_TN0'), NH40 = g('d_NH40'), TNe = g('d_TNe'), NH4e = g('d_NH4e');
+  const TP0 = g('d_TP0'), TPe = g('d_TPe');
+  const MLSS = g('d_MLSS'), VSS_SS = g('d_VSS_SS'), SRT = g('d_SRT'), SF = g('d_SF');
+  const HRT_AN = g('d_HRT_AN');
+  const J20 = g('d_J20'), peakFactor = g('d_peakFactor'), runRatio = g('d_runRatio') / 100;
+  const moduleArea = g('d_moduleArea'), TMP = g('d_TMP');
+  const Y = g('d_Y'), Kd = g('d_Kd'), alpha = g('d_alpha'), beta = g('d_beta');
+  const SDNR20 = g('d_SDNR20');
+  const SADm = g('d_SADm'), Hd = g('d_Hd'), alt = g('d_alt'), OTE = g('d_OTE'), blowerEff = g('d_blowerEff') / 100;
+  const Tmin = g('d_Tmin'), Kn = g('d_Kn');
+  // 单好氧无缺氧段，不设内回流（能耗与同步值均按 0 计）
+  const recircPct = bioConfig === 'single_o' ? 0 : g('d_recirc'), recirc = recircPct / 100;
+  const memRecircPct = g('d_memRecirc'), memRecirc = memRecircPct / 100; // 膜池→生物池回流（各配置均有）
+  const cleanCycle = g('d_cleanCycle');                                 // 化学清洗（CIP）周期，月 → 同步 Tab 3
+  const memType = $('d_memType').value;
+  const DO_run = 2.0; // 运行溶解氧 mg/L（页面无 DO 输入，取常量 2.0）
+
+  // === 生物段计算 ===
+  const MLVSS = MLSS * VSS_SS;
+  const BOD_rem = (BOD0 - BODe) * Q / 1e3; // kg/d
+  // Kd 温度修正（GB 50014）：Kd_T = Kd₂₀·1.04^(T−20)
+  const Kd_T = Kd * Math.pow(1.04, T - 20);
+  const Yobs = Y / (1 + Kd_T * SRT);
+  // 污泥产量（站内统一口径）：
+  //   ΔX = ΔX_VSS + f·Q·(SS₀ − SSₑ)/1000 + 化学污泥 + 外加碳源产泥   [kg/d]，ΔX_VSS = Yobs·ΔBOD，SSₑ 取 0（膜出水）
+  // 生物池容按输入 SRT 与 MLSS 平衡：V = SRT · ΔX / MLSS · 1000
+  // （安全系数 SF 不乘在池容上，仅用于硝化最小泥龄校核）
+  const f_ss = g('d_fss'), SS0 = g('d_SS0'), SSe = 0;
+  const Px_bio_VSS = Yobs * BOD_rem;                                  // kg VSS/d
+  const Px_VSS = Px_bio_VSS; // 生物污泥 VSS（用于同化氮/磷），不含进水惰性固体
+
+  // === 氮平衡与碳源校核 ===
+  // 需氧量（站内口径）：O₂ = 1.47·ΔBOD − 1.42·ΔX_VSS + 4.57·(ΔTKN − 0.12·ΔX_VSS) − 2.86·N_DN
+  //   页面无 TKN 输入：进水 TKN 以 TN₀ 代替（进水硝态氮≈0）；ΔTKN = TN₀ − NH₄-Nₑ − 出水有机氮（取 1.5 mg/L）
+  const ON_E = 1.5;                                                // 出水有机氮 mg/L（经验值）
+  const dN = Math.max(0, (TN0 - TNe)) * Q / 1e3;
+  const N_assim = 0.12 * Px_VSS;                                   // 污泥同化氮（0.12 g N/g VSS）
+  const dTKN = Math.max(0, TN0 - NH4e - ON_E) * Q / 1e3;           // kg N/d
+  const N_nit = Math.max(0, dTKN - N_assim);                       // 被硝化氮量
+  // 需反硝化氮量 = 总氮去除 − 同化氮，且不超过硝化量；单好氧无缺氧段不计
+  const N_need = bioConfig === 'single_o' ? 0 : Math.min(Math.max(0, dN - N_assim), N_nit);
+  // 内碳源可支持的反硝化量上限：N_DN,max = ΔBOD·(1 − 1.42·Yobs)/2.86（约 ΔBOD/4.3）
+  const N_DN_max = Math.max(0, BOD_rem * (1 - 1.42 * Yobs) / 2.86);
+  const N_denit = Math.min(N_need, N_DN_max);                      // 内碳源反硝化（计入氧回收）
+  const N_ext = Math.max(0, N_need - N_denit);                     // 需外加碳源脱氮（不计入氧回收）
+  // 外加碳源（以 COD 计，按甲醇 Y_m ≈ 0.3 kgVSS/kgCOD，经验值）：COD/N = 2.86/(1 − 1.42·Y_m)
+  const Y_METH = 0.3;
+  const COD_ext = N_ext * 2.86 / (1 - 1.42 * Y_METH);
+  const Px_ext = Y_METH * COD_ext;                                  // 外加碳源产泥 kg VSS/d
+
+  // === 化学除磷 PAC（扣除污泥同化磷 0.02 gP/gVSS；未计生物超量除磷，偏保守）===
+  // 生物除磷量（mg/L，仅含厌氧段的 AAO 有效，默认 1.5 与站内加药页一致）
+  //   P_chem = max(0, TP₀ − TPe − 同化磷 − 生物除磷)
+  const P_assim = 0.02 * Px_VSS;
+  const P_bio = bioConfig === 'aao' ? g('d_bioP') * Q / 1e3 : 0;
+  const P_chem = Math.max(0, Math.max(0, TP0 - TPe) * Q / 1e3 - P_assim - P_bio); // kg P/d
+  const Al_need = P_chem * 2 * 26.98 / 30.97;             // Al/P 摩尔比 2
+  const PAC = Al_need / 0.0529;                           // PAC 10% Al₂O₃ → Al 质量分数 0.0529
+  const PAC_mg = PAC * 1e3 / Q;                           // mg/L
+  // 化学污泥：AlPO₄ 122/31 + 余 Al(OH)₃ 78/31（Al/P=2，余 1 mol Al）
+  const X_chem = P_chem * (122 + 78) / 30.97;             // kg DS/d
+
+  const Px_total = Px_bio_VSS + f_ss * Q * Math.max(0, SS0 - SSe) / 1e3 + X_chem + Px_ext; // kg DS/d
+  const V_total = SRT * Px_total / MLSS * 1e3;
+  const V_O = V_total * (bioConfig === 'single_o' ? 1.0 : bioConfig === 'ao_an' ? 0.60 : 0.65);
+  const V_AX = bioConfig === 'single_o' ? 0 : V_total * (bioConfig === 'ao_an' ? 0.40 : 0.35);
+  const V_AN = bioConfig === 'aao' ? HRT_AN / 24 * Q : 0;
+  const HRT_total = (V_total + V_AN) / Q * 24;
+
+  // 硝化最小泥龄（全站统一口径，GB 50014-2021 第 7.6.17 条）：按最低设计水温 T_min 校核
+  //   θco = F·SRT_min，SRT_min = 1/μ，μ = 0.47·Na/(K_N+Na)·e^{0.098(T−15)}；Na = max(NH₄ₑ, 0.5)，不计衰减、不含 DO 项
+  //   以好氧泥龄 SRT_O = SRT × V_O / V_total 与 SF × SRT_min 比较
+  const T_nit = Math.min(T, Tmin);
+  const Na_nit = Math.max(NH4e, 0.5);
+  const mu_n = 0.47 * Na_nit / (Kn + Na_nit) * Math.exp(0.098 * (T_nit - 15));
+  const SRT_min = mu_n > 1e-9 ? 1 / mu_n : Infinity;
+  const SRT_req = SF * SRT_min;
+  const SRT_O = SRT * V_O / V_total;
+
+  // 与传统活性污泥对比省池容 (传统 MLSS~3500)
+  const V_trad = V_total * (MLSS / 3500) * 1.15; // 传统还需 1.15 倍含二沉池
+  const saveV = Math.max(0, (V_trad - V_total) / V_trad * 100);
+
+  // === 膜系统计算 ===
+  const T_factor = Math.pow(1.03, T - 20);
+  const Tmin_factor = Math.pow(1.03, Tmin - 20);
+  const J_T = J20 * T_factor;        // 平均水温下允许通量
+  const J_Tmin = J20 * Tmin_factor;  // 最低设计水温下允许通量
+  const J_lim = FLUX_LIMIT[memType] || 30;
+  const J_pkAllow = Math.min(J_lim, PEAK_FLUX_RATIO * J_Tmin);   // 峰值允许通量
+  // 总膜面积取两种工况较大值（LMH → m/d：J/1000·24），向上取整为整 m²（各 Tab 统一）：
+  //   ① 冬季低温：A_win = Q / (J(T_min)·r·24/1000)       ② 峰值流量：A_pk = PF·Q / (J_pk·r·24/1000)，J_pk = min(J_lim, 1.5·J(T_min))
+  const A_win = Q / (J_Tmin / 1000 * runRatio * 24);
+  const A_pk = Q * peakFactor / (J_pkAllow / 1000 * runRatio * 24);
+  const A_m = Math.ceil(Math.max(A_win, A_pk) - 1e-6); // m²
+  const ctrlCase = A_win >= A_pk ? `Nhiệt độ thấp mùa đông T_min=${Tmin}°C` : `Lưu lượng đỉnh ×${peakFactor}`;
+  const J_avg = Q / (A_m * runRatio * 24 / 1000);   // 平均流量下运行通量
+  const J_peak = J_avg * peakFactor;                // 峰值流量下运行通量
+  const modules = Math.ceil(A_m / moduleArea - 1e-6);
+
+  // === 剩余污泥 === 与 SRT 自洽: ΔX = MLSS × V / SRT = Px_total (kg DS/d)
+  const dX = MLSS * V_total / SRT / 1e3;
+
+  // === 需氧量 ===
+  const AOR_carb = 1.47 * BOD_rem - 1.42 * Px_VSS;
+  const AOR_nitrif = 4.57 * N_nit;
+  const AOR_dentrif = -2.86 * N_denit;   // 仅内碳源反硝化计氧回收；外加碳源脱氮不计
+  const AOR = Math.max(0, AOR_carb + AOR_nitrif + AOR_dentrif);
+  // SOR：GB 50014 口径，含扩散器水深修正；E_A 取 EE = OTE × H_d
+  const EE = OTE * Hd / 100;
+  const SOR = calcSORstd(AOR, T, alpha, beta, Hd, DO_run, EE, alt);
+  // 生物曝气量 G = SOR / (24 × 0.28 × EE)，0.28 kg O₂/m³ 为 20°C 标态空气含氧量 → m³/h
+  const bioAir = SOR / (24 * 0.28 * EE);
+
+  // 缺氧池容校核（只提示）：V_AX,req = N_DN / (SDNR_T · MLVSS)，SDNR_T = SDNR20 · 1.08^(T−20)（θ=1.08 依据 GB 50014）
+  const SDNR_T = SDNR20 * Math.pow(1.08, T - 20);
+  const V_AX_req = N_need * 1e3 / (SDNR_T * MLVSS); // m³
+
+  // 预计出水 TN（mg/L，简化）：单好氧无反硝化 → TN₀ − 同化氮；
+  //   AO/AAO：回流可达 NO₃ₑ ≈ 硝化氮/(1 + R)，R = Tỷ lệ tuần hoàn nội + Tỷ lệ tuần hoàn bể màng（膜池回流按回到缺氧段计）
+  const TN_single = TN0 - N_assim * 1e3 / Q;
+  const R_tot = recirc + memRecirc;
+  const TN_rec = NH4e + ON_E + N_nit * 1e3 / Q / (1 + R_tot);
+  const TN_pred = bioConfig === 'single_o' ? TN_single : Math.max(TNe, TN_rec);
+
+  // === 能耗 ===
+  // 与 Tab 4 同一函数：生物曝气量 G、膜曝气 SADm×A_m 均按鼓风机绝热压缩功率计
+  const E = energyBreakdown({ Q, bioAir, Am: A_m, SADm, TMP, pumpEff: PUMP_EFF_D, blowerEff, recirc, memRecirc, Hd, alt });
+  const eBio = E.eBio, eMem_val = E.eMem, ePump = E.ePump, eRecirc = E.eRecirc, eMemRecirc = E.eMemRecirc, eTotal = E.eTotal;
+
+  // === 渲染结果 ===
+  $('d_r_V').textContent = V_total.toFixed(0);
+  $('d_r_HRT').textContent = HRT_total.toFixed(1);
+  $('d_r_VAN').textContent = V_AN.toFixed(0);
+  $('d_r_VAX').textContent = V_AX.toFixed(0);
+  $('d_r_VO').textContent = V_O.toFixed(0);
+  $('d_r_saveV').textContent = saveV.toFixed(0);
+  $('d_r_SRTmin').textContent = isFinite(SRT_min) ? `${SRT_min.toFixed(1)} / ${SRT_req.toFixed(1)}` : 'Không nitrat hoá được';
+  $('row_AXreq').style.display = bioConfig === 'single_o' ? 'none' : '';
+  $('d_r_VAXreq').textContent = bioConfig === 'single_o' ? '—' : V_AX_req.toFixed(0);
+  $('d_r_Am').textContent = A_m;
+  $('d_r_ctrl').textContent = ctrlCase;
+  $('d_r_JT').textContent = `${J_T.toFixed(1)} / ${J_Tmin.toFixed(1)}`;
+  $('d_r_Javg').textContent = J_avg.toFixed(1);
+  $('d_r_modules').textContent = modules;
+  $('d_r_Jpeak').textContent = J_peak.toFixed(1);
+  $('d_r_Jlim').textContent = (+J_pkAllow.toFixed(1)) + (J_pkAllow < J_lim ? '' : '(giới hạn trên của loại màng)');
+  $('d_r_Tfactor').textContent = `${T_factor.toFixed(3)} / ${Tmin_factor.toFixed(3)}`;
+  $('d_r_AOR').textContent = AOR.toFixed(0);
+  $('d_r_SOR').textContent = SOR.toFixed(0);
+  $('d_r_bioAir').textContent = bioAir.toFixed(0);
+  $('d_r_dX').textContent = Math.max(0, dX).toFixed(0);
+  $('d_r_MLSS_ratio').textContent = (MLSS / Math.max(g('d_SS0'), 10)).toFixed(1);
+  $('d_r_Pchem').textContent = P_chem.toFixed(1);
+  $('d_r_PAC').textContent = PAC.toFixed(0);
+  $('d_r_PACmg').textContent = PAC_mg.toFixed(1);
+  $('d_r_chemSl').textContent = X_chem.toFixed(0);
+  $('d_r_chemShare').textContent = (Px_total > 0 ? X_chem / Px_total * 100 : 0).toFixed(1);
+  $('row_Cext').style.display = bioConfig === 'single_o' ? 'none' : '';
+  $('row_Cext2').style.display = bioConfig === 'single_o' ? 'none' : '';
+  $('d_r_Ndn').textContent = bioConfig === 'single_o' ? '—' : `${N_denit.toFixed(0)} / ${N_ext.toFixed(0)}`;
+  $('d_r_Cext').textContent = bioConfig === 'single_o' ? '—' : COD_ext.toFixed(0);
+  $('d_r_TNpred').textContent = Math.max(0, TN_pred).toFixed(1);
+  $('d_r_eBio').textContent = eBio.toFixed(2);
+  $('d_r_eMem').textContent = eMem_val.toFixed(2);
+  $('d_r_ePump').textContent = ePump.toFixed(2);
+  $('d_r_eRecirc').textContent = eRecirc.toFixed(3);
+  $('d_r_eMemRecirc').textContent = eMemRecirc.toFixed(3);
+  $('d_r_eTotal').textContent = eTotal.toFixed(2);
+
+  // 同步到 Tab 2/3/4（Tab 1 为主）
+  lastDesign = { Q_wan, A_m, memType, recircPct, memRecircPct, cleanCycle, moduleArea, bioAir, SADm, TMP, pumpEffPct: PUMP_EFF_D * 100, blowerEffPct: blowerEff * 100 };
+  syncTabs();
+
+  // SVG 流程图
+  drawFlow(bioConfig, { Q_wan, V_total, V_AN, A_m, modules });
+
+  // 校核
+  const checks = checkDesign({ J_pkAllow, J_T, J20, T, Tmin, A_m, V_total, HRT_total, MLSS, SRT, SRT_O, AOR, dX, eBio, eMem_val, ePump, eRecirc, eMemRecirc, eTotal, Tmin_factor, memType, J_peak, J_lim, SF, SRT_min, SRT_req, V_AX, V_AX_req, BOD0, TN0, T_nit, N_ext, COD_ext, N_DN_max, TNe, TN_pred, R_tot });
+  $('d_checkList').innerHTML = checks.items.map(c => `<div class="check-item check-${c.type}"><span class="ic">${c.ic}</span><span>${c.text}</span></div>`).join('');
+  const scoreNum = checks.score;
+  $('d_scoreNum').textContent = scoreNum;
+  const [st, sd] = scoreNum >= 80 ? ['✅ Thiết kế hợp lý','Thông số nằm trong phạm vi thông thường của công trình'] : scoreNum >= 60 ? ['⚠️ Thiết kế có rủi ro','Hãy chú ý các mục cảnh báo ở trên'] : ['✗ Thiết kế có vấn đề nghiêm trọng','Cần kiểm tra lại các thông số chính'];
+  $('d_scoreTitle').textContent = st;
+  $('d_scoreDesc').textContent = sd;
+}
+
+function checkDesign({ J_pkAllow, J_T, J20, T, Tmin, A_m, V_total, HRT_total, MLSS, SRT, SRT_O, AOR, dX, eBio, eMem_val, ePump, eRecirc, eMemRecirc, eTotal, Tmin_factor, memType, J_peak, J_lim, SF, SRT_min, SRT_req, V_AX, V_AX_req, BOD0, TN0, T_nit, N_ext, COD_ext, N_DN_max, TNe, TN_pred, R_tot }) {
+  const items = []; let score = 100;
+  const memName = MEM_NAME[memType] || 'Màng sợi rỗng';
+  if (J_T < 12) { items.push({type:'warn',ic:'⚠',text:`<b>Thông lượng thấp</b>: hiện tại T=${T}°C, thông lượng ${J_T.toFixed(1)} LMH < 12, diện tích màng lớn, có thể tăng hợp lý giá trị thiết kế J₂₀`}); score -= 10; }
+  if (J20 > J_lim) { items.push({type:'bad',ic:'✗',text:`<b>Thông lượng thiết kế vượt giới hạn</b>: J₂₀ = ${J20} LMH vượt HJ 2010 ${memName}giới hạn trên ${J_lim} LMH, có nguy cơ vượt thông lượng tới hạn`}); score -= 20; }
+  // 膜面积已按峰值允许通量取大值，下面这条按构造不会触发，仅作防御
+  else if (J_peak > J_pkAllow * 1.0001) { items.push({type:'warn',ic:'⚠',text:`<b>Thông lượng đỉnh vượt giới hạn</b>: Thông lượng vận hành ở lưu lượng cực đại ${J_peak.toFixed(1)} LMH > Thông lượng cho phép lúc đỉnh ${J_pkAllow.toFixed(1)} LMH（min(${memName}giới hạn trên ${J_lim}, 1.5×J(T_min))), lúc đỉnh cần tăng diện tích màng hoặc bố trí bể điều hoà`}); score -= 8; }
+  if (Tmin_factor < 0.75) { items.push({type:'warn',ic:'⚠',text:`<b>Ảnh hưởng nhiệt độ thấp rõ rệt</b>: T_min=${Tmin}°C, hệ số hiệu chỉnh thông lượng ${Tmin_factor.toFixed(2)}, diện tích màng mùa đông tăng so với 20°C ${((1/Tmin_factor-1)*100).toFixed(0)}%`}); score -= 10; }
+  if (MLSS < 8000) { items.push({type:'warn',ic:'⚠',text:`<b>MLSS thấp</b>: ${MLSS} mg/L < 8000, chưa phát huy hết ưu thế cô đặc của MBR`}); score -= 8; }
+  if (MLSS > 12000) { items.push({type:'warn',ic:'⚠',text:`<b>MLSS cao</b>: ${MLSS} mg/L > 12000, tốc độ bẩn màng tăng, cần tăng cường rửa`}); score -= 8; }
+  if (!isFinite(SRT_min)) { items.push({type:'bad',ic:'✗',text:`<b>Không nitrat hoá được</b>: nhiệt độ nước thiết kế thấp nhất ${T_nit}°C, tốc độ sinh trưởng riêng của vi khuẩn nitrat hoá μ ≤ 0 (GB 50014-2021 công thức 7.6.17), hãy kiểm tra K_N, mục tiêu amoni nước ra và nhiệt độ nước`}); score -= 20; }
+  else if (SRT_O < SRT_req - 1e-6) { items.push({type:'warn',ic:'⚠',text:`<b>Tuổi bùn nitrat hoá không đủ</b>: kiểm tra theo nhiệt độ nước thiết kế thấp nhất ${T_nit}°C, tuổi bùn hiếu khí SRT×V_O/V = ${SRT_O.toFixed(1)} d < SF × SRT_min = ${SF} × ${SRT_min.toFixed(1)} = ${SRT_req.toFixed(1)} d, dư an toàn nitrat hoá mùa đông không đủ, nên tăng SRT hoặc tỷ lệ đoạn hiếu khí`}); score -= 12; }
+  if (SRT < 20) { items.push({type:'warn',ic:'⚠',text:`<b>SRT ngắn</b>: ${SRT}d < 20d, MBR thường SRT 20-30d để đảm bảo nitrat hoá và lượng bùn thấp`}); score -= 8; }
+  if (HRT_total < 4) { items.push({type:'warn',ic:'⚠',text:`<b>HRT ngắn</b>: ${HRT_total.toFixed(1)}h < 4h, phản ứng sinh học không đầy đủ`}); score -= 12; }
+  if (V_AX > 0 && V_AX < V_AX_req) { items.push({type:'info',ic:'ℹ',text:`<b>Gợi ý thể tích bể thiếu khí</b>: thể tích bể thiếu khí cần theo SDNR ${V_AX_req.toFixed(0)} m³ > phân bổ hiện tại ${V_AX.toFixed(0)} m³, khử nitrat có thể không hoàn toàn, có thể xét tăng tỷ lệ đoạn thiếu khí hoặc bổ sung nguồn cacbon (chỉ gợi ý)`}); }
+  if (bioConfig === 'single_o') { if (TN_pred > TNe + 1e-6) { items.push({type:'warn',ic:'⚠',text:`<b>TN nước ra không đạt</b>: công nghệ chỉ hiếu khí không có khử nitrat, TN nước ra khoảng ${TN_pred.toFixed(1)} mg/L (TN₀ − nitơ đồng hoá), không đạt mục tiêu ${TNe} mg/L; cần khử nitơ hãy chọn AO/AAO`}); score -= 10; } }
+  else if (TN_pred > TNe + 1e-6) { items.push({type:'warn',ic:'⚠',text:`<b>Tỷ lệ tuần hoàn không đủ</b>: tuần hoàn nội + tuần hoàn bể màng R = ${(R_tot * 100).toFixed(0)}%, NO₃-N nước ra khoảng 1/(1+R) lượng nitơ nitrat hoá, TN nước ra dự kiến khoảng ${TN_pred.toFixed(1)} mg/L > Mục tiêu ${TNe} mg/L, nên tăng tỷ lệ tuần hoàn hoặc kiểm tra mục tiêu nước ra`}); score -= 8; }
+  if (N_ext > 1e-6) { items.push({type:'warn',ic:'⚠',text:`<b>Nguồn cacbon khử nitrat không đủ</b>: cacbon nội tại hỗ trợ khử nitrat tối đa ${N_DN_max.toFixed(0)} kg N/d (ΔBOD·(1−1.42·Yobs)/2.86), còn thiếu ${N_ext.toFixed(0)} kg N/d, cần bổ sung nguồn cacbon khoảng ${COD_ext.toFixed(0)} kg COD/d (tính theo metanol, đã tính vào bùn dư; khử nitơ bằng cacbon bổ sung không trừ vào nhu cầu oxy), hoặc dùng công nghệ nitrat hoá rút gọn/anammox`}); score -= 5; }
+  else if (V_AX > 0 && TN0 > 0 && BOD0 / TN0 < 4) { items.push({type:'info',ic:'ℹ',text:`<b>Kiểm tra nguồn cacbon</b>: BOD₅/TN nước vào = ${(BOD0 / TN0).toFixed(2)} thấp (< 4), nhưng theo tính toán cacbon nội tại đủ cho khử nitrat (tối đa ${N_DN_max.toFixed(0)} kg N/d), khi vận hành nên theo dõi dao động nguồn cacbon đầu vào (chỉ gợi ý)`}); }
+  if (eTotal > 1.2) {
+    const parts = [
+      ['Sục khí sinh học', eBio, 'Tối ưu cấp oxy (sục khí chính xác/điều khiển DO, nâng hiệu suất sử dụng oxy), nước vào amoni cao/COD cao nên tăng cường tiền xử lý hoặc khử nitơ trước để giảm tải'],
+      ['Sục khí màng', eMem_val, 'Tối ưu cách sục khí màng (như sục khí xung/gián đoạn) hoặc giảm hợp lý SADm'],
+      ['Bơm hút nước sản phẩm', ePump, 'Giảm TMP (tăng cường rửa, giảm thông lượng) hoặc dùng hút nước tự chảy'],
+      ['Bơm tuần hoàn nội', eRecirc, 'Rà giảm tỷ lệ tuần hoàn nội hoặc giảm cột áp tuần hoàn'],
+      ['Bơm tuần hoàn bể màng', eMemRecirc, 'Rà giảm tỷ lệ tuần hoàn bể màng hoặc giảm cột áp tuần hoàn'],
+    ].sort((a, b) => b[1] - a[1]);
+    const [nm, val, tip] = parts[0];
+    items.push({type:'warn',ic:'⚠',text:`<b>Điện năng công đoạn sinh học + màng cao</b>: ${eTotal.toFixed(2)} kWh/m³ > 1.2, hạng mục lớn nhất là${nm} ${val.toFixed(2)} kWh/m³（${(val / eTotal * 100).toFixed(0)}%), khuyến nghị${tip}`}); score -= 8;
+  }
+  if (eTotal < 0.6) { items.push({type:'ok',ic:'✓',text:`<b>Điện năng công đoạn sinh học + màng thấp</b>: ${eTotal.toFixed(2)} kWh/m³ (không gồm nâng nước, khuấy trộn, xử lý bùn; toàn nhà máy thường cộng thêm 0.1-0.3 kWh/m³)`}); }
+  if (items.length === 0 || items.every(i => i.type === 'ok' || i.type === 'info')) { items.push({type:'ok',ic:'✓',text:'<b>Thông số thiết kế hợp lý</b>: thông lượng, MLSS, SRT, HRT đều trong phạm vi thông thường của công trình'}); }
+  return { items, score: Math.max(10, score) };
+}
+
+// ============ SVG 流程图 ============
+function drawFlow(cfg, r) {
+  const ink = '#0f172a', muted = '#64748b', brand = '#0891b2';
+  const svgW = 960, H = 80, y = 100;
+  let h = `<defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="${brand}"/></marker></defs>`;
+  h += `<text x="480" y="22" font-size="13" font-weight="600" fill="${ink}" text-anchor="middle">Sơ đồ công nghệ MBR (${r.Q_wan} vạn m³/ngày)</text>`;
+
+  const arrow = (x1, x2, y0) => `<path d="M ${x1} ${y0} L ${x2} ${y0}" stroke="${brand}" stroke-width="2" marker-end="url(#arr)"/>`;
+  const box = (x, w, label, sub, color) => `<rect x="${x}" y="${y}" width="${w}" height="${H}" fill="${color}" fill-opacity="0.15" stroke="${color}" stroke-width="2" rx="6"/>
+    <text x="${x+w/2}" y="${y+H/2}" font-size="13" font-weight="700" fill="${color}" text-anchor="middle">${label}</text>
+    <text x="${x+w/2}" y="${y+H/2+18}" font-size="10" fill="${muted}" text-anchor="middle">${sub}</text>`;
+
+  let x = 50;
+  h += `<path d="M 20 ${y+H/2} L ${x} ${y+H/2}" stroke="${brand}" stroke-width="2" marker-end="url(#arr)"/>`;
+  h += `<text x="10" y="${y+H/2-6}" font-size="11" fill="${ink}">Nước vào</text>`;
+
+  if (cfg === 'aao') {
+    const panels = [
+      { w:100, label:'Đoạn kỵ khí', sub:`V≈${Math.round(r.V_AN)} m³`, color:'#9333ea' },
+      { w:130, label:'Đoạn thiếu khí', sub:'Khử nitơ', color:'#ea580c' },
+      { w:180, label:'Hiếu khí + bể màng', sub:`A_m≈${Math.round(r.A_m/100)*100} m²`, color:'#0891b2' },
+    ];
+    panels.forEach(p => {
+      h += arrow(x, x+8, y+H/2);
+      h += box(x, p.w, p.label, p.sub, p.color);
+      x += p.w + 8;
+    });
+  } else if (cfg === 'ao_an') {
+    [{ w:140, label:'Đoạn thiếu khí', sub:'Khử nitơ', color:'#ea580c' },
+     { w:190, label:'Hiếu khí + bể màng', sub:`A_m≈${Math.round(r.A_m/100)*100} m²`, color:'#0891b2' }].forEach(p => {
+      h += arrow(x, x+8, y+H/2);
+      h += box(x, p.w, p.label, p.sub, p.color);
+      x += p.w + 8;
+    });
+  } else {
+    h += arrow(x, x+8, y+H/2);
+    h += box(x, 200, 'Hiếu khí + bể màng', `A_m≈${Math.round(r.A_m/100)*100} m²`, '#0891b2');
+    x += 208;
+  }
+  // 膜产水
+  h += arrow(x, x+40, y+H/2);
+  h += `<text x="${x+42}" y="${y+H/2-6}" font-size="11" fill="${ink}" font-weight="600">Nước ra</text>`;
+  h += `<text x="${x+42}" y="${y+H/2+10}" font-size="10" fill="${muted}">SS&lt;1 mg/L</text>`;
+  // 污泥回流
+  h += `<path d="M ${x-10} ${y+H+10} L ${x-10} ${y+H+30} L 180 ${y+H+30} L 180 ${y+H+10}" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>`;
+  h += `<text x="${(x-10+180)/2}" y="${y+H+26}" font-size="10" fill="${muted}" text-anchor="middle">Tuần hoàn bùn RAS</text>`;
+
+  const svg = $('mbrFlowSvg');
+  svg.innerHTML = h;
+}
+
+// ============ Tab 2: 膜选型 ============
+function toggleMemCard(id) {
+  const el = $('detail-' + id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function calcModules() {
+  const bad = validateInputs([['m_Am','Tổng diện tích màng thiết kế','pos'], ['m_singleArea','Diện tích mỗi mô-đun','pos'], ['m_redundancy','Hệ số dự phòng','pos']]);
+  showWarn('m_warn', bad);
+  if (bad.length) { ['m_r_modules_min','m_r_modules_total','m_r_Am_actual'].forEach(id => { if ($(id)) $(id).textContent = '—'; }); return; }
+  const Am = parseFloat($('m_Am').value);
+  const sa = parseFloat($('m_singleArea').value);
+  const red = parseFloat($('m_redundancy').value);
+  const min = Math.ceil(Am / sa);
+  const total = Math.ceil(Am * red / sa);
+  const actual = total * sa;
+  if ($('m_r_modules_min')) $('m_r_modules_min').textContent = min;
+  if ($('m_r_modules_total')) $('m_r_modules_total').textContent = total;
+  if ($('m_r_Am_actual')) $('m_r_Am_actual').textContent = actual + ' m²';
+}
+
+// ============ Tab 3: 清洗药剂 ============
+function calcChem() {
+  const bad = validateInputs([['c_Q','Công suất thiết kế Q','pos'], ['c_cipCycle','Chu kỳ CIP','pos'], ['c_days','Số ngày vận hành','pos'], ['c_cebFreq','Tần suất rửa bảo trì','nn'], ['c_cebPpm','Nồng độ NaOCl rửa bảo trì','nn'], ['c_acidFreq','Tần suất rửa axit bảo trì','nn'], ['c_acidPpm','Nồng độ rửa axit bảo trì','nn']]);
+  showWarn('c_warn', bad);
+  if (bad.length) { ['c_r_naocl_ceb','c_r_citric_ceb','c_r_cip_times','c_r_naocl_cip','c_r_citric_cip','c_r_cost'].forEach(id => { if ($(id)) $(id).textContent = '—'; }); return; }
+  const Q_wan = parseFloat($('c_Q').value);
+  const Q = Q_wan * 1e4; // m³/d
+  const cipCycle = parseFloat($('c_cipCycle').value); // 月
+  const days = parseFloat($('c_days').value);
+  const memType = $('c_memType')?.value;
+  const cebFreq = parseFloat($('c_cebFreq').value);   // 维护性清洗 次/周（参考值，以膜厂家清洗规程为准）
+  const cebPpm = parseFloat($('c_cebPpm').value);     // 维护性清洗 NaOCl ppm（参考值，以膜厂家清洗规程为准）
+  const acidFreq = parseFloat($('c_acidFreq').value); // 维护性酸洗 次/周（参考值）
+  const acidPpm = parseFloat($('c_acidPpm').value);   // 维护性酸洗柠檬酸 ppm（参考值）
+
+  // 维护性清洗（MC/CEB）：NaOCl cebPpm、每周 cebFreq 次；柠檬酸 acidPpm、每周 acidFreq 次；药液量按 2 L/m²·次 (0.002 m³/m²)
+  // 膜面积: 用 Tab 1 的 A_m（含用户设定的通量/温度/膜型）；本 Tab 规模与 Tab 1 不同时按 Q 比例缩放
+  const Am_tab1 = lastDesign ? lastDesign.A_m : NaN;
+  const Q_tab1 = lastDesign ? lastDesign.Q_wan : NaN;
+  const Am_est = (Am_tab1 > 0 && Q_tab1 > 0) ? Am_tab1 * Q_wan / Q_tab1 : Q / (20 / 1000 * 0.95 * 24);
+  // 平板膜（FS）不能反洗，无 CEB，只计 CIP
+  const hasCEB = memType !== 'fs';
+  const ceb_naocl_once = hasCEB ? Am_est * 0.002 * cebPpm / 1000 : 0; // kg/次 = m² × m³/m² × kg/m³
+  const ceb_naocl_year = ceb_naocl_once * cebFreq * days / 7;
+  const ceb_citric_year = hasCEB ? Am_est * 0.002 * acidPpm / 1000 * acidFreq * days / 7 : 0;
+
+  // CIP 次数/年
+  const cip_times = 12 / cipCycle;   // 年均次数，不取整（周期 >12 tháng时 <1 次/年）
+  // CIP 用药（每次药液约 5-10 L/m² 膜）：NaOCl 1000-2000 ppm → 约 10 kg/1000 m²；柠檬酸 3000-5000 ppm → 约 30 kg/1000 m²
+  const cip_naocl_once = Am_est / 1000 * 10;
+  const cip_citric_once = Am_est / 1000 * 30;
+  const cip_naocl_year = cip_naocl_once * cip_times;
+  const cip_citric_year = cip_citric_once * cip_times;
+
+  // 成本估算：上列 NaOCl 用量以有效氯计，折算为 10% 商品液（÷0.10）后 × 0.8 元/kg；柠檬酸 5 元/kg
+  const NAOCL_ACTIVE = 0.10, NAOCL_PRICE = 0.8, CITRIC_PRICE = 5;
+  const cost_year = (ceb_naocl_year + cip_naocl_year) / NAOCL_ACTIVE * NAOCL_PRICE + (ceb_citric_year + cip_citric_year) * CITRIC_PRICE;
+
+  if ($('c_r_naocl_ceb')) $('c_r_naocl_ceb').textContent = ceb_naocl_year.toFixed(0);
+  if ($('c_r_citric_ceb')) $('c_r_citric_ceb').textContent = ceb_citric_year.toFixed(0);
+  if ($('c_r_cip_times')) $('c_r_cip_times').textContent = +cip_times.toFixed(1);
+  if ($('c_r_naocl_cip')) $('c_r_naocl_cip').textContent = cip_naocl_year.toFixed(0);
+  if ($('c_r_citric_cip')) $('c_r_citric_cip').textContent = cip_citric_year.toFixed(0);
+  if ($('c_r_cost')) $('c_r_cost').textContent = (cost_year / 1e4).toFixed(2);
+  if ($('c_note')) $('c_note').textContent = `Diện tích màng tính theo ${Am_est.toFixed(0)} m² (${Am_tab1 > 0 ? 'lấy từ A_m Tab 1' + (Math.abs(Q_tab1 - Q_wan) < 1e-9 ? '' : ', thu phóng theo tỷ lệ công suất') : 'Tab 1 không có kết quả hợp lệ, ước tính theo J = 20 LMH'}). Rửa bảo trì: NaOCl ${cebPpm} ppm × ${cebFreq} lần/tuần, axit citric ${acidPpm} ppm × ${acidFreq} lần/tuần, dung dịch 2 L/m²·lần (giá trị tham khảo, theo quy trình rửa của hãng màng). Lượng NaOCl tính theo clo hoạt tính, chi phí quy đổi theo dung dịch thương phẩm 10% (lượng dung dịch thương phẩm = clo hoạt tính ÷ 0.10).` + (hasCEB ? '' : 'Màng tấm không rửa ngược được, lượng rửa bảo trì tính bằng 0.');
+}
+
+// ============ Tab 4: 能耗分析 ============
+function calcEnergy() {
+  const bad = validateInputs([['e_Q','Q','pos'], ['e_Am','Diện tích màng A_m','pos'], ['e_SADm','SADm','nn'], ['e_TMP','TMP thiết kế','nn'], ['e_pumpEff','Hiệu suất bơm hút nước sản phẩm','pos'],
+    ['e_bioAir','Lượng sục khí sinh học','nn'], ['e_blowerEff','Hiệu suất máy thổi khí','pos'], ['e_recirc','Tỷ lệ tuần hoàn nội','nn'], ['e_memRecirc','Tỷ lệ tuần hoàn bể màng','nn'], ['e_price','Giá điện','nn']]);
+  showWarn('e_warn', bad);
+  if (bad.length) {
+    ['e_r_bio','e_r_mem','e_r_pump','e_r_recirc','e_r_memRecirc','e_r_total','e_r_kwhYear','e_r_costYear','e_r_costTon','e_r_extra','e_r_extraCost'].forEach(id => { if ($(id)) $(id).textContent = '—'; });
+    return;
+  }
+  const v = id => parseFloat($(id).value);
+  const Q_wan = v('e_Q');
+  const Q = Q_wan * 1e4;
+  const Am = v('e_Am');
+  const SADm = v('e_SADm');
+  const TMP = v('e_TMP');
+  const pumpEff = v('e_pumpEff') / 100;
+  const bioAir = v('e_bioAir'); // m³/h (điều kiện chuẩn 20°C)
+  const blowerEff = v('e_blowerEff') / 100;
+  const recirc = v('e_recirc') / 100;
+  const memRecirc = v('e_memRecirc') / 100;
+  const price = v('e_price');
+
+  // 与 Tab 1 同一函数 energyBreakdown：生物曝气（出口表压 9.81×H_d + 6 kPa，H_d 与Độ cao取 Tab 1 高级Thông số）、膜曝气 SADm×A_m（50 kPa）按鼓风机绝热压缩功率，
+  // 产水泵 TMP/η，内回流与膜池回流泵 ρgH·R/η（H = 2 m、η = 0.65），其他 0.05 kWh/m³
+  // 统计范围仅生化 + 膜段，不含进水提升、格栅、厌氧/缺氧搅拌、污泥处理
+  const { eBio, eMem, ePump, eRecirc, eMemRecirc, eTotal } = energyBreakdown({ Q, bioAir, Am, SADm, TMP, pumpEff, blowerEff, recirc, memRecirc, Hd: parseFloat($('d_Hd').value), alt: parseFloat($('d_alt').value) });
+  // MBR 相对传统工艺的额外能耗 = 膜系统专有项（膜曝气 + 产水泵 + 膜池回流）；
+  // 不再用 eTotal − 0.4（0.4 为传统全厂电耗，而 eTotal 只含生化 + 膜段，口径不一致）
+  const eExtra = eMem + ePump + eMemRecirc;
+  const kwhYear = eTotal * Q * 365 / 1e4;
+  const costYear = kwhYear * price;
+  const costTon = eTotal * price;
+
+  if ($('e_r_bio')) $('e_r_bio').textContent = eBio.toFixed(2);
+  if ($('e_r_mem')) $('e_r_mem').textContent = eMem.toFixed(2);
+  if ($('e_r_pump')) $('e_r_pump').textContent = ePump.toFixed(2);
+  if ($('e_r_recirc')) $('e_r_recirc').textContent = eRecirc.toFixed(2);
+  if ($('e_r_memRecirc')) $('e_r_memRecirc').textContent = eMemRecirc.toFixed(2);
+  if ($('e_r_total')) $('e_r_total').textContent = eTotal.toFixed(2);
+  if ($('e_r_kwhYear')) $('e_r_kwhYear').textContent = kwhYear.toFixed(0);
+  if ($('e_r_costYear')) $('e_r_costYear').textContent = costYear.toFixed(0);
+  if ($('e_r_costTon')) $('e_r_costTon').textContent = costTon.toFixed(2);
+  if ($('e_r_extra')) $('e_r_extra').textContent = eExtra.toFixed(2);
+  if ($('e_r_extraCost')) $('e_r_extraCost').textContent = (eExtra * Q * 365 * price / 1e4).toFixed(0);
+
+  // 更新柱状图
+  const maxE = Math.max(eBio, eMem, ePump, eRecirc, eMemRecirc, 0.1);
+  const bars = [{id:'bio',v:eBio},{id:'mem',v:eMem},{id:'pump',v:ePump},{id:'recirc',v:eRecirc},{id:'memRecirc',v:eMemRecirc}];
+  bars.forEach(b => {
+    if ($('e_bar_'+b.id)) $('e_bar_'+b.id).style.width = Math.max(5, b.v/maxE*90)+'%';
+    if ($('e_val_'+b.id)) $('e_val_'+b.id).textContent = b.v.toFixed(2)+' kWh/m³';
+  });
+}
+
+// Tab 4 不同步时切换膜类型：带入该膜型 SADm 默认值（HF 0.20 / FS 0.40，与 Tab 1 一致）
+function onEnergyMemType() {
+  $('e_SADm').value = $('e_memType').value === 'fs' ? 0.40 : 0.20;
+  calcEnergy();
+}
+
+// ============ Tab 5: 案例库渲染 ============
+function renderCases() {
+  const tagClass = { muni:'ccm-tag-muni', ind:'ccm-tag-ind', leach:'ccm-tag-leach' };
+  const html = MBR_CASES.map(c => `
+    <div class="case-card-mbr">
+      <div class="ccm-head">
+        <div class="ccm-tag ${tagClass[c.type]}">${c.tag}</div>
+        <div class="ccm-title">${c.title}</div>
+        <div class="ccm-scale">${c.scale} · ${c.bio}</div>
+      </div>
+      <div class="ccm-specs">
+        <div class="ccm-spec"><div class="ccm-spec-label">Loại màng</div><div class="ccm-spec-value">${c.membrane}</div></div>
+        <div class="ccm-spec"><div class="ccm-spec-label">Thông lượng thiết kế</div><div class="ccm-spec-value">${c.J_design}</div></div>
+        <div class="ccm-spec"><div class="ccm-spec-label">MLSS</div><div class="ccm-spec-value">${c.MLSS}</div></div>
+        <div class="ccm-spec"><div class="ccm-spec-label">Diện tích màng</div><div class="ccm-spec-value">${c.Am}</div></div>
+        <div class="ccm-spec"><div class="ccm-spec-label">Tiêu chuẩn nước ra</div><div class="ccm-spec-value">${c.outlet}</div></div>
+        <div class="ccm-spec"><div class="ccm-spec-label">Tổng năng lượng</div><div class="ccm-spec-value">${c.energy}</div></div>
+      </div>
+      <div class="ccm-footer">💡 ${c.note}</div>
+    </div>
+  `).join('');
+  $('casesContainer').innerHTML = html;
+}
+
+// ============ 工具函数 ============
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  $('panel-' + tab).classList.add('active');
+  if (tab === 'cases') renderCases();
+  if (tab === 'energy' || tab === 'cleaning') syncTabs();
+}
+
+function copyDesignResult() {
+  const r = id => $(id)?.textContent || '—';
+  const txt = `Kết quả thiết kế công trình MBR (${$('d_titleSub').textContent}）
+Thể tích bể sinh học: ${r('d_r_V')} m³  Tổng HRT: ${r('d_r_HRT')} h
+Kỵ khí V_AN: ${r('d_r_VAN')} m³  Thiếu khí V_AX: ${r('d_r_VAX')} m³  Ngăn hiếu khí/màng V_O: ${r('d_r_VO')} m³
+Nitrat hoá SRT_min / SF×SRT_min (GB 50014-2021 công thức 7.6.17, theo nhiệt độ nước thiết kế thấp nhất T_min, SF=${$('d_SF').value}）: ${r('d_r_SRTmin')} d
+Lượng nitơ khử nitrat cacbon nội tại/cần bổ sung nguồn cacbon: ${r('d_r_Ndn')} kg N/d  Nguồn cacbon bổ sung: ${r('d_r_Cext')} kg COD/d
+Tổng diện tích màng: ${r('d_r_Am')} m² (điều kiện khống chế: ${r('d_r_ctrl')})  Thông lượng cho phép J(T)/J(T_min): ${r('d_r_JT')} LMH
+Thông lượng vận hành trung bình/đỉnh: ${r('d_r_Javg')} / ${r('d_r_Jpeak')} LMH (cho phép lúc đỉnh ${r('d_r_Jlim')}）
+Số module màng: ${r('d_r_modules')} cái
+AOR: ${r('d_r_AOR')} kg O₂/d  SOR: ${r('d_r_SOR')} kg O₂/d  Lượng sục khí sinh học: ${r('d_r_bioAir')} m³/h (chuẩn 20 °C)  Bùn: ${r('d_r_dX')} kg DS/d (gồm bùn hoá học ${r('d_r_chemSl')}）
+TN nước ra dự kiến: ${r('d_r_TNpred')} mg/L (mục tiêu ${$('d_TNe').value}）  Độ cao: ${$('d_alt').value} m (SOR và máy thổi khí theo áp suất khí quyển tại chỗ)
+PAC (đã trừ photpho đồng hoá và khử photpho sinh học): ${r('d_r_PAC')} kg/d（${r('d_r_PACmg')} mg/L）
+Điện năng công đoạn sinh học + màng: sục khí sinh học ${r('d_r_eBio')} + sục khí màng ${r('d_r_eMem')} + bơm hút nước sản phẩm ${r('d_r_ePump')} + tuần hoàn nội ${r('d_r_eRecirc')} + tuần hoàn bể màng ${r('d_r_eMemRecirc')} + khác 0.05 = ${r('d_r_eTotal')} kWh/m³ (không gồm nâng nước, song chắn rác, khuấy trộn, xử lý bùn)
+Điểm thiết kế: ${r('d_scoreNum')} / 100
+—— Tạo bởi nền tảng thiết kế công trình MBR của WaterKit`;
+  writeClipboard(txt);
+}
+
+function writeClipboard(txt) {
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    alert(ok ? 'Đã sao chép kết quả' : 'Sao chép thất bại, hãy chọn văn bản và sao chép thủ công');
+  };
+  if (!navigator.clipboard || !window.isSecureContext) { fallback(); return; }
+  navigator.clipboard.writeText(txt).then(() => alert('Đã sao chép kết quả vào bộ nhớ tạm')).catch(fallback);
+}
+
+// 页面初始值快照（含 select、高级Thông số、同步复选框），供「Khôi phục mặc định」完整还原
+const INIT_VALUES = {};
+document.querySelectorAll('input[id], select[id]').forEach(el => { INIT_VALUES[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+
+function resetAll() {
+  if (confirm('Đặt lại tất cả thông số về giá trị mặc định cho nước thải đô thị?')) {
+    Object.keys(INIT_VALUES).forEach(id => {
+      const el = $(id); if (!el) return;
+      if (el.type === 'checkbox') el.checked = INIT_VALUES[id]; else el.value = INIT_VALUES[id];
+      el.classList.remove('invalid');
+    });
+    $('d_J_helper').textContent = 'Sợi rỗng: 12-30, màng tấm: 16-50';
+    $('d_mod_helper').textContent = 'Mitsubishi 25m², ZeeWeed 500D khoảng 31.6-40.9m²';
+    $('d_std_helper').textContent = STD_HELPER[$('d_standard').value] || '';
+    document.querySelectorAll('[data-preset]').forEach(t => t.classList.toggle('active', t.dataset.preset === 'municipal'));
+    setBioConfig('aao');
+  }
+}
+
+// ============ 初始化 ============
+calc();
+setBioConfig('aao');
+renderCases();
+calcModules();
+calcChem();
+calcEnergy();
+</script>
+</body>
+</html>

@@ -11,6 +11,61 @@ import { equipmentContent } from "./ui/equipmentContent";
 import { UNIT_ORDER } from "./model/process";
 import { compatibleUnits, convertUnit, unitNames, type UnitKind } from "./model/converter";
 import { prefixBase, stripBase } from "./basePath";
+import { waterkitGroups, waterkitUrl } from "./waterkit";
+
+const equipmentWaterkit: Record<string, string[]> = {
+  "bom-tuan-hoan": ["pump-selection-calculator"],
+  mbbr: ["mbbr-design"],
+  "may-thoi-khi": ["blower-selection-calculator", "aeration-calculator"],
+  "doi-don-vi": ["water-quality-unit-converter"],
+};
+
+function WaterkitLinks({ id }: { id: string }) {
+  const files = equipmentWaterkit[id] ?? [];
+  return files.length ? (
+    <p>
+      {files.map((file) => {
+        const item = waterkitGroups.flatMap((group) => group.items).find((tool) => tool.file === file)!;
+        return (
+          <span key={file}>
+            <a href={waterkitUrl(file)}>Tính chi tiết trong bộ công cụ xử lý nước: {item.name} →</a>
+            <br />
+          </span>
+        );
+      })}
+    </p>
+  ) : null;
+}
+
+function WaterkitCatalog() {
+  return (
+    <main className="site-content">
+      <h1>Bộ công cụ xử lý nước</h1>
+      <p className="lead">
+        Nội dung gốc: <a href="https://github.com/chengsunmail/waterkit">WaterKit</a> © Cheng Sun / Dengdeng
+        Technology, giấy phép AGPL-3.0. Bản Việt hóa và giao diện đã chỉnh sửa để tích hợp vào RAS Digital Twin.
+      </p>
+      {waterkitGroups.map((group) => (
+        <section key={group.title}>
+          <h2>{group.title}</h2>
+          <div className="catalog-grid">
+            {group.items.map((item) => (
+              <a href={waterkitUrl(item.file)} key={item.file}>
+                <article className="catalog-card">
+                  <h3>
+                    {item.name} {"beta" in item && item.beta && "(Beta)"}
+                  </h3>
+                  <p>{item.description}</p>
+                  <span>Mở công cụ →</span>
+                </article>
+              </a>
+            ))}
+          </div>
+        </section>
+      ))}
+    </main>
+  );
+}
 
 function Link({ to, children }: { to: string; children: React.ReactNode }) {
   const href = prefixBase(to, import.meta.env.BASE_URL);
@@ -231,6 +286,7 @@ function Detail({ entry }: { entry: Entry }) {
         </section>
       </div>
       <Calculator key={entry.id} entry={entry} />
+      <WaterkitLinks id={entry.id} />
     </main>
   );
 }
@@ -270,6 +326,8 @@ function Site() {
         "/thiet-ke": "Thiết kế",
         "/thiet-bi": "Thiết bị",
         "/quy-trinh": "Quy trình",
+        "/cong-cu": "Công cụ",
+        "/xu-ly-nuoc": "Xử lý nước",
         "/gioi-thieu": "Giới thiệu",
       } as Record<string, string>
     )[path] ??
@@ -285,12 +343,15 @@ function Site() {
           <Link to="/quy-trinh">Quy trình</Link>
           <Link to="/thiet-ke">Thiết kế</Link>
           <Link to="/thiet-bi">Thiết bị</Link>
-          <Link to="/cong-cu/nh3-tu-do">Công cụ</Link>
+          <Link to="/cong-cu">Công cụ</Link>
+          <Link to="/xu-ly-nuoc">Xử lý nước</Link>
           <Link to="/gioi-thieu">Giới thiệu</Link>
         </div>
       </nav>
       <RouteBoundary key={path}>
-        {path === "/thiet-ke" ? (
+        {path === "/xu-ly-nuoc" ? (
+          <WaterkitCatalog />
+        ) : path === "/thiet-ke" ? (
           <DesignPage />
         ) : path === "/quy-trinh" ? (
           <TwinApp />
@@ -302,6 +363,7 @@ function Site() {
             <h1>{tool.name}</h1>
             <p className="lead">{tool.description}</p>
             <Calculator key={tool.id} entry={tool} />
+            <WaterkitLinks id={tool.id} />
             <h2>Công cụ khác</h2>
             <Cards entries={tools} />
           </main>
@@ -315,6 +377,11 @@ function Site() {
               <h2>Thiết kế kệ hộp cua</h2>
               <p>Thiết lập kệ, xem đường ống và bóc tách vật tư.</p>
               <Link to="/thiet-ke">Mở thiết kế →</Link>
+            </article>
+            <article className="site-panel">
+              <h2>Bộ công cụ xử lý nước</h2>
+              <p>Tính toán thủy lực, công nghệ và lựa chọn thiết bị với WaterKit.</p>
+              <Link to="/xu-ly-nuoc">Khám phá bộ công cụ →</Link>
             </article>
             <h2>Hành trình của dòng nước</h2>
             <div className="flow-links">
@@ -338,6 +405,12 @@ function Site() {
             <Cards entries={equipment} />
             <h2>Công cụ tính</h2>
             <Cards entries={tools} />
+          </main>
+        ) : path === "/cong-cu" ? (
+          <main className="site-content">
+            <h1>Công cụ tính</h1>
+            <Cards entries={tools} />
+            <WaterkitLinks id="doi-don-vi" />
           </main>
         ) : path === "/thiet-bi" ? (
           <main className="site-content">
@@ -366,8 +439,8 @@ function Site() {
             </p>
             <p>
               Mô hình khối được xây dựng từ tài nguyên Blockbench của dự án. Trang tham khảo cách tổ chức nội dung từ
-              iRAS và waterkit; không sử dụng mã nguồn hoặc giao diện của các dự án đó. Hai dự án tham khảo mang giấy
-              phép AGPL-3.0.
+              iRAS. Bộ công cụ WaterKit được tích hợp theo giấy phép AGPL-3.0; iRAS chỉ là nguồn tham khảo, không sao
+              chép mã.
             </p>
           </main>
         ) : (
@@ -379,6 +452,8 @@ function Site() {
       </RouteBoundary>
       <footer className="site-footer">
         RAS Digital Twin · Mô hình minh hoạ và công cụ học tập <Link to="/gioi-thieu">Nguồn và giới hạn</Link>
+        {" · "}
+        <a href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn (AGPL-3.0)</a>
       </footer>
     </>
   );

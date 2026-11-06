@@ -1,0 +1,1191 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Máy tính thủy lực kênh hở | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Máy tính thủy lực kênh hở: tính lưu lượng, độ sâu dòng đều hoặc độ dốc đáy cho mặt cắt hình thang, chữ nhật và tròn theo công thức Manning; xác định độ sâu tới hạn, độ dốc tới hạn, số Froude, mặt cắt thủy lực tối ưu và kiểm tra độ đầy của ống tròn.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+
+  /* 统一顶部导航 */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600; font-size: 16.5px;
+    color: var(--ink); letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--text-faint); margin-top: 1px;
+  }
+  .nav-links {
+    display: flex; gap: 24px; font-size: 14px; align-items: center;
+  }
+  .nav-links a {
+    color: var(--text); text-decoration: none;
+    transition: color 0.15s; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←"; margin-right: 4px; color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* 面包屑 */
+  .breadcrumb {
+    max-width: 820px; margin: 0 auto;
+    padding: 20px 16px 0;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb a {
+    color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  /* 主体外壳 */
+  .main-wrap { flex: 1; padding: 16px; }
+
+  /* 统一页脚 */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: 40px;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px; color: var(--text);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.7; max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex; justify-content: space-between;
+    align-items: center; font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit; text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+  /* 工具内部的小footer */
+  .tool-inner-footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .invalid { border-color: #ef4444 !important; background: #fef2f2 !important; }
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  header.tool-header {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: #fff;
+    padding: 24px 24px 20px;
+  }
+  header.tool-header h1 { font-size: 22px; margin-bottom: 6px; }
+  header.tool-header p { font-size: 13px; opacity: 0.9; }
+  .body { padding: 24px; }
+
+  /* 断面选择 */
+  .section-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .section-tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 13.5px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .section-tab.active {
+    background: #fff;
+    color: #0891b2;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  /* 求解模式 */
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    padding: 4px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 10px 6px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .mode-tab.active {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0e7490;
+    margin: 18px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e0f2fe;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field .unit { color: #9ca3af; font-size: 12px; font-weight: normal; }
+  .field input, .field select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  }
+  .field input:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+  .field.solve-for input {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    font-weight: 600;
+    color: #92400e;
+  }
+
+  /* 断面示意图 */
+  .section-viz {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 10px;
+    margin-bottom: 18px;
+  }
+  .section-viz svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* 结果 */
+  .results {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #0891b2;
+  }
+  .results h2 { font-size: 16px; color: #0e7490; margin-bottom: 14px; }
+  .result-group { margin-bottom: 16px; }
+  .result-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0e7490;
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    background: #cffafe;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px dashed #bae6fd;
+    gap: 10px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4b5563; font-size: 13.5px; }
+  .result-value {
+    font-size: 19px;
+    font-weight: 600;
+    color: #0891b2;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-value.big { font-size: 23px; color: #0e7490; }
+  .result-unit { color: #6b7280; font-size: 13px; margin-left: 4px; font-weight: normal; }
+  .highlight-row {
+    background: #ecfeff;
+    padding: 10px 12px !important;
+    border-radius: 6px;
+    border: 1px solid #67e8f9;
+    border-bottom: 1px solid #67e8f9 !important;
+  }
+
+  /* 水流状态校核 */
+  .check-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .check-ok { background: #dcfce7; color: #166534; border-left: 3px solid #22c55e; }
+  .check-warn { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+  .check-bad { background: #fee2e2; color: #991b1b; border-left: 3px solid #ef4444; }
+  .check-info { background: #dbeafe; color: #1e40af; border-left: 3px solid #3b82f6; }
+
+  /* 公式 */
+  .formula-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+  .formula-box h3 { font-size: 14px; color: #374151; margin: 14px 0 8px; }
+  .formula-box h3:first-child { margin-top: 0; }
+  .formula-box code {
+    display: block;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: #0e7490;
+    overflow-x: auto;
+  }
+  .formula-box p { margin: 6px 0; font-size: 12.5px; }
+  .formula-box table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .formula-box th, .formula-box td {
+    padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb;
+  }
+  .formula-box th { background: #f1f5f9; color: #374151; }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-primary { background: #0891b2; color: #fff; }
+  .btn-primary:hover { background: #0e7490; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  .note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #92400e;
+    border-left: 3px solid #f59e0b;
+  }
+  @media (max-width: 480px) {
+    .main-wrap { padding: 8px; }
+    header.tool-header { padding: 18px; }
+    header.tool-header h1 { font-size: 19px; }
+    .result-value { font-size: 17px; }
+    .result-value.big { font-size: 20px; }
+    .section-tab, .mode-tab { font-size: 11.5px; }
+  }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Tính toán thủy lực</a>
+  <span class="sep">/</span>
+  <span class="current">Thủy lực kênh hở</span>
+</div>
+
+<main class="main-wrap">
+
+<div class="container">
+  <header class="tool-header">
+    <h1>🌊 Máy tính thủy lực kênh hở</h1>
+    <p>Công thức Manning · Ba loại mặt cắt · Độ sâu tới hạn · Mặt cắt thủy lực tối ưu · Phân loại dòng chảy theo số Froude</p>
+  </header>
+
+  <div class="body">
+
+    <!-- 断面类型 -->
+    <div class="section-title">① Hình dạng mặt cắt</div>
+    <div class="section-tabs">
+      <button class="section-tab active" data-shape="trapezoidal" onclick="setShape('trapezoidal')">Mặt cắt hình thang</button>
+      <button class="section-tab" data-shape="rectangular" onclick="setShape('rectangular')">Mặt cắt hình chữ nhật</button>
+      <button class="section-tab" data-shape="circular" onclick="setShape('circular')">Mặt cắt hình tròn</button>
+    </div>
+
+    <!-- 断面示意图 -->
+    <div class="section-viz">
+      <svg id="vizSvg" width="320" height="160" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg">
+        <!-- 会由JS动态绘制 -->
+      </svg>
+    </div>
+
+    <!-- 求解模式 -->
+    <div class="section-title">② Đại lượng cần tìm</div>
+    <div class="mode-tabs" id="modeTabs">
+      <button class="mode-tab active" data-mode="Q" onclick="setMode('Q')">Biết h, tìm Q</button>
+      <button class="mode-tab" data-mode="h" onclick="setMode('h')">Biết Q, tìm h</button>
+      <button class="mode-tab" data-mode="i" onclick="setMode('i')">Biết Q, h, tìm i</button>
+    </div>
+
+    <!-- 断面参数 -->
+    <div class="section-title">③ Thông số mặt cắt và thủy lực</div>
+    <div class="grid" id="paramsGrid">
+      <!-- 梯形/矩形参数 -->
+      <div class="field shape-rect shape-trap">
+        <label for="b">Chiều rộng đáy b <span class="unit">m</span></label>
+        <input type="number" id="b" value="2.0" step="0.1">
+      </div>
+      <div class="field shape-trap">
+        <label for="m">Hệ số mái dốc m <span class="unit">ngang:đứng</span></label>
+        <input type="number" id="m" value="1.5" step="0.1">
+      </div>
+
+      <!-- 圆形参数 -->
+      <div class="field shape-circ" style="display:none;">
+        <label for="D">Đường kính ống D <span class="unit">m</span></label>
+        <input type="number" id="D" value="1.0" step="0.1">
+      </div>
+
+      <!-- 共用 -->
+      <div class="field" id="f_h">
+        <label for="h">Độ sâu nước h <span class="unit">m</span></label>
+        <input type="number" id="h" value="1.0" step="0.05">
+      </div>
+      <div class="field" id="f_Q">
+        <label for="Q">Lưu lượng Q <span class="unit">m³/s</span></label>
+        <input type="number" id="Q" value="2.5" step="0.1">
+      </div>
+      <div class="field" id="f_i">
+        <label for="i">Độ dốc đáy i <span class="unit">— (ví dụ 0.001)</span></label>
+        <input type="number" id="i" value="0.001" step="0.0001">
+      </div>
+
+      <div class="field">
+        <label for="n_preset">Hệ số nhám Manning n</label>
+        <select id="n_preset" onchange="updateN()">
+          <option value="0.011">Bề mặt trát xi măng nhẵn (n=0.011)</option>
+          <option value="0.013" selected>Bê tông (n=0.013)</option>
+          <option value="0.014">Bê tông nhám/xây gạch (n=0.014)</option>
+          <option value="0.017">Đá hộc xây vữa (n=0.017)</option>
+          <option value="0.020">Đá khối xếp khan (n=0.020)</option>
+          <option value="0.025">Kênh đất (thẳng) (n=0.025)</option>
+          <option value="0.030">Kênh đất (có cỏ) (n=0.030)</option>
+          <option value="0.035">Sông tự nhiên (n=0.035)</option>
+          <option value="0.009">Ống nhựa PVC/PE (n=0.009)</option>
+          <option value="custom">Tùy chỉnh</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="n">Giá trị n <span class="unit">Manning</span></label>
+        <input type="number" id="n" value="0.013" step="0.001">
+      </div>
+    </div>
+
+    <!-- 结果 -->
+    <div class="results">
+      <h2>Kết quả tính toán</h2>
+
+      <div class="result-group">
+        <div class="result-group-title">Các yếu tố thủy lực của dòng chảy đều</div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lưu lượng Q</b></span>
+          <span><span class="result-value big" id="r_Q">—</span><span class="result-unit">m³/s</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Vận tốc v</span>
+          <span><span class="result-value" id="r_v">—</span><span class="result-unit">m/s</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Độ sâu nước h (độ sâu dòng đều h₀)</span>
+          <span><span class="result-value" id="r_h">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Diện tích mặt cắt ướt A</span>
+          <span><span class="result-value" id="r_A">—</span><span class="result-unit">m²</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chu vi ướt χ</span>
+          <span><span class="result-value" id="r_P">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Bán kính thủy lực R</span>
+          <span><span class="result-value" id="r_R">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chiều rộng mặt nước B</span>
+          <span><span class="result-value" id="r_B">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Hệ số Chézy C</span>
+          <span><span class="result-value" id="r_C">—</span><span class="result-unit">m^0.5/s</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Độ dốc đáy i</span>
+          <span><span class="result-value" id="r_i">—</span><span class="result-unit">—</span></span>
+        </div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title">Phân loại dòng chảy</div>
+        <div class="result-row">
+          <span class="result-label">Độ sâu tới hạn h_c</span>
+          <span><span class="result-value" id="r_hc">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Độ dốc tới hạn i_c</span>
+          <span><span class="result-value" id="r_ic">—</span><span class="result-unit">—</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Số Froude Fr</span>
+          <span><span class="result-value" id="r_Fr">—</span><span class="result-unit" id="r_Fr_state">—</span></span>
+        </div>
+        <div class="check-box" id="flowCheck">Đang phân loại...</div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title">Mặt cắt thủy lực tối ưu (kiểm tra theo lưu lượng hiện tại)</div>
+        <div class="result-row">
+          <span class="result-label">Độ sâu mặt cắt tối ưu</span>
+          <span><span class="result-value" id="r_h_best">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chiều rộng đáy/đường kính mặt cắt tối ưu</span>
+          <span><span class="result-value" id="r_b_best">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label" id="r_beta_l">Tỷ số rộng/sâu β</span>
+          <span><span class="result-value" id="r_beta">—</span><span class="result-unit">—</span></span>
+        </div>
+        <div class="check-box check-info" id="bestHint">Gợi ý mặt cắt tối ưu</div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="copyResults()">📋 Sao chép kết quả</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">🔄 Khôi phục mặc định</button>
+      <button class="btn btn-secondary" onclick="toggleFormula()">📖 Xem công thức</button>
+    </div>
+
+    <div class="formula-box" id="formulaBox" style="display:none;">
+      <h3>① Công thức Manning (Chézy-Manning, dòng đều)</h3>
+      <code>Q = A · v = (1/n) · A · R^(2/3) · i^(1/2)</code>
+      <code>v = (1/n) · R^(2/3) · i^(1/2) = C · √(R · i)</code>
+      <p>C = R^(1/6)/n là hệ số Chézy, n là hệ số nhám Manning.</p>
+
+      <h3>② Các yếu tố thủy lực của từng mặt cắt</h3>
+
+      <p><strong>Mặt cắt hình thang</strong> (chiều rộng đáy b, mái dốc m = ngang:đứng, độ sâu nước h):</p>
+      <code>A = (b + m·h) · h</code>
+      <code>χ = b + 2h·√(1+m²)</code>
+      <code>R = A / χ</code>
+      <code>B = b + 2m·h (chiều rộng mặt nước)</code>
+
+      <p><strong>Mặt cắt hình chữ nhật</strong> (tương đương hình thang có m=0):</p>
+      <code>A = b · h,  χ = b + 2h,  R = bh / (b+2h),  B = b</code>
+
+      <p><strong>Mặt cắt hình tròn</strong> (đường kính ống D, độ sâu nước h):</p>
+      <code>θ = 2 · arccos(1 − 2h/D)  [radian]</code>
+      <code>A = D²/8 · (θ − sin θ)</code>
+      <code>χ = D · θ / 2</code>
+      <code>R = A / χ</code>
+      <code>B = D · sin(θ/2) (chiều rộng mặt nước)</code>
+
+      <h3>③ Độ sâu tới hạn và độ dốc tới hạn</h3>
+      <code>α · Q² · B / (g · A³) = 1  →  tìm h_c</code>
+      <p>Hệ số hiệu chỉnh động năng α lấy bằng 1.0, g = 9.81 m/s². Công cụ dùng phương pháp chia đôi để giải lặp.</p>
+      <code>i_c = n² · Q² / (A² · R^(4/3))  thay h = h_c</code>
+
+      <h3>④ Số Froude và chế độ dòng chảy</h3>
+      <code>Fr = v / √(g · A / B) = v / √(g · h_m)</code>
+      <p>h_m = A/B là độ sâu thủy lực trung bình. Fr &lt; 1 là dòng chảy êm (h &gt; h_c), Fr = 1 là dòng chảy tới hạn, Fr &gt; 1 là dòng chảy xiết (h &lt; h_c).</p>
+
+      <h3>⑤ Mặt cắt thủy lực tối ưu</h3>
+      <p><strong>Hình chữ nhật</strong>: h = b/2 (tỷ số rộng/sâu β = b/h = 2)</p>
+      <p><strong>Hình thang</strong>: β = b/h = 2·(√(1+m²) − m)</p>
+      <p>Ví dụ khi m=1.5, β tối ưu ≈ 0.606, tức b/h ≈ 0.606.</p>
+      <p><strong>Hình tròn</strong>: lưu lượng lớn nhất khi độ đầy h/D = 0.938 (vận tốc lớn nhất khi bằng 0.813), do hiệu ứng chảy không đầy; trên 0.938, lưu lượng giảm và dòng chảy đầy trở thành dòng có áp. Với mặt cắt tròn, mục này hiển thị độ đầy h/D.</p>
+      <p><strong>Kiểm tra độ đầy thiết kế của ống tròn</strong> (GB 50014, ống thoát nước thải, chỉ để tham khảo): DN200–300 ≤ 0.55; DN350–450 ≤ 0.65; DN500–900 ≤ 0.70; ≥ DN1000 ≤ 0.75.</p>
+      <p>Giới hạn trên của phép tìm kiếm chia đôi cho độ sâu dòng đều và độ sâu tới hạn của mặt cắt hình thang/chữ nhật là 20 m; trang sẽ cảnh báo khi vượt giới hạn. Với ống tròn, giới hạn trên của độ sâu tới hạn là 0.999D và cũng có cảnh báo khi kết quả bị giới hạn.</p>
+
+      <h3>⑥ Giá trị n Manning thường dùng (GB 50014 / sổ tay thủy lực)</h3>
+      <table>
+        <tr><th>Loại kênh/đường ống</th><th>Giá trị n</th></tr>
+        <tr><td>Bề mặt trát xi măng nhẵn</td><td>0.010-0.012</td></tr>
+        <tr><td>Bê tông / đổ bằng ván khuôn thép</td><td>0.013-0.014</td></tr>
+        <tr><td>Đá khối xây vữa (đá đẽo)</td><td>0.015-0.017</td></tr>
+        <tr><td>Đá hộc xây vữa</td><td>0.017-0.025</td></tr>
+        <tr><td>Đá khối xếp khan</td><td>0.020-0.030</td></tr>
+        <tr><td>Kênh đất (thẳng, đều)</td><td>0.020-0.025</td></tr>
+        <tr><td>Kênh đất (thông thường, có cỏ)</td><td>0.025-0.030</td></tr>
+        <tr><td>Kênh đất (có cỏ, uốn khúc)</td><td>0.030-0.040</td></tr>
+        <tr><td>Sông tự nhiên (thẳng, ít cỏ)</td><td>0.030-0.040</td></tr>
+        <tr><td>Sông tự nhiên (uốn khúc, có bãi đá)</td><td>0.040-0.060</td></tr>
+        <tr><td>Ống nhựa PVC / PE</td><td>0.009-0.011</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      ⚠️ Công cụ tính theo dòng chảy đều, nghĩa là độ sâu nước không đổi dọc dòng chảy và lưu lượng, vận tốc, độ sâu nước và độ dốc đáy thỏa mãn công thức Manning. Dòng không đều (đường mặt nước), độ dốc đáy thay đổi, dòng biến đổi dần... phải được phân tích riêng. Mặt cắt tròn áp dụng cho ống và kênh thoát nước không áp; khi chảy đầy, dòng trở thành có áp và cần dùng công cụ tính thủy lực đường ống.
+    </div>
+
+  </div>
+
+  <footer class="tool-inner-footer">Bộ công cụ xử lý nước · Chỉ dùng tham khảo để ước tính kỹ thuật</footer>
+</div>
+</main>
+
+<!-- 统一页脚 -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = id => parseFloat($(id).value) || 0;
+  const g = 9.81;
+  // 流量 Q 按 4 位有效数字显示;回写输入框时另存精确值,输入框未被改动时切换模式沿用精确值,避免舍入漂移
+  const fmtQ = v => Math.abs(v) >= 1e4 ? v.toFixed(0) : v.toPrecision(4);
+  let qExact = null;
+  const numQ = () => (qExact && $('Q').value === qExact.s) ? qExact.v : num('Q');
+
+  let shape = 'trapezoidal';  // trapezoidal / rectangular / circular
+  let mode = 'Q';              // Q / h / i
+
+  function setShape(s) {
+    shape = s;
+    document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-shape="${s}"]`).classList.add('active');
+
+    // 控制字段显示
+    document.querySelectorAll('.shape-trap').forEach(el => {
+      el.style.display = (s === 'trapezoidal') ? '' : 'none';
+    });
+    document.querySelectorAll('.shape-rect').forEach(el => {
+      el.style.display = (s === 'rectangular' || s === 'trapezoidal') ? '' : 'none';
+    });
+    document.querySelectorAll('.shape-circ').forEach(el => {
+      el.style.display = (s === 'circular') ? '' : 'none';
+    });
+    // 切到圆形断面时若沿用的水深 h ≥ D（一切换即满管）,改取半管 h = 0.5·D
+    if (s === 'circular' && num('D') > 0 && num('h') >= num('D')) {
+      $('h').value = +(0.5 * num('D')).toFixed(3);
+    }
+
+    drawSection();
+    calc();
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-mode="${m}"]`).classList.add('active');
+
+    ['Q','h','i'].forEach(f => {
+      $(f).disabled = false;
+      $('f_'+f).classList.remove('solve-for');
+    });
+    $(mode).disabled = true;
+    $('f_'+mode).classList.add('solve-for');
+    calc();
+  }
+
+  function updateN() {
+    const v = $('n_preset').value;
+    if (v !== 'custom') $('n').value = v;
+    calc();
+  }
+
+  // ============ 断面几何 ============
+  function geom(h) {
+    const n_val = num('n');
+    if (shape === 'rectangular') {
+      const b = num('b');
+      const A = b * h;
+      const P = b + 2 * h;
+      const B = b;
+      return {A, P, R: A/P, B, h};
+    } else if (shape === 'trapezoidal') {
+      const b = num('b'), m = num('m');
+      const A = (b + m * h) * h;
+      const P = b + 2 * h * Math.sqrt(1 + m*m);
+      const B = b + 2 * m * h;
+      return {A, P, R: A/P, B, h};
+    } else { // circular
+      const D = num('D');
+      if (h <= 0 || h > D) return {A: 0, P: 0, R: 0, B: 0, h};
+      const theta = 2 * Math.acos(1 - 2*h/D);  // 弧度
+      const A = D*D/8 * (theta - Math.sin(theta));
+      const P = D * theta / 2;
+      const B = D * Math.sin(theta/2);
+      return {A, P, R: P>0?A/P:0, B, h};
+    }
+  }
+
+  // Manning 公式求 Q（给定 h、i）
+  function Q_from_hi(h, i) {
+    const n = num('n');
+    const g1 = geom(h);
+    if (g1.A <= 0 || g1.R <= 0 || i <= 0) return 0;
+    return (1/n) * g1.A * Math.pow(g1.R, 2/3) * Math.sqrt(i);
+  }
+
+  // 圆形断面超过无压过流能力时记录 Q_max(null 表示未超)
+  let circOverCapacity = null;
+  // 梯形/矩形二分上界(m)及超界标记
+  const H_UPPER = 20.0;
+  let hOverBound = false, hcOverBound = false;
+
+  // 已知 Q、i,求 h（二分法）
+  function h_from_Qi(Q_target, i) {
+    circOverCapacity = null;
+    let lo = 0.001, hi = (shape === 'circular') ? num('D') * 0.938 : H_UPPER;
+    if (shape !== 'circular' && Q_from_hi(hi, i) < Q_target) {
+      hOverBound = true;
+      return hi;
+    }
+    if (shape === 'circular') {
+      // 无压圆管最大流量出现在充满度 0.938
+      const Q_max = Q_from_hi(hi, i);
+      if (Q_target > Q_max) {
+        circOverCapacity = Q_max;
+        return hi;
+      }
+    }
+    for (let k = 0; k < 80; k++) {
+      const mid = (lo + hi) / 2;
+      const q = Q_from_hi(mid, i);
+      if (q < Q_target) lo = mid; else hi = mid;
+      if (hi - lo < 1e-6) break;
+    }
+    return (lo + hi) / 2;
+  }
+
+  // 已知 Q、h,求 i
+  function i_from_Qh(Q_target, h) {
+    const n = num('n');
+    const g1 = geom(h);
+    if (g1.A <= 0 || g1.R <= 0) return 0;
+    const denom = g1.A * Math.pow(g1.R, 2/3);
+    return Math.pow(Q_target * n / denom, 2);
+  }
+
+  // Độ sâu tới hạn:α Q² B / (g A³) = 1
+  function criticalDepth(Q_val) {
+    let lo = 0.001, hi = (shape === 'circular') ? num('D') * 0.999 : H_UPPER;
+    {   // 梯形/矩形上界 20 m;圆管上界 0.999D(接近满管时水面宽趋于 0,临界水深解截断于此)
+      const gh = geom(hi);
+      if (gh.A > 0 && Q_val * Q_val * gh.B / (g * Math.pow(gh.A, 3)) > 1) {
+        hcOverBound = true;
+        return hi;
+      }
+    }
+    for (let k = 0; k < 80; k++) {
+      const mid = (lo + hi) / 2;
+      const gm = geom(mid);
+      if (gm.A <= 0 || gm.B <= 0) { lo = mid; continue; }
+      const val = Q_val * Q_val * gm.B / (g * Math.pow(gm.A, 3));
+      if (val > 1) lo = mid; else hi = mid;
+      if (hi - lo < 1e-6) break;
+    }
+    return (lo + hi) / 2;
+  }
+
+  // ============ 绘制断面示意图 ============
+  function drawSection() {
+    const svg = $('vizSvg');
+    const W = 320, H = 160;
+    const waterColor = '#7dd3fc';
+    const lineColor = '#0e7490';
+    const bgColor = '#e0f2fe';
+
+    let content = `
+      <defs>
+        <pattern id="waterWaves" patternUnits="userSpaceOnUse" width="8" height="8">
+          <path d="M0,4 Q2,2 4,4 T8,4" fill="none" stroke="#0891b2" stroke-width="0.5" opacity="0.3"/>
+        </pattern>
+        <marker id="arrL" viewBox="0 0 6 6" refX="1" refY="3" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M6,0 L0,3 L6,6" fill="none" stroke="#333" stroke-width="1"/>
+        </marker>
+        <marker id="arrR" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L6,3 L0,6" fill="none" stroke="#333" stroke-width="1"/>
+        </marker>
+      </defs>
+    `;
+
+    if (shape === 'trapezoidal') {
+      const cx = 160, cy = 130;
+      const bs = 70, hs = 55, ms = 35;
+      // 断面梯形轮廓
+      content += `
+        <polyline points="${cx-bs/2-ms-15},${cy-hs-10} ${cx-bs/2-ms},${cy-hs} ${cx-bs/2},${cy} ${cx+bs/2},${cy} ${cx+bs/2+ms},${cy-hs} ${cx+bs/2+ms+15},${cy-hs-10}" fill="none" stroke="${lineColor}" stroke-width="2"/>
+        <polygon points="${cx-bs/2-ms},${cy-hs} ${cx-bs/2},${cy} ${cx+bs/2},${cy} ${cx+bs/2+ms},${cy-hs}" fill="url(#waterWaves)" stroke="${lineColor}" stroke-width="0.5"/>
+        <line x1="${cx-bs/2-ms}" y1="${cy-hs}" x2="${cx+bs/2+ms}" y2="${cy-hs}" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <text x="${cx-bs/2-ms-30}" y="${cy-hs-5}" font-size="11" fill="#0e7490">Mặt nước</text>
+
+        <text x="${cx}" y="${cy+18}" font-size="11" fill="#333" text-anchor="middle">b</text>
+        <line x1="${cx-bs/2}" y1="${cy+7}" x2="${cx+bs/2}" y2="${cy+7}" stroke="#333" stroke-width="0.8" marker-start="url(#arrL)" marker-end="url(#arrR)"/>
+
+        <text x="${cx+bs/2+ms+25}" y="${cy-hs/2+3}" font-size="11" fill="#333">h</text>
+        <line x1="${cx+bs/2+ms+15}" y1="${cy-hs}" x2="${cx+bs/2+ms+15}" y2="${cy}" stroke="#333" stroke-width="0.8"/>
+
+        <text x="${cx+bs/2+ms/2+10}" y="${cy-hs-8}" font-size="10" fill="#666">m : 1</text>
+      `;
+    } else if (shape === 'rectangular') {
+      const cx = 160, cy = 130;
+      const bs = 100, hs = 60;
+      content += `
+        <polyline points="${cx-bs/2-20},${cy-hs} ${cx-bs/2},${cy-hs} ${cx-bs/2},${cy} ${cx+bs/2},${cy} ${cx+bs/2},${cy-hs} ${cx+bs/2+20},${cy-hs}" fill="none" stroke="${lineColor}" stroke-width="2"/>
+        <rect x="${cx-bs/2}" y="${cy-hs}" width="${bs}" height="${hs}" fill="url(#waterWaves)"/>
+        <line x1="${cx-bs/2}" y1="${cy-hs}" x2="${cx+bs/2}" y2="${cy-hs}" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2"/>
+
+        <text x="${cx}" y="${cy+18}" font-size="11" fill="#333" text-anchor="middle">b</text>
+        <text x="${cx+bs/2+15}" y="${cy-hs/2+4}" font-size="11" fill="#333">h</text>
+      `;
+    } else { // circular
+      const cx = 160, cy = 90, r = 55;
+      // 水深比
+      let fill_ratio = 0.7;
+      const D = num('D'), h = num('h');
+      if (D > 0 && h > 0 && h <= D) fill_ratio = h / D;
+
+      const theta = 2 * Math.acos(1 - 2*fill_ratio);
+      // 水面弦 y 坐标
+      const waterY = cy + r - 2*r*fill_ratio;
+      const halfW = r * Math.sin(theta/2);
+
+      content += `
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${lineColor}" stroke-width="2"/>
+        <path d="M ${cx-halfW},${waterY} A ${r},${r} 0 0 0 ${cx+halfW},${waterY} Z" fill="url(#waterWaves)" stroke="${lineColor}" stroke-width="0.5"/>
+        <line x1="${cx-halfW}" y1="${waterY}" x2="${cx+halfW}" y2="${waterY}" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2"/>
+
+        <line x1="${cx-r-5}" y1="${cy}" x2="${cx+r+5}" y2="${cy}" stroke="#666" stroke-width="0.5" stroke-dasharray="2,2"/>
+        <text x="${cx+r+10}" y="${cy+4}" font-size="11" fill="#333">D</text>
+        <text x="${cx+r+10}" y="${waterY+4}" font-size="11" fill="#0e7490">h</text>
+      `;
+    }
+
+    svg.innerHTML = content;
+  }
+
+  // ============ 主计算 ============
+  // GB 50014 污水管设计最大充满度(按管径 mm)
+  function maxFullness(D_mm) {
+    if (D_mm < 200) return null;
+    if (D_mm < 350) return {lim: 0.55, rng: 'DN200–300'};
+    if (D_mm < 500) return {lim: 0.65, rng: 'DN350–450'};
+    if (D_mm < 1000) return {lim: 0.70, rng: 'DN500–900'};
+    return {lim: 0.75, rng: '≥DN1000'};
+  }
+
+  // 输入无效:结果置"—"并提示
+  function showInvalid(ids, msg) {
+    ids.forEach(id => $(id).classList.add('invalid'));
+    document.querySelectorAll('.results [id^="r_"]').forEach(el => {
+      if (el.classList.contains('result-value') || el.id === 'r_Fr_state') el.textContent = '—';
+    });
+    const cb = $('flowCheck');
+    cb.className = 'check-box check-bad';
+    cb.textContent = '✗ ' + msg;
+    $('bestHint').className = 'check-box check-info';
+    $('bestHint').textContent = '—';
+  }
+
+  function calc() {
+    const n = num('n');
+    let h_val, Q_val, i_val;
+    circOverCapacity = null;
+    hOverBound = false; hcOverBound = false;
+
+    // ============ 输入校验 ============
+    document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+    const names = {n: 'Hệ số Manning n', b: 'Chiều rộng đáy b', D: 'Đường kính ống D', h: 'Độ sâu nước h', Q: 'Lưu lượng Q', i: 'Độ dốc đáy i'};
+    const need = ['n'];
+    if (shape === 'circular') need.push('D'); else need.push('b');
+    if (mode === 'Q') need.push('h', 'i');
+    else if (mode === 'h') need.push('Q', 'i');
+    else need.push('Q', 'h');
+    const bad = need.filter(id => !(num(id) > 0));
+    if (bad.length) {
+      showInvalid(bad, `Vui lòng nhập giá trị lớn hơn 0 cho ${bad.map(id => names[id]).join(', ')}`);
+      return;
+    }
+    if (shape === 'trapezoidal' && num('m') < 0) {
+      showInvalid(['m'], 'Hệ số mái dốc m không được âm');
+      return;
+    }
+    if (shape === 'circular' && mode !== 'h' && num('h') > num('D')) {
+      showInvalid(['h'], `Độ sâu nước h (${num('h')} m) lớn hơn đường kính ống D (${num('D')} m): đây là dòng chảy đầy có áp, công thức Manning cho dòng không áp không áp dụng được; hãy dùng máy tính thủy lực đường ống`);
+      drawSection();
+      return;
+    }
+
+    if (mode === 'Q') {
+      h_val = num('h'); i_val = num('i');
+      Q_val = Q_from_hi(h_val, i_val);
+      $('Q').value = fmtQ(Q_val);
+      qExact = {s: $('Q').value, v: Q_val};
+    } else if (mode === 'h') {
+      Q_val = numQ(); i_val = num('i');
+      h_val = h_from_Qi(Q_val, i_val);
+      $('h').value = +h_val.toPrecision(4);
+    } else { // mode === 'i'
+      Q_val = numQ(); h_val = num('h');
+      i_val = i_from_Qh(Q_val, h_val);
+      $('i').value = i_val.toFixed(6);
+    }
+
+    const gm = geom(h_val);
+    const v_val = gm.A > 0 ? Q_val / gm.A : 0;
+    const C_val = gm.R > 0 && n > 0 ? Math.pow(gm.R, 1/6) / n : 0;
+
+    $('r_Q').textContent = fmtQ(Q_val);
+    $('r_v').textContent = v_val.toFixed(3);
+    $('r_h').textContent = h_val.toFixed(3);
+    $('r_A').textContent = gm.A.toFixed(3);
+    $('r_P').textContent = gm.P.toFixed(3);
+    $('r_R').textContent = gm.R.toFixed(3);
+    $('r_B').textContent = gm.B.toFixed(3);
+    $('r_C').textContent = C_val.toFixed(2);
+    $('r_i').textContent = i_val.toFixed(6);
+
+    // ============ 临界水深 ============
+    const hc = criticalDepth(Q_val);
+    $('r_hc').textContent = hc.toFixed(3);
+    const gc = geom(hc);
+    // 临界坡度
+    let ic = 0;
+    if (gc.A > 0 && gc.R > 0) {
+      ic = Math.pow(n, 2) * Math.pow(Q_val, 2) / (Math.pow(gc.A, 2) * Math.pow(gc.R, 4/3));
+    }
+    $('r_ic').textContent = ic.toFixed(6);
+
+    // 弗劳德数
+    const Fr = gm.B > 0 && gm.A > 0 ? v_val / Math.sqrt(g * gm.A / gm.B) : 0;
+    $('r_Fr').textContent = Fr.toFixed(3);
+
+    const st = $('r_Fr_state');
+    const cb = $('flowCheck');
+    if (hOverBound) {
+      st.textContent = Fr < 0.95 ? 'Dòng chảy êm' : (Fr > 1.05 ? 'Dòng chảy xiết' : 'Dòng chảy tới hạn');
+      cb.className = 'check-box check-bad';
+      cb.innerHTML = `✗ <b>Vượt phạm vi tính toán</b> · Q yêu cầu = ${fmtQ(Q_val)} m³/s vượt khả năng dẫn nước ở độ sâu ${H_UPPER} m (giới hạn trên của phép giải). Kết quả được đưa ra với h = ${H_UPPER} m và không sử dụng được. Hãy kiểm tra lưu lượng, chiều rộng đáy hoặc độ dốc đáy.`;
+    } else if (circOverCapacity !== null) {
+      st.textContent = Fr < 0.95 ? 'Dòng chảy êm' : (Fr > 1.05 ? 'Dòng chảy xiết' : 'Dòng chảy tới hạn');
+      cb.className = 'check-box check-bad';
+      cb.innerHTML = `✗ <b>Vượt khả năng dẫn nước không áp</b> · Q yêu cầu = ${fmtQ(Q_val)} m³/s &gt; Q_max = ${fmtQ(circOverCapacity)} m³/s (khi h/D = 0.938); cần tăng đường kính ống hoặc độ dốc. Kết quả được đưa ra với h = 0.938D.`;
+    } else if (Fr < 0.95) {
+      st.textContent = 'Dòng chảy êm';
+      cb.className = 'check-box check-ok';
+      cb.innerHTML = `✓ <b>Dòng chảy êm (Subcritical)</b> · Fr = ${Fr.toFixed(3)} &lt; 1, h (${h_val.toFixed(2)} m) &gt; h_c (${hc.toFixed(2)} m), nhiễu động có thể truyền lên thượng lưu; thường gặp ở kênh đồng bằng và kênh dòng chính trong xử lý nước.`;
+    } else if (Fr > 1.05) {
+      st.textContent = 'Dòng chảy xiết';
+      cb.className = 'check-box check-warn';
+      cb.innerHTML = `⚠ <b>Dòng chảy xiết (Supercritical)</b> · Fr = ${Fr.toFixed(3)} &gt; 1, h (${h_val.toFixed(2)} m) &lt; h_c (${hc.toFixed(2)} m), nhiễu động không thể truyền lên thượng lưu; cần lưu ý độ dốc lớn, hạ lưu công trình tràn và thiết kế tiêu năng.`;
+    } else {
+      st.textContent = 'Dòng chảy tới hạn';
+      cb.className = 'check-box check-info';
+      cb.innerHTML = `ℹ <b>Dòng chảy tới hạn (Critical)</b> · Fr ≈ 1, chế độ dòng chảy không ổn định; cần tránh dùng trạng thái này làm điều kiện vận hành bình thường trong thiết kế.`;
+    }
+
+    if (shape === 'circular' && circOverCapacity === null && !(gm.B > 1e-9)) {
+      st.textContent = '—';
+      cb.className = 'check-box check-info';
+      cb.innerHTML = `ℹ <b>Ống chảy đầy</b> · h = D, chiều rộng mặt nước B = 0; số Froude và phân loại dòng chảy không áp dụng. Khi ống chảy đầy, coi là dòng có áp và nên dùng máy tính thủy lực đường ống.`;
+    }
+    if (hcOverBound) {
+      if (cb.className.indexOf('check-ok') >= 0) cb.className = 'check-box check-warn';
+      cb.innerHTML += shape === 'circular'
+        ? `<br>⚠ Độ sâu tới hạn đã gần đầy ống (h_c bị giới hạn tại 0.999D = ${(num('D') * 0.999).toFixed(3)} m); h_c, i_c và kết quả phân loại dòng chảy không đáng tin cậy, nên tăng đường kính ống.`
+        : `<br>⚠ Độ sâu tới hạn vượt giới hạn trên ${H_UPPER} m; h_c, i_c và kết quả phân loại dòng chảy không đáng tin cậy.`;
+    }
+
+    // ============ 水力最佳断面 ============
+    let h_best = 0, b_best = 0, beta = 0, hint = '', hintCls = 'check-info';
+    if (shape === 'rectangular') {
+      // b = 2h, A = 2h²,v = (1/n)·(h/2)^(2/3)·√i
+      // Q = (1/n)·2h²·(h/2)^(2/3)·√i  →  h = [Q·n/(2·(1/2)^(2/3)·√i)]^(3/8)
+      if (i_val > 0) {
+        h_best = Math.pow(Q_val * n / (2 * Math.pow(0.5, 2/3) * Math.sqrt(i_val)), 3/8);
+        b_best = 2 * h_best;
+        beta = 2;
+        hint = `Mặt cắt chữ nhật tối ưu: b/h = 2; với Q=${Q_val.toFixed(2)} m³/s, i=${i_val.toFixed(4)}, kích thước tối ưu xấp xỉ b=${b_best.toFixed(2)} m, h=${h_best.toFixed(2)} m. Hiện tại b=${num('b').toFixed(2)} m.`;
+      }
+    } else if (shape === 'trapezoidal') {
+      const m = num('m');
+      beta = 2 * (Math.sqrt(1 + m*m) - m);
+      // A = (β+m)h²,R = h/2,v = (1/n)(h/2)^(2/3)√i
+      // Q = (1/n)·(β+m)h²·(h/2)^(2/3)·√i
+      if (i_val > 0) {
+        const coeff = (1/n) * (beta + m) * Math.pow(0.5, 2/3) * Math.sqrt(i_val);
+        if (coeff > 0) {
+          h_best = Math.pow(Q_val / coeff, 3/8);
+          b_best = beta * h_best;
+          hint = `Mặt cắt hình thang tối ưu (m=${m.toFixed(1)}): b/h = ${beta.toFixed(3)}, kích thước tối ưu xấp xỉ b=${b_best.toFixed(2)} m, h=${h_best.toFixed(2)} m. Hiện tại b=${num('b').toFixed(2)} m, h=${h_val.toFixed(2)} m.`;
+        }
+      }
+    } else { // circular
+      const D = num('D');
+      h_best = 0.938 * D;   // 最大流量对应充满度
+      b_best = D;
+      beta = h_best / D;
+      hint = `Mặt cắt tròn có lưu lượng lớn nhất khi độ đầy h/D = 0.938 (vận tốc lớn nhất khi bằng 0.813), tức h=${h_best.toFixed(2)} m (D=${D.toFixed(2)} m). Độ đầy hiện tại h/D = ${(h_val/D).toFixed(3)}. Khi chảy đầy, dòng trở thành có áp.`;
+      // GB 50014 设计充满度校核(仅提示)
+      const mf = maxFullness(D * 1000), fr = h_val / D;
+      if (mf) {
+        if (fr > mf.lim + 1e-9) {
+          hintCls = 'check-warn';
+          hint += `<br>⚠ Kiểm tra độ đầy thiết kế: ống thoát nước thải ${mf.rng} theo GB 50014 có độ đầy thiết kế tối đa ${mf.lim}; giá trị hiện tại ${fr.toFixed(3)} vượt giới hạn (chỉ cảnh báo, không ảnh hưởng kết quả tính toán).`;
+        } else {
+          hint += `<br>✓ Kiểm tra độ đầy thiết kế: ống thoát nước thải ${mf.rng} theo GB 50014 có độ đầy thiết kế tối đa ${mf.lim}; giá trị hiện tại ${fr.toFixed(3)} đạt yêu cầu.`;
+        }
+      } else {
+        hint += `<br>Đường kính ống nhỏ hơn DN200, không thuộc bảng độ đầy thiết kế của GB 50014.`;
+      }
+    }
+    $('r_h_best').textContent = h_best > 0 ? h_best.toFixed(3) : '—';
+    $('r_b_best').textContent = b_best > 0 ? b_best.toFixed(3) : '—';
+    $('r_beta').textContent = beta > 0 ? beta.toFixed(3) : '—';
+    $('bestHint').className = 'check-box ' + hintCls;
+    $('bestHint').innerHTML = hint;
+    $('r_beta_l').textContent = shape === 'circular' ? 'Độ đầy h/D' : 'Tỷ số rộng/sâu β';
+
+    // 重绘断面(圆形水深变化时)
+    if (shape === 'circular') drawSection();
+  }
+
+  function copyResults() {
+    const shapes = {trapezoidal:'hình thang', rectangular:'hình chữ nhật', circular:'hình tròn'};
+    const txt = `Kết quả tính toán thủy lực kênh hở (mặt cắt ${shapes[shape]})
+————————————————
+Lưu lượng Q = ${$('r_Q').textContent} m³/s
+Vận tốc v = ${$('r_v').textContent} m/s
+Độ sâu nước h = ${$('r_h').textContent} m
+Độ dốc đáy i = ${$('r_i').textContent}
+Manning n = ${num('n')}
+
+【Các yếu tố thủy lực】
+Diện tích mặt cắt ướt A = ${$('r_A').textContent} m²
+Chu vi ướt χ = ${$('r_P').textContent} m
+Bán kính thủy lực R = ${$('r_R').textContent} m
+Chiều rộng mặt nước B = ${$('r_B').textContent} m
+Hệ số Chézy C = ${$('r_C').textContent}
+
+【Chế độ dòng chảy】
+Fr = ${$('r_Fr').textContent} (${$('r_Fr_state').textContent})
+Độ sâu tới hạn h_c = ${$('r_hc').textContent} m
+Độ dốc tới hạn i_c = ${$('r_ic').textContent}
+
+【Tham khảo mặt cắt tối ưu】
+h khuyến nghị = ${$('r_h_best').textContent} m
+b khuyến nghị = ${$('r_b_best').textContent} m
+${$('r_beta_l').textContent} = ${$('r_beta').textContent}
+
+【Kiểm tra】
+${$('flowCheck').innerText}
+${$('bestHint').innerText}`;
+    navigator.clipboard.writeText(txt).then(() => {
+      alert('Đã sao chép kết quả');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() { location.reload(); }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // 手动改 n 时,下拉同步为匹配的预设,否则切到"自定义"
+  $('n').addEventListener('input', () => {
+    const v = parseFloat($('n').value);
+    const opt = Array.from($('n_preset').options).find(o => o.value !== 'custom' && Math.abs(parseFloat(o.value) - v) < 1e-9);
+    $('n_preset').value = opt ? opt.value : 'custom';
+  });
+
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+
+  // 初始化
+  drawSection();
+  setMode('Q');
+</script>
+
+</body>
+</html>

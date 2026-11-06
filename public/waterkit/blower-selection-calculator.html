@@ -1,0 +1,1025 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Công cụ tính chọn máy thổi khí | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Tính chọn máy thổi khí xử lý nước thải: lưu lượng khí, áp suất khí, công suất trục và động cơ; khuyến nghị máy Roots, ly tâm và đệm từ. Theo GB 50014, HJ 576.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+  body {
+    background: var(--bg);
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    color: var(--text);
+    margin: 0;
+  }
+
+  /* 统一顶部导航（与其它工具页一致） */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600; font-size: 16.5px;
+    color: var(--ink); letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--text-faint); margin-top: 1px;
+  }
+  .nav-links {
+    display: flex; gap: 24px; font-size: 14px; align-items: center;
+  }
+  .nav-links a {
+    color: var(--text); text-decoration: none;
+    transition: color 0.15s; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←"; margin-right: 4px; color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* 面包屑 */
+  .breadcrumb {
+    max-width: 1024px; margin: 0 auto;
+    padding: 20px 32px 0;
+    font-size: 12.5px; color: var(--text-muted);
+    width: 100%; box-sizing: border-box;
+  }
+  .breadcrumb a {
+    color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  .invalid { border-color: #ef4444 !important; background: #fef2f2 !important; }
+
+  /* 主体 */
+  .main-wrap { flex: 1; padding: 0 0 60px; }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .tool-header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .tool-header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+  }
+  .tool-header p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* 分区标题 */
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 28px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* 网格布局 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 4px;
+  }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 680px) {
+    .grid, .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  /* 输入字段 */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 12.5px; color: var(--text-muted); font-weight: 500; }
+  label .unit {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-weight: 400;
+    margin-left: 3px;
+  }
+  input[type="number"], select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--bg);
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  input[type="number"]:focus, select:focus { border-color: var(--brand); }
+  .helper {
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.5;
+  }
+
+  /* 信息提示框 */
+  .info-box {
+    background: var(--brand-light);
+    border: 1px solid var(--brand-border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--brand-dark);
+    margin: 16px 0;
+    line-height: 1.6;
+  }
+  .info-box b { color: var(--brand-dark); }
+
+  /* 结果区 */
+  .results {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-top: 32px;
+  }
+  .results h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-group { margin-bottom: 24px; }
+  .result-group:last-child { margin-bottom: 0; }
+  .result-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border-soft);
+    gap: 12px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { font-size: 13px; color: var(--text-muted); flex: 1; }
+  .result-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .result-value.big { font-size: 22px; color: var(--brand-dark); }
+  .result-unit { font-size: 12px; color: var(--text-muted); margin-left: 3px; }
+  .highlight-row { background: var(--brand-light); margin: 0 -4px; padding: 9px 4px; border-radius: 4px; }
+  .highlight-row .result-label { color: var(--brand-dark); font-weight: 500; }
+
+  /* 风机推荐区 */
+  .blower-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 16px;
+  }
+  @media (max-width: 680px) { .blower-cards { grid-template-columns: 1fr; } }
+  .blower-card {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .blower-card.recommended {
+    border-color: var(--brand);
+    background: var(--brand-light);
+  }
+  .blower-card.recommended::before {
+    content: 'Khuyến nghị';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--brand);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 99px;
+  }
+  .blower-type {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .blower-range {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .blower-pros {
+    font-size: 11.5px;
+    color: var(--brand-dark);
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+  .blower-cons {
+    font-size: 11.5px;
+    color: #92400e;
+    margin-top: 4px;
+    line-height: 1.6;
+  }
+  .match-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+  .match-good { background: #dcfce7; color: #166534; }
+  .match-ok   { background: #fef9c3; color: #854d0e; }
+  .match-poor { background: #fee2e2; color: #991b1b; }
+  .match-info { background: #dbeafe; color: #1e40af; }
+
+  /* 校核警告 */
+  .check-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 7px;
+  }
+  .check-ok   { background: #f0fdf4; color: #166534; }
+  .check-warn { background: #fffbeb; color: #92400e; }
+  .check-bad  { background: #fef2f2; color: #991b1b; }
+  .check-info { background: #eff6ff; color: #1e40af; }
+  .check-item .ic { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* 按钮 */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 10px 20px;
+    font-size: 13.5px;
+    font-weight: 500;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--ink); color: white; }
+  .btn-primary:hover { background: #1e293b; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* 公式框 */
+  .formula-box {
+    display: none;
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-top: 20px;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .formula-box code {
+    display: block;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+    margin: 8px 0;
+  }
+  .formula-box h4 { margin: 16px 0 4px; font-size: 13px; color: var(--ink); }
+  .formula-box h4:first-child { margin-top: 0; }
+
+  /* 注释 */
+  .note {
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.7;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ===== 统一页脚 ===== */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: auto;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px;
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+  /* 本页无全局 margin/padding 重置，补齐页脚列表与标题的默认外边距 */
+  .site-footer ul, .site-footer h4, .site-footer p { margin-top: 0; padding: 0; }
+  .site-footer ul { margin-bottom: 0; }
+  .footer-about { margin-bottom: 0; }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Lựa chọn thiết bị</a>
+  <span class="sep">/</span>
+  <span class="current">Chọn máy thổi khí</span>
+</div>
+
+<main class="main-wrap">
+<div class="container">
+
+  <header class="tool-header">
+    <h1>💨 Công cụ tính chọn máy thổi khí</h1>
+    <p>Theo GB 50014-2021 và HJ 576, tính lưu lượng khí, áp suất khí, công suất trục và động cơ, đồng thời đề xuất loại máy phù hợp</p>
+  </header>
+
+  <div class="info-box">
+    💡 Nhập trực tiếp lưu lượng cấp khí hoặc dùng kết quả từ công cụ tính lượng khí sục (lưu lượng cấp khí tiêu chuẩn Gs). Áp suất khí phụ thuộc vào độ ngập của bộ phân phối khí, trở lực đường ống và áp suất ngược của thiết bị sục khí.
+  </div>
+
+  <!-- 第一部分：Lưu lượng khí -->
+  <div class="section-title">① Nhập lưu lượng cấp khí</div>
+  <div class="grid">
+    <div class="field">
+      <label for="Q_avg">Lưu lượng cấp khí trung bình Q<sub>avg</sub> <span class="unit">điều kiện tiêu chuẩn m³/min</span></label>
+      <input type="number" id="Q_avg" value="15" step="0.5" oninput="calc()">
+      <div class="helper">Điều kiện tiêu chuẩn (20 ℃, 101.325 kPa), tương ứng với lưu lượng cấp khí tiêu chuẩn Gs trong công cụ tính lượng khí sục; “m³/min (tiêu chuẩn)” dưới đây cũng theo điều kiện này</div>
+    </div>
+    <div class="field">
+      <label for="Kh">Hệ số giờ lớn nhất K<sub>h</sub></label>
+      <input type="number" id="Kh" value="1.5" step="0.1" oninput="calc()">
+      <div class="helper">Thông thường 1.3–2.0; trong thiết kế thường chọn ≥ 1.5 (giá trị kinh nghiệm)</div>
+    </div>
+    <div class="field">
+      <label for="n_run">Số máy thổi khí vận hành <span class="unit">máy</span></label>
+      <input type="number" id="n_run" value="2" step="1" oninput="calc()">
+      <div class="helper">Không tính máy dự phòng; thường vận hành song song 2-4 máy</div>
+    </div>
+  </div>
+
+  <!-- 第二部分：Tính áp suất khí -->
+  <div class="section-title">② Tính áp suất khí</div>
+  <div class="grid">
+    <div class="field">
+      <label for="H_pool">Độ ngập của bộ phân phối khí H (độ sâu bể − chiều cao lắp đặt bộ phân phối khí) <span class="unit">m</span></label>
+      <input type="number" id="H_pool" value="5.0" step="0.5" oninput="calc()">
+      <div class="helper">Khoảng cách từ cửa thoát khí đến mực nước cao nhất, không phải độ sâu bể; ví dụ bể sâu 5.2 m, bộ phân phối cao hơn đáy 0.2 m thì H = 5.0 m</div>
+    </div>
+    <div class="field">
+      <label for="dP_diff">Áp suất ngược của thiết bị sục khí ΔP<sub>diff</sub> <span class="unit">kPa</span></label>
+      <input type="number" id="dP_diff" value="4.0" step="0.5" oninput="calc()">
+      <div class="helper">Thiết bị sục khí bọt mịn 3-6 kPa, ống đục lỗ 1-2 kPa</div>
+    </div>
+    <div class="field">
+      <label for="dP_pipe">Trở lực dọc đường + cục bộ của đường ống ΔP<sub>pipe</sub> <span class="unit">kPa</span></label>
+      <input type="number" id="dP_pipe" value="5.0" step="0.5" oninput="calc()">
+      <div class="helper">Bao gồm đường ống từ cửa ra đến thiết bị sục khí, thường 3-8 kPa</div>
+    </div>
+    <div class="field">
+      <label for="fs">Hệ số dự phòng an toàn f<sub>s</sub></label>
+      <input type="number" id="fs" value="1.1" step="0.05" oninput="calc()">
+      <div class="helper">Hệ số an toàn áp suất khí, thường 1.05-1.15</div>
+    </div>
+    <div class="field">
+      <label for="alt">Độ cao so với mực nước biển <span class="unit">m</span></label>
+      <input type="number" id="alt" value="0" step="100" oninput="calc()">
+      <div class="helper">Ảnh hưởng đến mật độ không khí và áp suất tuyệt đối</div>
+    </div>
+    <div class="field">
+      <label for="T_inlet">Nhiệt độ khí đầu vào <span class="unit">°C</span></label>
+      <input type="number" id="T_inlet" value="20" step="1" oninput="calc()">
+      <div class="helper">Nhiệt độ không khí cao nhất vào mùa hè, ảnh hưởng đến công suất máy thổi khí</div>
+    </div>
+  </div>
+
+  <!-- 第三部分：机械效率 -->
+  <div class="section-title">③ Thông số hiệu suất</div>
+  <div class="grid">
+    <div class="field">
+      <label for="eta_bl">Hiệu suất đoạn nhiệt của máy thổi khí η<sub>bl</sub> <span class="unit">%</span></label>
+      <input type="number" id="eta_bl" value="75" step="1" oninput="calc()">
+      <div class="helper">Roots 60-75%, ly tâm 75-85%, đệm từ 80-88%</div>
+    </div>
+    <div class="field">
+      <label for="eta_t">Hiệu suất truyền động η<sub>t</sub> <span class="unit">%</span></label>
+      <input type="number" id="eta_t" value="95" step="1" oninput="calc()">
+      <div class="helper">Truyền động trực tiếp 95-98%, dây đai 90-95%</div>
+    </div>
+    <div class="field">
+      <label for="eta_m">Hiệu suất động cơ η<sub>m</sub> <span class="unit">%</span></label>
+      <input type="number" id="eta_m" value="93" step="1" oninput="calc()">
+      <div class="helper">Động cơ IE3 91-95%, IE4 93-96%</div>
+    </div>
+    <div class="field">
+      <label for="motor_margin">Hệ số dự phòng động cơ k<sub>m</sub></label>
+      <input type="number" id="motor_margin" value="1.1" step="0.05" oninput="calc()">
+      <div class="helper">Công suất động cơ tính toán × k<sub>m</sub> rồi chọn cấp động cơ tiêu chuẩn cao hơn, thường chọn 1.1-1.2</div>
+    </div>
+    <div class="field">
+      <label for="price">Giá điện <span class="unit">nhân dân tệ/kWh</span></label>
+      <input type="number" id="price" value="0.8" step="0.05" oninput="calc()">
+      <div class="helper">Dùng để ước tính chi phí điện vận hành hằng năm</div>
+    </div>
+  </div>
+
+  <!-- 结果区 -->
+  <div class="results">
+    <h2>🔧 Kết quả tính chọn máy thổi khí</h2>
+
+    <!-- Lưu lượng khí -->
+    <div class="result-group">
+      <div class="result-group-title">💨 Lưu lượng khí</div>
+      <div class="result-row">
+        <span class="result-label">Lưu lượng cấp khí trung bình (giá trị thiết kế)</span>
+        <span><span class="result-value" id="r_Q_avg">—</span><span class="result-unit">m³/min (tiêu chuẩn)</span></span>
+      </div>
+      <div class="result-row highlight-row">
+        <span class="result-label"><b>Lưu lượng cấp khí giờ lớn nhất (cơ sở chọn máy)</b></span>
+        <span><span class="result-value big" id="r_Q_max">—</span><span class="result-unit">m³/min (tiêu chuẩn)</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lưu lượng khí mỗi máy</span>
+        <span><span class="result-value" id="r_Q_unit">—</span><span class="result-unit">m³/min (tiêu chuẩn)</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Lưu lượng khí đầu vào thực tế quy đổi mỗi máy (hiệu chỉnh theo T°C)</span>
+        <span><span class="result-value" id="r_Q_actual">—</span><span class="result-unit">m³/min</span></span>
+      </div>
+    </div>
+
+    <!-- Áp suất khí -->
+    <div class="result-group">
+      <div class="result-group-title">📊 Áp suất khí</div>
+      <div class="result-row">
+        <span class="result-label">Áp suất tĩnh cột nước (ρ_water × g × H)</span>
+        <span><span class="result-value" id="r_dP_water">—</span><span class="result-unit">kPa</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Áp suất ngược của thiết bị sục khí</span>
+        <span><span class="result-value" id="r_dP_diff">—</span><span class="result-unit">kPa</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Trở lực đường ống</span>
+        <span><span class="result-value" id="r_dP_pipe">—</span><span class="result-unit">kPa</span></span>
+      </div>
+      <div class="result-row highlight-row">
+        <span class="result-label"><b>Tổng áp suất khí thiết kế (bao gồm dự phòng an toàn)</b></span>
+        <span><span class="result-value big" id="r_dP_total">—</span><span class="result-unit">kPa</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Áp suất tuyệt đối đầu vào P₁</span>
+        <span><span class="result-value" id="r_P1">—</span><span class="result-unit">kPa(abs)</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Áp suất tuyệt đối đầu ra P₂</span>
+        <span><span class="result-value" id="r_P2">—</span><span class="result-unit">kPa(abs)</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tỷ số áp suất P₂/P₁</span>
+        <span><span class="result-value" id="r_pr">—</span></span>
+      </div>
+    </div>
+
+    <!-- Công suất -->
+    <div class="result-group">
+      <div class="result-group-title">⚡ Công suất</div>
+      <div class="result-row">
+        <span class="result-label">Công suất nén đoạn nhiệt mỗi máy N<sub>ad</sub></span>
+        <span><span class="result-value" id="r_N_ad">—</span><span class="result-unit">kW</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Công suất trục mỗi máy N<sub>shaft</sub></span>
+        <span><span class="result-value" id="r_N_shaft">—</span><span class="result-unit">kW</span></span>
+      </div>
+      <div class="result-row highlight-row">
+        <span class="result-label"><b>Công suất động cơ đi kèm (tham khảo chọn máy)</b></span>
+        <span><span class="result-value big" id="r_N_motor">—</span><span class="result-unit">kW</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Công suất động cơ tiêu chuẩn (nhân hệ số dự phòng rồi chọn cấp bằng hoặc cao hơn)</span>
+        <span><span class="result-value" id="r_N_std" style="font-size:15px;">—</span><span class="result-unit">kW</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tổng công suất lắp đặt toàn trạm (số máy vận hành × động cơ)</span>
+        <span><span class="result-value" id="r_N_total">—</span><span class="result-unit">kW</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Chi phí điện vận hành hằng năm (theo công suất điện thực tế ở lưu lượng khí trung bình, 24h×365d)</span>
+        <span><span class="result-value" id="r_annual_cost">—</span><span class="result-unit">vạn nhân dân tệ/năm</span></span>
+      </div>
+    </div>
+
+    <!-- 机型Khuyến nghị -->
+    <div class="result-group">
+      <div class="result-group-title">🔩 Khuyến nghị chọn loại máy</div>
+      <div class="blower-cards" id="blowerCards">
+        <!-- JS 动态生成 -->
+      </div>
+      <div class="helper" style="margin-top:10px;">Lưu ý: Phạm vi lưu lượng khí/tỷ số áp suất, hiệu suất, độ ồn và giới hạn công suất mỗi máy đệm từ đều là giá trị tham khảo theo kinh nghiệm; cần đối chiếu tài liệu nhà sản xuất.</div>
+    </div>
+
+    <!-- 校核 -->
+    <div class="result-group">
+      <div class="result-group-title">🔎 Kiểm tra thiết kế</div>
+      <div class="check-list" id="checkList"></div>
+    </div>
+  </div>
+
+  <!-- Giải thích công thức -->
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="toggleFormula()">📐 Giải thích công thức</button>
+    <button class="btn btn-ghost" onclick="copyResult()">📋 Sao chép kết quả</button>
+    <button class="btn btn-ghost" onclick="resetDefaults()">↺ Khôi phục mặc định</button>
+  </div>
+
+  <div class="formula-box" id="formulaBox">
+    <h4>① Lưu lượng khí giờ lớn nhất</h4>
+    <code>Q_max = Q_avg × K_h  [m³/min (tiêu chuẩn)]</code>
+    <p>Lưu lượng khí mỗi máy = Q_max / số máy vận hành</p>
+
+    <h4>② Lưu lượng khí đầu vào thực tế (hiệu chỉnh nhiệt độ, áp suất)</h4>
+    <code>Q_actual = Q_unit × (273.15 + T) / 293.15 × 101.325 / P₁  [m³/min]</code>
+    <p>Điều kiện tiêu chuẩn là 20°C, 101.325 kPa; nhiệt độ khí đầu vào thực tế và độ cao (P₁) ảnh hưởng đến mật độ nên cần hiệu chỉnh lưu lượng.</p>
+
+    <h4>③ Tính áp suất khí</h4>
+    <code>ΔP_water = ρ_water × g × H = 9.8 × H  [kPa] (H là độ ngập của bộ phân phối khí = độ sâu bể − chiều cao lắp đặt bộ phân phối khí)</code>
+    <code>ΔP_total = (ΔP_water + ΔP_diff + ΔP_pipe) × f_s  [kPa]</code>
+    <p>Hiệu chỉnh độ cao (công thức khí quyển tiêu chuẩn, thống nhất với trang tính lượng khí sục/chọn máy bơm): P₁ = 101.325 × (1 − 2.25577×10⁻⁵ × alt)^5.25588 kPa(abs)</p>
+    <code>P₂ = P₁ + ΔP_total  [kPa(abs)]</code>
+
+    <h4>④ Công suất nén đoạn nhiệt (nén đẳng entropy)</h4>
+    <code>N_ad = (κ/(κ-1)) × P₁ × Q_actual × [(P₂/P₁)^((κ-1)/κ) - 1]  [kW]</code>
+    <p>κ = 1.4 (số mũ đoạn nhiệt của không khí); P có đơn vị kPa, Q có đơn vị m³/s.<br>
+    Đây là công thức kỹ thuật thường dùng tính công suất lý thuyết của quá trình nén đẳng entropy (công thức nhiệt động lực học tổng quát, không phải điều khoản tiêu chuẩn).</p>
+
+    <h4>⑤ Công suất trục và công suất động cơ</h4>
+    <code>N_shaft = N_ad / η_bl  [kW]</code>
+    <code>N_motor = N_shaft / η_t  [kW] (công suất động cơ đi kèm tính toán; công suất ghi trên nhãn là công suất đầu ra trên trục động cơ, η_m chỉ dùng để tính điện năng tiêu thụ)</code>
+    <code>N_std = cấp công suất tiêu chuẩn bằng hoặc cao hơn( N_motor × k_m )  [kW], k_m là hệ số dự phòng động cơ (mặc định 1.1)</code>
+    <p>Lưu ý: Khi kết hợp f_s và k_m, công suất động cơ tiêu chuẩn thường cao hơn N_motor một cấp; đây là mức dự phòng chọn máy bình thường.</p>
+    <p>Các cấp công suất động cơ tiêu chuẩn (dãy GB/T, dùng chung với công cụ chọn máy bơm): 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3, 4, 5.5, 7.5, 11, 15, 18.5, 22, 30, 37, 45, 55, 75, 90, 110, 132, 160, 185, 200, 220, 250, 280, 315, 355, 400, 450, 500, 560, 630, 710, 800, 900, 1000 kW; Trên 1000 kW, làm tròn lên theo bước 100 kW và cần xác nhận với nhà sản xuất.</p>
+
+    <h4>⑥ Chi phí điện vận hành hằng năm</h4>
+    <code>Chi phí điện hằng năm = (N_ad / K_h) / (η_bl × η_t × η_m) × số máy vận hành × 24 × 365 × Giá điện / 10000  [vạn nhân dân tệ/năm]</code>
+    <p>Tính theo công suất điện đầu vào thực tế của động cơ ở lưu lượng khí trung bình (lưu lượng giờ lớn nhất / K_h), không phải công suất lắp đặt ghi trên nhãn.</p>
+  </div>
+
+  <div class="note">
+    ℹ️ <b>Điểm cần lưu ý khi chọn máy:</b>① Chọn theo lưu lượng ở chế độ giờ lớn nhất (K_h); ② áp suất khí cần dự phòng 5-15%; ③ tránh vận hành máy ly tâm trong vùng mất ổn định, kiểm tra đường đặc tính máy; ④ máy đệm từ điều chỉnh tốc độ tốt, phù hợp tải biến thiên; ⑤ nên dự phòng ít nhất một máy, tổng số nên là 3-5 máy.<br>
+    📌 <b>Giải thích giá trị tham khảo:</b>Các khoảng khuyến nghị (lưu lượng mỗi máy, tỷ số áp suất: Roots ≤1.5 thường dùng, 1.5–2.0 cần thận trọng; ly tâm một cấp 1.3–1.8; đệm từ 1.3–1.9), giới hạn lưu lượng/công suất mỗi máy đệm từ (khoảng 200 m³/min (tiêu chuẩn)/ 300 kW) và giới hạn lưu lượng mỗi máy ly tâm (khoảng 500 m³/min (tiêu chuẩn)) là giá trị tham khảo theo kinh nghiệm, không phải điều khoản tiêu chuẩn; đối chiếu tài liệu nhà sản xuất.<br>
+    📐 <b>Căn cứ:</b>GB 50014-2021 “Tiêu chuẩn thiết kế hệ thống thoát nước ngoài nhà”, HJ 576 “Phương pháp bùn hoạt tính kỵ khí - thiếu khí - hiếu khí”
+  </div>
+
+</div>
+</main>
+
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  // 标准电机Công suất档位（GB/T 系列，与Chọn máy bơm计算器共用同一列表）
+  const STD_MOTORS = [0.37,0.55,0.75,1.1,1.5,2.2,3,4,5.5,7.5,11,15,18.5,22,30,37,45,55,75,90,110,132,160,185,200,220,250,280,315,355,400,450,500,560,630,710,800,900,1000];
+
+  function nextStdMotor(kw) {
+    return STD_MOTORS.find(m => m >= kw) || Math.ceil(kw / 100) * 100;  // 超出档位表按 100 kW 向上取整
+  }
+  // 电机档位显示：< 1 kW 保留原值，非整数保留 1 位小数（18.5 不再被显示成 19）
+  const fmtMotor = m => m < 1 ? String(m) : (Number.isInteger(m) ? String(m) : m.toFixed(1));
+
+  // 读取输入：空/非数字返回 NaN 由校验拦截（不静默取默认值）；0、负值也交由校验判断
+  const gv = id => { const s = $(id).value.trim(); return s === '' ? NaN : Number(s); };
+
+  // 输入校验：返回错误信息列表，并给不合格输入框加 .invalid
+  function validateInputs(vals) {
+    const rules = [
+      ['Q_avg',   v => v > 0,             'Vui lòng nhập lưu lượng cấp khí trung bình lớn hơn 0'],
+      ['Kh',      v => v > 0,             'Vui lòng nhập hệ số giờ lớn nhất K_h lớn hơn 0'],
+      ['n_run',   v => Number.isInteger(v) && v >= 1, 'Số máy vận hành phải là số nguyên không nhỏ hơn 1'],
+      ['H_pool',  v => v >= 0,            'Độ ngập của bộ phân phối khí không được âm'],
+      ['dP_diff', v => v >= 0,            'Áp suất ngược của thiết bị sục khí không được âm'],
+      ['dP_pipe', v => v >= 0,            'Trở lực đường ống không được âm'],
+      ['fs',      v => v > 0,             'Vui lòng nhập hệ số dự phòng an toàn f_s lớn hơn 0'],
+      ['alt',     v => v > -500 && v < 6000, 'Độ cao so với mực nước biển phải trong khoảng -500 ~ 6000 m'],
+      ['T_inlet', v => v > -50 && v < 80, 'Nhiệt độ khí đầu vào phải trong khoảng -50 ~ 80 ℃'],
+      ['eta_bl',  v => v > 0 && v <= 100, 'Hiệu suất máy thổi khí η_bl phải trong khoảng 0–100% (lớn hơn 0)'],
+      ['eta_t',   v => v > 0 && v <= 100, 'Hiệu suất truyền động η_t phải trong khoảng 0–100% (lớn hơn 0)'],
+      ['eta_m',   v => v > 0 && v <= 100, 'Hiệu suất động cơ η_m phải trong khoảng 0–100% (lớn hơn 0)'],
+      ['motor_margin', v => v > 0,        'Vui lòng nhập hệ số dự phòng động cơ k_m lớn hơn 0'],
+      ['price',   v => v >= 0,            'Giá điện không được âm'],
+    ];
+    const errs = [];
+    rules.forEach(([id, ok, msg]) => {
+      const bad = isNaN(vals[id]) || !ok(vals[id]);
+      $(id).classList.toggle('invalid', bad);
+      if (bad) errs.push(msg);
+    });
+    return errs;
+  }
+
+  function showInvalid(errs) {
+    document.querySelectorAll('.results [id^="r_"]').forEach(el => { el.textContent = '—'; });
+    $('blowerCards').innerHTML = '';
+    $('checkList').innerHTML = errs.map(t =>
+      `<div class="check-item check-bad"><span class="ic">✗</span><span>${t}</span></div>`).join('');
+  }
+
+  function calc() {
+    // 所有输入为空/非数字时均记为 NaN，由校验标红并提示
+    const ids = ['Q_avg','Kh','n_run','H_pool','dP_diff','dP_pipe','fs','alt','T_inlet','eta_bl','eta_t','eta_m','motor_margin','price'];
+    const vals = {};
+    ids.forEach(id => { vals[id] = gv(id); });
+    const errs = validateInputs(vals);
+    if (errs.length) { showInvalid(errs); return; }
+
+    const Q_avg   = vals.Q_avg;
+    const Kh      = vals.Kh;
+    const n_run   = Math.max(1, Math.round(vals.n_run));
+    const H_pool  = vals.H_pool;
+    const dP_diff = vals.dP_diff;
+    const dP_pipe = vals.dP_pipe;
+    const fs      = vals.fs;
+    const alt     = vals.alt;
+    const T_inlet = vals.T_inlet;
+    const eta_bl  = vals.eta_bl / 100;
+    const eta_t   = vals.eta_t / 100;
+    const eta_m   = vals.eta_m / 100;
+    const k_m     = vals.motor_margin;
+
+    // ── Lưu lượng khí ────────────────────────────────────────────────────
+    const Q_max    = Q_avg * Kh;                          // m³/min (tiêu chuẩn)
+    const Q_unit   = Q_max / n_run;                       // 单máy m³/min (tiêu chuẩn)
+
+    // ── Áp suất khí ────────────────────────────────────────────────────
+    const dP_water = 9.8 * H_pool;                       // kPa 水柱静压
+    const dP_raw   = dP_water + dP_diff + dP_pipe;       // kPa 裸压
+    const dP_total = dP_raw * fs;                         // kPa 含余量
+
+    // 海拔修正大气压
+    const P1 = 101.325 * Math.pow(1 - 2.25577e-5 * alt, 5.25588);  // kPa(abs)，标准大气式
+    const P2 = P1 + dP_total;                             // kPa(abs)
+    const pr = P2 / P1;                                   // 压力比
+
+    // 温度+压力修正：标准 20°C、101.325 kPa → 实际进气 T°C、P1（需在 P1 之后计算）
+    const Q_actual = Q_unit * (273.15 + T_inlet) / 293.15 * 101.325 / P1; // m³/min
+
+    // ── Công suất ────────────────────────────────────────────────────
+    const kappa = 1.4;
+    const exp   = (kappa - 1) / kappa;                   // 0.2857
+    // 绝热Công suất（kW）：Q 换算 m³/s，P 单位 kPa → ×1000 → Pa → ÷1000 = kW
+    const Q_m3s  = Q_actual / 60;                         // m³/s
+    const N_ad   = (kappa / (kappa - 1)) * P1 * 1000 * Q_m3s * (Math.pow(pr, exp) - 1) / 1000;
+    const N_shaft  = eta_bl > 0 ? N_ad / eta_bl : 0;
+    // 电机铭牌Công suất为轴输出Công suất：只计传动损失，Hiệu suất động cơ只用于电耗（与Chọn máy bơm页口径一致）
+    const N_motor_calc = eta_t > 0 ? N_shaft / eta_t : 0;
+    const N_motor_std  = nextStdMotor(N_motor_calc * k_m);  // 乘Hệ số dự phòng động cơ k_m（默认 1.1）后取标准档
+    const N_total      = N_motor_std * n_run;
+    // Chi phí điện hằng năm：按平均Lưu lượng khí下的实际电Công suất（N_ad 与Lưu lượng khí成正比，平均工况 = 最大时工况 / Kh），而非铭牌Công suất
+    const price        = vals.price;                                      // nhân dân tệ/kWh（允许 0）
+    const N_elec_avg   = (eta_t * eta_m) > 0 ? (N_ad / Kh) / eta_bl / eta_t / eta_m : 0; // 单máy平均工况电Công suất kW
+    const annual_cost  = N_elec_avg * n_run * 24 * 365 * price / 10000;   // vạn nhân dân tệ/năm
+
+    // ── 渲染结果 ─────────────────────────────────────────────────
+    const set = (id, v, dec = 1) => { const el = $(id); if (el) el.textContent = typeof v === 'number' ? v.toFixed(dec) : v; };
+    set('r_Q_avg',    Q_avg,    1);
+    set('r_Q_max',    Q_max,    1);
+    set('r_Q_unit',   Q_unit,   2);
+    set('r_Q_actual', Q_actual, 2);
+    set('r_dP_water', dP_water, 1);
+    set('r_dP_diff',  dP_diff,  1);
+    set('r_dP_pipe',  dP_pipe,  1);
+    set('r_dP_total', dP_total, 1);
+    set('r_P1',       P1,       2);
+    set('r_P2',       P2,       2);
+    set('r_pr',       pr,       4);
+    set('r_N_ad',     N_ad,     1);
+    set('r_N_shaft',  N_shaft,  1);
+    set('r_N_motor',  N_motor_calc, 1);
+    set('r_N_std',    fmtMotor(N_motor_std));
+    set('r_N_total',  fmtMotor(N_total));
+    set('r_annual_cost', annual_cost, 1);
+
+    // ── 机型Khuyến nghị ─────────────────────────────────────────────────
+    // 判断各机型匹配度：压力以Tỷ số áp suất P₂/P₁ 为口径（与下方Tỷ số áp suất校核一致），Lưu lượng khí按Lưu lượng khí mỗi máy区间；均为giá trị tham khảo
+    // 等级：2 = ✓，1 = ⚠，0 = ✗；卡片等级取Tỷ số áp suất与Lưu lượng khí两者中较差者
+    const prLevel = (lo_ok, hi_ok, hi_warn) =>
+      (pr >= lo_ok && pr <= hi_ok) ? 2 : (pr < lo_ok || (hi_warn && pr <= hi_warn)) ? 1 : 0;
+    const blowers = [
+      { key: 'roots', type: 'Máy thổi khí Roots', q: [1, 200], prTxt: '≤ 1.5 ✓; 1.5–2.0 Cần thận trọng',
+        prL: prLevel(0, 1.5, 2.0),
+        prNote: { 1: 'Tỷ số áp suất 1.5–2.0 vượt vùng thường dùng của máy Roots; độ tăng nhiệt, tiếng ồn và rò rỉ tăng', 0: 'Tỷ số áp suất > 2.0, vượt phạm vi áp dụng của máy Roots' },
+        pros: '✓ Kết cấu đơn giản, dễ bảo trì<br>✓ Giá thấp, tỷ lệ nội địa hóa cao<br>✓ Phù hợp nhà máy xử lý nước thải quy mô nhỏ và vừa',
+        cons: '✗ Độ ồn cao (85-95 dB), cần cách âm<br>✗ Hiệu suất tương đối thấp (60-75%)<br>✗ Phạm vi điều chỉnh lưu lượng khí hạn chế' },
+      { key: 'cent', type: 'Máy thổi khí ly tâm tốc độ cao một cấp', q: [15, 500], prTxt: '1.3–1.8 ✓',
+        prL: prLevel(1.3, 1.8, 0),
+        prNote: { 1: 'Tỷ số áp suất < 1.3, thấp hơn vùng thường dùng của máy ly tâm, hiệu suất tương đối thấp', 0: 'Tỷ số áp suất > 1.8, vượt phạm vi thường dùng của máy ly tâm một cấp' },
+        pros: '✓ Hiệu suất cao (75-85%), có thể dùng biến tần<br>✓ Độ ồn tương đối thấp<br>✓ Phù hợp nhà máy xử lý nước thải quy mô vừa và lớn',
+        cons: '✗ Cần chú ý vùng mất ổn định và lắp van chống mất ổn định<br>✗ Chi phí cao hơn máy Roots<br>✗ Phạm vi điều chỉnh tốc độ hạn chế (thường 70-100%)' },
+      { key: 'mag', type: 'Máy thổi khí đệm từ/đệm khí', q: [5, 200], prTxt: '1.3–1.9 ✓',
+        prL: prLevel(1.3, 1.9, 0),
+        prNote: { 1: 'Tỷ số áp suất < 1.3, thấp hơn vùng thường dùng của máy đệm từ, hiệu suất tương đối thấp', 0: 'Tỷ số áp suất > 1.9, vượt phạm vi thường dùng của máy đệm từ' },
+        pros: '✓ Hiệu suất cao nhất (80-88%)<br>✓ Phạm vi điều chỉnh tốc độ rộng (30-100%)<br>✓ Không cần bôi trơn, chi phí bảo trì rất thấp<br>✓ Độ ồn thấp (<80 dB)',
+        cons: '✗ Chi phí cao (khoảng 3-5 lần máy Roots)<br>✗ Giới hạn công suất mỗi máy khoảng 300 kW (giá trị tham khảo, đối chiếu tài liệu nhà sản xuất)<br>✗ Yêu cầu chất lượng điện lưới tương đối cao' },
+    ];
+    blowers.forEach(c => {
+      c.qL = (Q_unit >= c.q[0] && Q_unit <= c.q[1]) ? 2 : 1;
+      c.level = Math.min(c.prL, c.qL);
+      const notes = [];
+      if (c.prL < 2) notes.push(c.prNote[c.prL]);
+      if (c.qL < 2) notes.push(`Lưu lượng khí mỗi máy ${Q_unit.toFixed(1)} m³/min (tiêu chuẩn) không nằm trong khoảng ${c.q[0]}–${c.q[1]}`);
+      c.note = notes.join('; ');
+    });
+    const maxLevel = Math.max(...blowers.map(c => c.level));
+    const cards = blowers.map(c => ({
+      type: c.type,
+      range: `Lưu lượng khí: ${c.q[0]}-${c.q[1]} m³/min (tiêu chuẩn)<br>Tỷ số áp suất P₂/P₁: ${c.prTxt} (giá trị tham khảo)<br>Mỗi máy: ${Q_unit.toFixed(1)} m³/min (tiêu chuẩn) / Tỷ số áp suất ${pr.toFixed(2)}`,
+      pros: c.pros, cons: c.cons, score: c.level, max: maxLevel, note: c.note,
+    }));
+
+    $('blowerCards').innerHTML = cards.map(c => {
+      const isRec = c.score === c.max && c.score > 0;
+      const matchClass = c.score === 2 ? 'match-good' : c.score === 1 ? (c.max === 2 ? 'match-info' : 'match-ok') : 'match-poor';
+      // 已有机型 ✓ 时，其余机型的“Phù hợp một phần”属选型比较信息 → ℹ；无机型 ✓ 时才用 ⚠
+      const matchText  = (c.score === 2 ? '✓ Thông số phù hợp' : c.score === 1 ? (c.max === 2 ? 'ℹ Phù hợp một phần' : '⚠ Phù hợp một phần') : '✗ Vượt phạm vi') + ' (giá trị tham khảo)';
+      return `<div class="blower-card${isRec ? ' recommended' : ''}">
+        <div class="blower-type">${c.type}</div>
+        <div class="blower-range">${c.range}</div>
+        <div class="blower-pros">${c.pros}</div>
+        <div class="blower-cons">${c.cons}</div>
+        <span class="match-badge ${matchClass}">${matchText}</span>${c.note ? `<div class="helper" style="margin-top:4px;">${c.note}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    // ── 校核 ─────────────────────────────────────────────────────
+    const checks = [];
+
+    // 压力比校核：由机型卡片结果生成，口径一致（罗茨 ≤1.5 ✓、1.5–2.0 ⚠；离心 1.3–1.8 ✓；磁悬浮 1.3–1.9 ✓；均为giá trị tham khảo）
+    {
+      const sym = l => l === 2 ? '✓' : l === 1 ? '⚠' : '✗';
+      const symTxt = l => l === 2 ? '✓' : l === 1 ? 'Cần thận trọng' : 'Không phù hợp';   // 行内机型评价用文字, 行首图标表示本行级别
+      const summary = blowers.map(c => `${c.type.replace('Máy thổi khí ','')} ${symTxt(c.prL)}`).join(', ');
+      const nGood = blowers.filter(c => c.prL === 2).length;
+      // 至少一种机型Tỷ số áp suất ✓ 时，设计Tỷ số áp suất本身可行，此行属选型建议 → ℹ 信息样式；三种机型均无 ✓ 时才 ⚠（有Cần thận trọng机型）/✗（均超范围）
+      const type = nGood === blowers.length ? 'ok' : nGood > 0 ? 'info' : blowers.some(c => c.prL === 1) ? 'warn' : 'bad';
+      const tail = nGood === 0 ? '; cả ba loại máy một cấp đều ngoài khoảng tỷ số áp suất thường dùng; cân nhắc nén nhiều cấp hoặc giảm độ ngập bộ phân phối khí/trở lực hệ thống' :
+                   nGood < blowers.length ? `; xét lưu lượng khí mỗi máy, nên ưu tiên chọn ${(blowers.some(c => c.level === 2) ? blowers.filter(c => c.level === 2) : blowers.filter(c => c.prL === 2)).map(c => c.type).join(', ')} (theo mục “Khuyến nghị” trên thẻ loại máy)` : '';
+      checks.push({type, ic: type === 'info' ? 'ℹ' : sym(type === 'ok' ? 2 : type === 'warn' ? 1 : 0),
+        text:`Tỷ số áp suất ${pr.toFixed(3)}: ${summary}${tail} (khoảng tỷ số áp suất chỉ để tham khảo, đối chiếu tài liệu nhà sản xuất)`});
+    }
+
+    // máy数校核
+    if (n_run < 2) {
+      checks.push({type:'warn', ic:'⚠', text:'Chỉ có 1 máy vận hành, không thể điều chỉnh lưu lượng bằng số máy; nên vận hành song song ít nhất 2 máy và dự phòng thêm 1 máy'});
+    } else if (n_run > 6) {
+      checks.push({type:'warn', ic:'⚠', text:`số máy vận hành ${n_run} máy là khá nhiều, việc quản lý và bảo trì phức tạp; thường nên dùng 2-4 máy`});
+    } else {
+      checks.push({type:'ok', ic:'✓', text:`Vận hành ${n_run} máy song song, có thể điều chỉnh bằng số máy; nên bố trí thêm 1 máy dự phòng`});
+    }
+
+    // Lưu lượng khí mỗi máy校核
+    if (Q_unit < 1) {
+      checks.push({type:'warn', ic:'⚠', text:`Lưu lượng khí mỗi máy ${Q_unit.toFixed(2)} m³/min (tiêu chuẩn) quá nhỏ, nên giảm số máy hoặc gộp lại`});
+    } else if (Q_unit > 500) {
+      checks.push({type:'warn', ic:'⚠', text:`Lưu lượng khí mỗi máy ${Q_unit.toFixed(0)} m³/min (tiêu chuẩn) rất lớn; giới hạn mỗi máy ly tâm trong nước khoảng 500 m³/min (tiêu chuẩn) (giá trị tham khảo, đối chiếu tài liệu nhà sản xuất), cần kiểm tra`});
+    } else {
+      checks.push({type:'ok', ic:'✓', text:`Lưu lượng khí mỗi máy ${Q_unit.toFixed(1)} m³/min (tiêu chuẩn), nằm trong phạm vi thường dùng`});
+    }
+
+    // Áp suất khí校核
+    if (dP_total < 30) {
+      checks.push({type:'warn', ic:'⚠', text:`Áp suất khí thiết kế ${dP_total.toFixed(1)} kPa khá thấp, vui lòng kiểm tra độ ngập của bộ phân phối khí và áp suất ngược của thiết bị sục khí`});
+    } else if (dP_total > 120) {
+      checks.push({type:'warn', ic:'⚠', text:`Áp suất khí thiết kế ${dP_total.toFixed(1)} kPa > 120 kPa, vượt phạm vi thường dùng của máy thổi khí một cấp; cân nhắc giảm độ ngập của bộ phân phối khí hoặc dùng nén hai cấp`});
+    } else {
+      checks.push({type:'ok', ic:'✓', text:`Áp suất khí thiết kế ${dP_total.toFixed(1)} kPa, nằm trong phạm vi thường dùng của máy thổi khí một cấp`});
+    }
+    // Hệ số dự phòng an toàn áp suất khí校核（常用经验区间 1.05–1.25，非规范条文）
+    if (fs >= 1.05 && fs <= 1.25) {
+      checks.push({type:'ok', ic:'✓', text:`Hệ số dự phòng an toàn áp suất khí f_s = ${fs} (bao gồm ${((fs-1)*100).toFixed(0)}% dự phòng), nằm trong phạm vi kinh nghiệm thường dùng 1.05–1.25`});
+    } else if (fs < 1.05) {
+      checks.push({type:'warn', ic:'⚠', text:`Hệ số dự phòng an toàn áp suất khí f_s = ${fs} nhỏ hơn 1.05, dự phòng không đủ, nên chọn 1.05-1.15`});
+    } else {
+      checks.push({type:'warn', ic:'⚠', text:`Hệ số dự phòng an toàn áp suất khí f_s = ${fs} lớn hơn 1.25, dự phòng quá lớn dễ dẫn đến chọn máy quá lớn và vận hành kém hiệu quả lâu dài; nên chọn 1.05-1.15`});
+    }
+
+    // 效率校核
+    const eta_overall = eta_bl * eta_t * eta_m;
+    if (eta_overall < 0.5) {
+      checks.push({type:'warn', ic:'⚠', text:`Hiệu suất tổng hợp ${(eta_overall*100).toFixed(0)}% khá thấp, nên nâng cao hiệu suất máy thổi khí và truyền động`});
+    } else {
+      checks.push({type:'ok', ic:'✓', text:`Hiệu suất tổng hợp ${(eta_overall*100).toFixed(0)}% (máy thổi khí × truyền động × động cơ)`});
+    }
+
+    $('checkList').innerHTML = checks.map(c =>
+      `<div class="check-item check-${c.type}"><span class="ic">${c.ic}</span><span>${c.text}</span></div>`
+    ).join('');
+  }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';  // CSS 默认隐藏，首次点击即展开
+  }
+
+  function copyResult() {
+    const checks = [...document.querySelectorAll('#checkList .check-item')].map(e => e.textContent.trim()).join('\n');
+    const txt = `Kết quả tính chọn máy thổi khí (WaterKit)
+ (m³/min (tiêu chuẩn)= điều kiện tiêu chuẩn 20 ℃, 101.325 kPa)
+Lưu lượng cấp khí trung bình = ${$('r_Q_avg').textContent} m³/min (tiêu chuẩn)
+Lưu lượng cấp khí giờ lớn nhất = ${$('r_Q_max').textContent} m³/min (tiêu chuẩn)
+Lưu lượng khí mỗi máy = ${$('r_Q_unit').textContent} m³/min (tiêu chuẩn)
+Lưu lượng khí đầu vào thực tế mỗi máy = ${$('r_Q_actual').textContent} m³/min
+Tổng áp suất khí thiết kế = ${$('r_dP_total').textContent} kPa
+Áp suất tuyệt đối đầu vào/đầu ra P₁/P₂ = ${$('r_P1').textContent} / ${$('r_P2').textContent} kPa(abs)
+Tỷ số áp suất P₂/P₁ = ${$('r_pr').textContent}
+Công suất đoạn nhiệt mỗi máy = ${$('r_N_ad').textContent} kW
+Công suất trục mỗi máy = ${$('r_N_shaft').textContent} kW
+Công suất động cơ đi kèm (giá trị tính toán)= ${$('r_N_motor').textContent} kW
+Công suất động cơ tiêu chuẩn (×${$('motor_margin').value} rồi chọn cấp)= ${$('r_N_std').textContent} kW
+Tổng công suất lắp đặt của các máy vận hành = ${$('r_N_total').textContent} kW
+Ước tính chi phí điện vận hành hằng năm = ${$('r_annual_cost').textContent} vạn nhân dân tệ/năm
+
+[Kiểm tra thiết kế]
+${checks}`;
+    navigator.clipboard.writeText(txt).then(() => alert('Đã sao chép kết quả')).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() {
+    const d = { Q_avg:15, Kh:1.5, n_run:2, H_pool:5.0, dP_diff:4.0,
+                dP_pipe:5.0, fs:1.1, alt:0, T_inlet:20,
+                eta_bl:75, eta_t:95, eta_m:93, motor_margin:1.1, price:0.8 };
+    Object.keys(d).forEach(k => { const el = $(k); if(el) el.value = d[k]; });
+    calc();
+  }
+
+  document.querySelectorAll('input').forEach(el => el.addEventListener('input', calc));
+  calc();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,991 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Máy tính thủy lực đường ống | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Máy tính thủy lực đường ống: biết hai trong ba thông số lưu lượng, vận tốc và đường kính để tính thông số còn lại; tính tổn thất cột áp dọc đường và cục bộ theo Darcy-Weisbach (Colebrook-White), Hazen-Williams hoặc Manning, đề xuất đường kính danh nghĩa và kiểm tra vận tốc.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: #1f2937;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ======================== 统一顶部导航 ======================== */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600;
+    font-size: 16.5px;
+    color: var(--ink);
+    letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 1px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+    align-items: center;
+  }
+  .nav-links a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+    font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←";
+    margin-right: 4px;
+    color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* ======================== 面包屑 ======================== */
+  .breadcrumb {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 20px 16px 0;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+  .breadcrumb a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  /* ======================== 主体容器 ======================== */
+  .main-wrap {
+    flex: 1;
+    padding: 16px;
+  }
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  header.tool-header {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: #fff;
+    padding: 24px 24px 20px;
+  }
+  header.tool-header h1 { font-size: 22px; margin-bottom: 6px; }
+  header.tool-header p { font-size: 13px; opacity: 0.9; }
+  .body { padding: 24px; }
+
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 13.5px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .mode-tab.active {
+    background: #fff;
+    color: #0891b2;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0e7490;
+    margin: 20px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0f2fe;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field .unit { color: #9ca3af; font-size: 12px; font-weight: normal; }
+  .field input, .field select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  }
+  .field input:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+  .field.solve-for input {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    font-weight: 600;
+    color: #92400e;
+  }
+  .invalid { border-color: #ef4444 !important; background: #fef2f2 !important; }
+  .field .hint {
+    font-size: 11.5px;
+    color: #059669;
+    margin-top: 4px;
+  }
+  .field .hint.unused-note { color: #9ca3af; }
+  .field.coef-unused label { color: #9ca3af; }
+
+  .results {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #0891b2;
+  }
+  .results h2 { font-size: 16px; color: #0e7490; margin-bottom: 14px; }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px dashed #bae6fd;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4b5563; font-size: 14px; }
+  .result-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #0891b2;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-unit { color: #6b7280; font-size: 13px; margin-left: 4px; font-weight: normal; }
+
+  .check-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .check-ok { background: #dcfce7; color: #166534; border-left: 3px solid #22c55e; }
+  .check-warn { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+  .check-bad { background: #fee2e2; color: #991b1b; border-left: 3px solid #ef4444; }
+
+  .formula-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+  .formula-box h3 { font-size: 14px; color: #374151; margin-bottom: 10px; }
+  .formula-box code {
+    display: block;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: #0e7490;
+    overflow-x: auto;
+  }
+  .formula-box p { margin: 8px 0; font-size: 12.5px; }
+  .formula-box table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .formula-box th, .formula-box td {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .formula-box th { background: #f1f5f9; color: #374151; }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-primary { background: #0891b2; color: #fff; }
+  .btn-primary:hover { background: #0e7490; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  .note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #92400e;
+    border-left: 3px solid #f59e0b;
+  }
+  /* 工具内部的小footer */
+  .tool-inner-footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  /* ======================== 统一页脚 ======================== */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: 40px;
+  }
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .footer-col li {
+    font-size: 13px;
+    color: var(--text);
+  }
+  .footer-col a {
+    font-size: 13px;
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+  @media (max-width: 480px) {
+    .main-wrap { padding: 8px; }
+    .body { padding: 16px; }
+    header.tool-header { padding: 18px; }
+    header.tool-header h1 { font-size: 19px; }
+    .mode-tab { font-size: 12px; padding: 8px 4px; }
+    .result-value { font-size: 17px; }
+    .site-footer { padding: 36px 20px 24px; }
+  }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+<!-- ============ 统一顶部导航 ============ -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Tính toán thủy lực</a>
+  <span class="sep">/</span>
+  <span class="current">Thủy lực đường ống</span>
+</div>
+
+<main class="main-wrap">
+<div class="container">
+  <header class="tool-header">
+    <h1>🔧 Máy tính thủy lực đường ống</h1>
+    <p>Biết hai thông số bất kỳ để tính thông số còn lại: lưu lượng Q / vận tốc v / đường kính ống D, bao gồm tính tổn thất cột áp</p>
+  </header>
+
+  <div class="body">
+
+    <div class="section-title">Chế độ tính (nhấn để chọn đại lượng cần tính)</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="D" onclick="setMode('D')">Biết Q, v, tính D</button>
+      <button class="mode-tab" data-mode="v" onclick="setMode('v')">Biết Q, D, tính v</button>
+      <button class="mode-tab" data-mode="Q" onclick="setMode('Q')">Biết v, D, tính Q</button>
+    </div>
+
+    <div class="section-title">Thông số cơ bản</div>
+    <div class="grid">
+      <div class="field" id="f_Q">
+        <label for="Q">Lưu lượng Q <span class="unit" id="u_Q">m³/h</span></label>
+        <input type="number" id="Q" value="100" step="10">
+        <select id="unit_Q">
+          <option value="m3/h" selected>m³/h</option>
+          <option value="m3/d">m³/d</option>
+          <option value="L/s">L/s</option>
+          <option value="m3/s">m³/s</option>
+        </select>
+      </div>
+      <div class="field" id="f_v">
+        <label for="v">Vận tốc v <span class="unit">m/s</span></label>
+        <input type="number" id="v" value="1.2" step="0.1">
+      </div>
+      <div class="field" id="f_D">
+        <label for="D">Đường kính trong ống D <span class="unit">mm</span></label>
+        <input type="number" id="D" value="150" step="10">
+        <div class="hint" id="D_hint"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Thông số tổn thất cột áp</div>
+    <div class="grid">
+      <div class="field">
+        <label for="hfMethod">Công thức tổn thất dọc đường</label>
+        <select id="hfMethod">
+          <option value="dw" selected>Darcy-Weisbach (Colebrook-White, dùng ε)</option>
+          <option value="hw">Hazen-Williams (dùng C)</option>
+          <option value="manning">Manning (dùng n)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="L">Chiều dài ống L <span class="unit">m</span></label>
+        <input type="number" id="L" value="100" step="10">
+      </div>
+      <div class="field">
+        <label for="material">Vật liệu ống <span class="unit">Độ nhám n/C/ε</span></label>
+        <select id="material" onchange="updateMaterial()">
+          <option value="steel">Ống thép (mới)</option>
+          <option value="steel_old">Ống thép (cũ/đóng cặn)</option>
+          <option value="ductile">Gang cầu</option>
+          <option value="cast_iron">Gang (cũ)</option>
+          <option value="concrete">Bê tông</option>
+          <option value="pvc" selected>Ống nhựa PVC/PE</option>
+          <option value="ss">Thép không gỉ</option>
+          <option value="frp">Nhựa gia cường sợi thủy tinh</option>
+          <option value="custom">Tùy chỉnh</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="n">Hệ số Manning n <span class="unit">—</span></label>
+        <input type="number" id="n" value="0.009" step="0.001">
+        <div class="hint unused-note" id="note_n"></div>
+      </div>
+      <div class="field">
+        <label for="C">Hazen-Williams C <span class="unit">—</span></label>
+        <input type="number" id="C" value="150" step="5">
+        <div class="hint unused-note" id="note_C"></div>
+      </div>
+      <div class="field">
+        <label for="eps">Độ nhám tuyệt đối ε <span class="unit">mm</span></label>
+        <input type="number" id="eps" value="0.0015" step="0.001">
+        <div class="hint unused-note" id="note_eps"></div>
+      </div>
+      <div class="field">
+        <label for="T">Nhiệt độ nước T <span class="unit">℃</span></label>
+        <input type="number" id="T" value="20" step="1">
+      </div>
+      <div class="field">
+        <label for="zeta">Hệ số trở lực cục bộ Σζ <span class="unit">—</span></label>
+        <input type="number" id="zeta" value="2.0" step="0.5">
+      </div>
+    </div>
+
+    <div class="results">
+      <h2>Kết quả tính toán</h2>
+      <div class="result-row">
+        <span class="result-label">Lưu lượng đường ống</span>
+        <span><span class="result-value" id="r_Q">—</span><span class="result-unit" id="r_Q_u">m³/h</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Vận tốc trong ống v</span>
+        <span><span class="result-value" id="r_v">—</span><span class="result-unit">m/s</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Đường kính trong ống D</span>
+        <span><span class="result-value" id="r_D">—</span><span class="result-unit">mm</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Đường kính danh nghĩa đề xuất DN</span>
+        <span><span class="result-value" id="r_DN">—</span><span class="result-unit">mm</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Số Reynolds Re</span>
+        <span><span class="result-value" id="r_Re">—</span><span class="result-unit" id="r_Re_t">—</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label" id="r_lambda_l">Hệ số ma sát dọc đường λ</span>
+        <span><span class="result-value" id="r_lambda">—</span><span class="result-unit">—</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Công thức tổn thất dọc đường</span>
+        <span><span class="result-value" id="r_method" style="font-size:14px">—</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tổn thất cột áp dọc đường hf</span>
+        <span><span class="result-value" id="r_hf">—</span><span class="result-unit">m</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tổn thất cột áp cục bộ hj</span>
+        <span><span class="result-value" id="r_hj">—</span><span class="result-unit">m</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tổng tổn thất cột áp H</span>
+        <span><span class="result-value" id="r_H">—</span><span class="result-unit">m</span></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Tổn thất cột áp trên mỗi kilômét i</span>
+        <span><span class="result-value" id="r_i">—</span><span class="result-unit">‰</span></span>
+      </div>
+      <div class="check-box" id="checkBox">Đang kiểm tra...</div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="copyResults()">📋 Sao chép kết quả</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">🔄 Khôi phục mặc định</button>
+      <button class="btn btn-secondary" onclick="toggleFormula()">📖 Xem công thức</button>
+    </div>
+
+    <div class="formula-box" id="formulaBox" style="display:none;">
+      <h3>Nguyên lý tính toán</h3>
+
+      <p><strong>① Phương trình liên tục</strong> (quan hệ giữa lưu lượng/vận tốc/đường kính ống)</p>
+      <code>Q = v · A = v · π · D² / 4</code>
+      <p>Các đơn vị phải thống nhất: Q [m³/s], v [m/s], D [m]. Công cụ tự động quy đổi.</p>
+
+      <p><strong>② Số Reynolds Re</strong></p>
+      <code>Re = v · D / ν</code>
+      <p>ν là độ nhớt động học của nước [m²/s], nội suy tuyến tính từ bảng tính chất vật lý của nước trong sổ tay (0–100 ℃; ngoài phạm vi sẽ cảnh báo và dùng giá trị tại đầu mút):</p>
+      <table>
+        <tr><th>T (℃)</th><td>0</td><td>5</td><td>10</td><td>15</td><td>20</td><td>25</td><td>30</td><td>35</td></tr>
+        <tr><th>ν (×10⁻⁶ m²/s)</th><td>1.792</td><td>1.519</td><td>1.307</td><td>1.139</td><td>1.004</td><td>0.893</td><td>0.801</td><td>0.724</td></tr>
+        <tr><th>T (℃)</th><td>40</td><td>50</td><td>60</td><td>70</td><td>80</td><td>90</td><td>100</td><td></td></tr>
+        <tr><th>ν (×10⁻⁶ m²/s)</th><td>0.658</td><td>0.553</td><td>0.474</td><td>0.413</td><td>0.364</td><td>0.326</td><td>0.294</td><td></td></tr>
+      </table>
+      <p>Nguồn: bảng tính chất vật lý của nước (sổ tay cấp thoát nước / cơ học chất lưu). Re &lt; 2300: chảy tầng; Re &gt; 4000: chảy rối (dòng chảy trong đường ống cấp thoát nước hầu hết là chảy rối).</p>
+
+      <p><strong>③ Hệ số ma sát dọc đường λ — công thức Colebrook-White (ẩn, giải lặp)</strong></p>
+      <code>1/√λ = −2·log₁₀(ε/(3.7D) + 2.51/(Re·√λ))</code>
+      <p>Khi chảy tầng, λ = 64/Re. Công cụ dùng công thức xấp xỉ tường minh Swamee-Jain làm giá trị ban đầu, sau đó lặp theo Colebrook-White đến khi hội tụ (|Δλ| &lt; 10⁻⁸, tối đa 30 lần). Trong vùng chuyển tiếp 2300 ≤ Re &lt; 4000 vẫn tính theo Colebrook-White, nhưng λ có độ bất định lớn.</p>
+
+      <p><strong>④ Tổn thất cột áp dọc đường hf — công thức Darcy-Weisbach</strong></p>
+      <code>hf = λ · (L/D) · v² / (2g)</code>
+      <p>Công thức mặc định. Có thể chọn các công thức thực nghiệm sau trong mục "Công thức tổn thất dọc đường" (Q [m³/s], D [m], L [m]):</p>
+      <code>Hazen-Williams：hf = 10.67 · L · Q^1.852 / (C^1.852 · D^4.87)</code>
+      <code>Manning：hf = 10.29 · n² · L · Q² / D^5.333</code>
+      <p>Khi chọn công thức thực nghiệm, λ trong kết quả là giá trị tương đương tính ngược từ hf: λ = hf · D · 2g / (L · v²).</p>
+
+      <p><strong>⑤ Tổn thất cột áp cục bộ hj</strong></p>
+      <code>hj = Σζ · v² / (2g)</code>
+      <p>Tổng hệ số trở lực của co, van, tê, cửa vào và cửa ra. Với đường ống thông thường, có thể ước tính tổn thất cục bộ bằng 10-30% tổn thất dọc đường hoặc tra Sổ tay thiết kế cấp thoát nước.</p>
+
+      <p><strong>⑥ Độ nhám tham khảo của các vật liệu ống thông dụng</strong></p>
+      <table>
+        <tr><th>Vật liệu ống</th><th>ε (mm)</th><th>Manning n</th><th>Hệ số H-W C</th></tr>
+        <tr><td>Ống thép mới</td><td>0.05</td><td>0.011</td><td>130</td></tr>
+        <tr><td>Ống thép cũ/đóng cặn</td><td>0.5-1.0</td><td>0.013</td><td>100</td></tr>
+        <tr><td>Gang cầu (lót xi măng)</td><td>0.1</td><td>0.011</td><td>130</td></tr>
+        <tr><td>Gang cũ</td><td>1.5</td><td>0.014</td><td>90</td></tr>
+        <tr><td>Bê tông</td><td>0.3-3.0</td><td>0.013-0.015</td><td>120</td></tr>
+        <tr><td>Nhựa PVC/PE</td><td>0.0015</td><td>0.009</td><td>150</td></tr>
+        <tr><td>Thép không gỉ</td><td>0.002</td><td>0.009</td><td>150</td></tr>
+        <tr><td>Nhựa gia cường sợi thủy tinh</td><td>0.01</td><td>0.010</td><td>140</td></tr>
+      </table>
+
+      <p><strong>⑦ Vận tốc tham khảo để kiểm tra đường ống cấp thoát nước</strong></p>
+      <table>
+        <tr><th>Loại đường ống</th><th>Khoảng vận tốc khuyến nghị (m/s)</th></tr>
+        <tr><td>Ống cấp nước chính cho sinh hoạt/sản xuất</td><td>1.0 - 1.5</td></tr>
+        <tr><td>Ống cấp nước nhánh cho sinh hoạt/sản xuất</td><td>0.6 - 1.2</td></tr>
+        <tr><td>Nước thải tự chảy (tối thiểu/tối đa)</td><td>0.6 / 2.5 - 5.0</td></tr>
+        <tr><td>Nước thải chảy có áp</td><td>0.7 - 2.0</td></tr>
+        <tr><td>Ống định lượng hoá chất (tránh lắng cặn)</td><td>1.0 - 2.5</td></tr>
+        <tr><td>Ống dẫn khí (máy thổi khí)</td><td>10 - 25</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      ⚠️ Công cụ chỉ dùng để ước tính phương án và kiểm tra sơ bộ. Thiết kế chi tiết công trình thực tế phải tuân theo GB 50013 (Tiêu chuẩn thiết kế cấp nước ngoài nhà) và GB 50014 (Tiêu chuẩn thiết kế thoát nước ngoài nhà) của Trung Quốc; nên tra hệ số trở lực cục bộ theo tổ hợp phụ kiện thực tế.
+    </div>
+
+  </div>
+
+  <footer class="tool-inner-footer">Bộ công cụ xử lý nước · Chỉ dùng tham khảo để ước tính kỹ thuật</footer>
+</div>
+</main>
+
+<!-- ============ 统一页脚 ============ -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = id => parseFloat($(id).value) || 0;
+
+  let mode = 'D'; // 默认求管径
+
+  // Vật liệu ốngĐộ nhám库
+  const materials = {
+    steel:    {eps: 0.05,   n: 0.011, C: 130},
+    steel_old:{eps: 0.8,    n: 0.013, C: 100},
+    ductile:  {eps: 0.1,    n: 0.011, C: 130},
+    cast_iron:{eps: 1.5,    n: 0.014, C: 90},
+    concrete: {eps: 1.0,    n: 0.014, C: 120},
+    pvc:      {eps: 0.0015, n: 0.009, C: 150},
+    ss:       {eps: 0.002,  n: 0.009, C: 150},
+    frp:      {eps: 0.01,   n: 0.010, C: 140},
+  };
+
+  // 公称直径系列 (mm)
+  const dnList = [15,20,25,32,40,50,65,80,100,125,150,200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2200,2400];
+
+  function updateMaterial() {
+    const m = $('material').value;
+    if (m !== 'custom' && materials[m]) {
+      $('eps').value = materials[m].eps;
+      $('n').value = materials[m].n;
+      $('C').value = materials[m].C;
+    }
+    calc();
+  }
+
+  // 按所选Công thức tổn thất dọc đường启用对应Độ nhám输入（D-W 用 ε，H-W 用 C，Manning 用 n），其余禁用灰显
+  // 禁用框仍由 updateMaterial() 写入Vật liệu ống值，便于切换公式后直接使用
+  const COEF_FOR = {dw: 'eps', hw: 'C', manning: 'n'};
+  function updateCoefState() {
+    const use = COEF_FOR[$('hfMethod').value] || 'eps';
+    ['n','C','eps'].forEach(id => {
+      const off = id !== use;
+      $(id).disabled = off;
+      $(id).closest('.field').classList.toggle('coef-unused', off);
+      $('note_' + id).textContent = off ? 'Không dùng trong công thức hiện tại' : '';
+    });
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-mode="${m}"]`).classList.add('active');
+
+    // 重置所有字段可编辑状态
+    ['Q','v','D'].forEach(id => {
+      $(id).disabled = false;
+      $('f_'+id).classList.remove('solve-for');
+    });
+    // 锁定被求解字段
+    $(mode).disabled = true;
+    $('f_'+mode).classList.add('solve-for');
+
+    calc();
+  }
+
+  // 水的运动黏度：手册"水的物性表"表值线性插值（℃ → ν×10⁻⁶ m²/s），超出 0–100 ℃ 钳位
+  const NU_TABLE = [[0,1.792],[5,1.519],[10,1.307],[15,1.139],[20,1.004],[25,0.893],[30,0.801],[35,0.724],
+                    [40,0.658],[50,0.553],[60,0.474],[70,0.413],[80,0.364],[90,0.326],[100,0.294]];
+  function nu_T(T) {
+    const Tc = Math.min(100, Math.max(0, T));
+    for (let i = 0; i < NU_TABLE.length - 1; i++) {
+      const [t1, n1] = NU_TABLE[i], [t2, n2] = NU_TABLE[i+1];
+      if (Tc >= t1 && Tc <= t2) return (n1 + (n2 - n1) * (Tc - t1) / (t2 - t1)) * 1e-6;
+    }
+    return NU_TABLE[NU_TABLE.length - 1][1] * 1e-6;
+  }
+
+  // Lưu lượng单位换算到 m³/s
+  function Q_to_m3s(Q, unit) {
+    switch(unit) {
+      case 'm3/h': return Q / 3600;
+      case 'm3/d': return Q / 86400;
+      case 'L/s':  return Q / 1000;
+      case 'm3/s': return Q;
+      default: return Q / 3600;
+    }
+  }
+  function Q_from_m3s(Qs, unit) {
+    switch(unit) {
+      case 'm3/h': return Qs * 3600;
+      case 'm3/d': return Qs * 86400;
+      case 'L/s':  return Qs * 1000;
+      case 'm3/s': return Qs;
+      default: return Qs * 3600;
+    }
+  }
+
+  // Colebrook-White 迭代求 λ
+  function solveLambda(Re, eps_D) {
+    if (Re < 2300) return 64 / Re; // Chảy tầng
+    // Swamee-Jain 显式近似作初值
+    let lambda = 0.25 / Math.pow(Math.log10(eps_D/3.7 + 5.74/Math.pow(Re,0.9)), 2);
+    // Colebrook-White 迭代
+    for (let i = 0; i < 30; i++) {
+      const invSqrt = -2 * Math.log10(eps_D/3.7 + 2.51/(Re*Math.sqrt(lambda)));
+      const newLambda = 1 / (invSqrt * invSqrt);
+      if (Math.abs(newLambda - lambda) < 1e-8) break;
+      lambda = newLambda;
+    }
+    return lambda;
+  }
+
+  // Đường kính danh nghĩa đề xuất（超出 DN 系列上限时返回 null）
+  function recommendDN(D_mm) {
+    for (let dn of dnList) {
+      if (dn >= D_mm) return dn;
+    }
+    return null;
+  }
+
+  // Kiểm tra vận tốc
+  function velocityCheck(v) {
+    if (v < 0.3) return {cls: 'check-warn', msg: `⚠ Vận tốc ${v.toFixed(2)} m/s thấp (&lt;0.3), dễ gây lắng cặn; nên tăng vận tốc hoặc giảm đường kính ống`};
+    if (v < 0.6) return {cls: 'check-warn', msg: `⚠ Vận tốc ${v.toFixed(2)} m/s thấp đối với ống cấp nước (ống nhánh nên ≥ 0.6 m/s); để tránh lắng cặn, ống nước thải có áp cần ≥ 0.7 m/s, ống nước thải tự chảy cần ≥ 0.6 m/s`};
+    if (v <= 1.5) return {cls: 'check-ok', msg: `✓ Vận tốc ${v.toFixed(2)} m/s nằm trong khoảng khuyến nghị cho đường ống cấp nước thông thường (0.6-1.5 m/s)`};
+    if (v <= 2.5) return {cls: 'check-warn', msg: `⚠ Vận tốc ${v.toFixed(2)} m/s cao; lưu ý vận tốc kinh tế (ống cấp nước chính thường ≤ 1.5–2.0 m/s; ống có áp/ống định lượng hoá chất có thể đến 2.5 m/s)`};
+    if (v <= 5.0) return {cls: 'check-warn', msg: `⚠ Vận tốc ${v.toFixed(2)} m/s cao; lưu ý búa nước và xói mòn đường ống`};
+    return {cls: 'check-bad', msg: `✗ Vận tốc ${v.toFixed(2)} m/s vượt 5 m/s, nguy cơ búa nước rất cao; nên tăng đường kính ống`};
+  }
+
+  // Lưu lượng按单位取小数位
+  function fmtQ(val, unit) {
+    const dp = unit === 'm3/s' ? 5 : (unit === 'm3/d' ? 1 : 2);
+    return val.toFixed(dp);
+  }
+
+  const RESULT_IDS = ['r_Q','r_v','r_D','r_DN','r_Re','r_Re_t','r_lambda','r_method','r_hf','r_hj','r_H','r_i'];
+  const METHOD_NAME = {dw: 'Darcy-Weisbach', hw: 'Hazen-Williams', manning: 'Manning'};
+
+  // 输入无效：结果置"—"并提示
+  function showInvalid(ids, msg) {
+    ids.forEach(id => $(id).classList.add('invalid'));
+    RESULT_IDS.forEach(id => $(id).textContent = '—');
+    $('D_hint').textContent = '';
+    const cbox = $('checkBox');
+    cbox.className = 'check-box check-bad';
+    cbox.textContent = '✗ ' + msg;
+  }
+
+  function calc() {
+    const unitMap = {'m3/h':'m³/h','m3/d':'m³/d','L/s':'L/s','m3/s':'m³/s'};
+    const method = $('hfMethod').value;
+    const Q_in = num('Q'), unit = $('unit_Q').value;
+    const v_in = num('v');
+    const D_in = num('D'); // mm
+    const L = num('L');
+    const eps = num('eps'); // mm
+    const T = num('T');
+    const zeta = num('zeta');
+    const g = 9.81;
+    const nu = nu_T(T);
+    const C_hw = num('C'), n_m = num('n');
+    $('u_Q').textContent = unitMap[unit];
+    updateCoefState();
+
+    // 输入校验
+    document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+    const need = {D: [['Q','Lưu lượng Q'],['v','Vận tốc v']], v: [['Q','Lưu lượng Q'],['D','Đường kính trong ống D']], Q: [['v','Vận tốc v'],['D','Đường kính trong ống D']]}[mode];
+    const bad = need.filter(([id]) => !(num(id) > 0));
+    if (bad.length) {
+      showInvalid(bad.map(b => b[0]), `Hãy nhập giá trị lớn hơn 0 cho ${bad.map(b => b[1]).join(', ')}`);
+      return;
+    }
+    const neg = [['L','Chiều dài ống L'],['eps','Độ nhám ε'],['zeta','Hệ số trở lực cục bộ Σζ']]
+      .filter(([id]) => num(id) < 0 && !(id === 'eps' && method !== 'dw'));
+    if (neg.length) {
+      showInvalid(neg.map(b => b[0]), `${neg.map(b => b[1]).join(', ')} không được âm`);
+      return;
+    }
+    if (!isFinite(parseFloat($('T').value))) { showInvalid(['T'], 'Hãy nhập nhiệt độ nước T (℃)'); return; }
+    if (method === 'hw' && !(C_hw > 0)) { showInvalid(['C'], 'Hãy nhập hệ số Hazen-Williams C lớn hơn 0'); return; }
+    if (method === 'manning' && !(n_m > 0)) { showInvalid(['n'], 'Hãy nhập hệ số Manning n lớn hơn 0'); return; }
+
+    let Q_m3s, v, D_m;
+
+    if (mode === 'D') {
+      Q_m3s = Q_to_m3s(Q_in, unit);
+      v = v_in;
+      D_m = Math.sqrt(4 * Q_m3s / (Math.PI * v));
+      $('D').value = (D_m * 1000).toFixed(1);
+    } else if (mode === 'v') {
+      Q_m3s = Q_to_m3s(Q_in, unit);
+      D_m = D_in / 1000;
+      v = 4 * Q_m3s / (Math.PI * D_m * D_m);
+      $('v').value = v.toFixed(3);
+    } else { // mode === 'Q'
+      v = v_in;
+      D_m = D_in / 1000;
+      Q_m3s = v * Math.PI * D_m * D_m / 4;
+      $('Q').value = fmtQ(Q_from_m3s(Q_m3s, unit), unit);
+    }
+
+    // Số Reynolds
+    const Re = v * D_m / nu;
+
+    // Hệ số ma sát dọc đường
+    const eps_m = eps / 1000;
+    let lambda = solveLambda(Re, eps_m / D_m);
+
+    // Tổn thất cột áp dọc đường（按所选公式）
+    let hf;
+    if (method === 'hw') {
+      hf = 10.67 * L * Math.pow(Q_m3s, 1.852) / (Math.pow(C_hw, 1.852) * Math.pow(D_m, 4.87));
+    } else if (method === 'manning') {
+      hf = 10.29 * n_m * n_m * L * Q_m3s * Q_m3s / Math.pow(D_m, 16/3);
+    } else {
+      hf = lambda * (L / D_m) * v * v / (2 * g);
+    }
+    // 经验公式时 λ 显示由 hf 反算的等效值
+    if (method !== 'dw' && L > 0) lambda = hf * D_m * 2 * g / (L * v * v);
+    const hj = zeta * v * v / (2 * g);
+    const H_total = hf + hj;
+    const i_per_km = L > 0 ? (hf / L) * 1000 : 0;
+
+    // Đường kính danh nghĩa đề xuất
+    const DN = recommendDN(D_m * 1000);
+
+    // 更新结果显示
+    $('r_Q').textContent = fmtQ(Q_from_m3s(Q_m3s, unit), unit);
+    $('r_Q_u').textContent = unitMap[unit];
+    $('r_v').textContent = v.toFixed(3);
+    $('r_D').textContent = (D_m * 1000).toFixed(1);
+    $('r_DN').textContent = DN === null ? '—' : 'DN ' + DN;
+    $('r_Re').textContent = Re.toExponential(2);
+    $('r_Re_t').textContent = Re < 2300 ? 'Chảy tầng' : (Re < 4000 ? 'Chuyển tiếp' : 'Chảy rối');
+    $('r_lambda').textContent = (method !== 'dw' && !(L > 0)) ? '—' : lambda.toFixed(4);
+    $('r_lambda_l').textContent = method === 'dw' ? 'Hệ số ma sát dọc đường λ' : 'Hệ số ma sát dọc đường tương đương λ';
+    $('r_method').textContent = METHOD_NAME[method];
+    $('r_hf').textContent = hf.toFixed(3);
+    $('r_hj').textContent = hj.toFixed(3);
+    $('r_H').textContent = H_total.toFixed(3);
+    $('r_i').textContent = i_per_km.toFixed(2);
+
+    // 管径提示
+    if (mode === 'D') {
+      $('D_hint').textContent = DN === null
+        ? `Đường kính trong yêu cầu vượt giới hạn trên của dãy DN ${dnList[dnList.length-1]}; hãy chọn ống theo đường kính trong thực tế hoặc dùng nhiều ống song song`
+        : `Đề xuất chọn DN ${DN} (đường kính trong thực tế xác định theo chiều dày thành ống)`;
+    } else {
+      $('D_hint').textContent = '';
+    }
+
+    // Kiểm tra vận tốc
+    const check = velocityCheck(v);
+    const cbox = $('checkBox');
+    const dnOver = DN === null && mode === 'D';
+    const dnMsg = dnOver
+      ? `✗ Đường kính trong yêu cầu ${(D_m * 1000).toFixed(0)} mm vượt giới hạn trên của dãy DN (DN ${dnList[dnList.length-1]}); hãy chọn ống theo đường kính trong thực tế hoặc dùng nhiều ống song song<br>`
+      : '';
+    cbox.className = 'check-box ' + (dnOver ? 'check-bad' : check.cls);
+    cbox.innerHTML = dnMsg + check.msg
+      + (Re >= 2300 && Re < 4000 ? '<br>⚠ Re nằm trong vùng chuyển tiếp 2300–4000, λ có độ bất định lớn' : '')
+      + (T < 0 || T > 100 ? `<br>⚠ Nhiệt độ nước ${T} ℃ ngoài phạm vi bảng độ nhớt 0–100 ℃; ν được lấy theo ${T < 0 ? 0 : 100} ℃` : '');
+  }
+
+  function copyResults() {
+    const Q = $('r_Q').textContent, Qu = $('r_Q_u').textContent;
+    const txt = `Kết quả tính toán thủy lực đường ống
+————————————————
+Lưu lượng Q = ${Q} ${Qu}
+Vận tốc v = ${$('r_v').textContent} m/s
+Đường kính trong ống D = ${$('r_D').textContent} mm
+Đề xuất ${$('r_DN').textContent}
+
+Số Reynolds Re = ${$('r_Re').textContent} (${$('r_Re_t').textContent})
+${$('r_lambda_l').textContent} = ${$('r_lambda').textContent}
+Công thức tổn thất dọc đường = ${$('r_method').textContent}
+Tổn thất cột áp dọc đường hf = ${$('r_hf').textContent} m
+Tổn thất cột áp cục bộ hj = ${$('r_hj').textContent} m
+Tổng tổn thất cột áp H = ${$('r_H').textContent} m
+Tổn thất cột áp trên mỗi kilômét i = ${$('r_i').textContent} ‰
+
+Chiều dài ống L = ${num('L')} m
+Vật liệu ống = ${$('material').options[$('material').selectedIndex].text}
+ε = ${num('eps')} mm, n = ${num('n')}, C = ${num('C')}
+Nhiệt độ nước T = ${num('T')} ℃
+Hệ số trở lực cục bộ Σζ = ${num('zeta')}
+
+Kiểm tra vận tốc: ${$('checkBox').textContent}`;
+    navigator.clipboard.writeText(txt).then(() => {
+      alert('Đã sao chép kết quả vào bộ nhớ tạm');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() {
+    mode = 'D'; // 先切回默认模式，避免 updateMaterial() 内的 calc() 按旧模式覆盖 Q/v/D
+    $('Q').value = 100; $('unit_Q').value = 'm3/h';
+    $('v').value = 1.2;
+    $('D').value = 150;
+    $('L').value = 100;
+    $('hfMethod').value = 'dw';
+    $('material').value = 'pvc';
+    updateMaterial();
+    $('T').value = 20;
+    $('zeta').value = 2.0;
+    setMode('D');
+  }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // 实时计算
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+
+  // 初始化
+  setMode('D');
+</script>
+
+</body>
+</html>

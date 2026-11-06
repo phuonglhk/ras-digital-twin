@@ -1,0 +1,1366 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Công cụ tính lượng hoá chất định lượng | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Tính trực tuyến lượng PAC, PAM, natri hypoclorit, nguồn cacbon, hoá chất khử phốt pho và điều chỉnh pH cần định lượng; thể tích dung dịch, lưu lượng bơm định lượng, lượng dùng ngày/tháng, chi phí mua hằng năm và chi phí hoá chất trên mỗi mét khối nước.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+  /* 统一顶部导航 */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600; font-size: 16.5px;
+    color: var(--ink); letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--text-faint); margin-top: 1px;
+  }
+  .nav-links {
+    display: flex; gap: 24px; font-size: 14px; align-items: center;
+  }
+  .nav-links a {
+    color: var(--text); text-decoration: none;
+    transition: color 0.15s; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←"; margin-right: 4px; color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* 面包屑 */
+  .breadcrumb {
+    max-width: 820px; margin: 0 auto;
+    padding: 20px 16px 0;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb a {
+    color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  /* 主体外壳 */
+  .main-wrap { flex: 1; padding: 16px; }
+
+  /* 统一页脚 */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: 40px;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px; color: var(--text);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.7; max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex; justify-content: space-between;
+    align-items: center; font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit; text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+  /* 工具内部的小footer */
+  .tool-inner-footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  header.tool-header {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: #fff;
+    padding: 24px 24px 20px;
+  }
+  header.tool-header h1 { font-size: 22px; margin-bottom: 6px; }
+  header.tool-header p { font-size: 13px; opacity: 0.9; }
+  .body { padding: 24px; }
+
+  .shared-box {
+    background: #f1f5f9;
+    padding: 16px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  .shared-box h2 {
+    font-size: 14px;
+    color: #334155;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .drug-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .drug-tabs::-webkit-scrollbar { display: none; }
+  .drug-tab {
+    flex: 1;
+    min-width: 85px;
+    padding: 10px 6px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.15s;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .drug-tab.active {
+    background: #fff;
+    color: #0891b2;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .drug-tab .icon { font-size: 15px; display: block; margin-bottom: 2px; }
+
+  .drug-panel { display: none; }
+  .drug-panel.active { display: block; }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0e7490;
+    margin: 16px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e0f2fe;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field .unit { color: #9ca3af; font-size: 12px; font-weight: normal; }
+  .field input, .field select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  }
+
+  .results {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #0891b2;
+  }
+  .results h2 { font-size: 16px; color: #0e7490; margin-bottom: 14px; }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px dashed #bae6fd;
+    gap: 10px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4b5563; font-size: 13.5px; }
+  .result-value {
+    font-size: 19px;
+    font-weight: 600;
+    color: #0891b2;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-value.big { font-size: 23px; color: #0e7490; }
+  .result-unit { color: #6b7280; font-size: 13px; margin-left: 4px; font-weight: normal; }
+  .highlight-row {
+    background: #ecfeff;
+    padding: 10px 12px !important;
+    border-radius: 6px;
+    border: 1px solid #67e8f9;
+    border-bottom: 1px solid #67e8f9 !important;
+  }
+
+  .info-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #eff6ff;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #1e40af;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .formula-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+  .formula-box h3 { font-size: 14px; color: #374151; margin: 14px 0 8px; }
+  .formula-box h3:first-child { margin-top: 0; }
+  .formula-box code {
+    display: block;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: #0e7490;
+    overflow-x: auto;
+  }
+  .formula-box p { margin: 6px 0; font-size: 12.5px; }
+  .formula-box table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .formula-box th, .formula-box td {
+    padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb;
+  }
+  .formula-box th { background: #f1f5f9; color: #374151; }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-primary { background: #0891b2; color: #fff; }
+  .btn-primary:hover { background: #0e7490; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  .note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #92400e;
+    border-left: 3px solid #f59e0b;
+  }
+  @media (max-width: 480px) {
+    .main-wrap { padding: 8px; }
+    header.tool-header { padding: 18px; }
+    header.tool-header h1 { font-size: 19px; }
+    .result-value { font-size: 17px; }
+    .result-value.big { font-size: 20px; }
+    .drug-tab { font-size: 11.5px; min-width: 70px; padding: 8px 4px; }
+  }
+  .invalid{border-color:#ef4444!important;background:#fef2f2!important}
+  .warn-box{margin-top:12px;padding:10px 12px;background:#fef2f2;border-left:3px solid #ef4444;border-radius:6px;font-size:12.5px;color:#991b1b;line-height:1.7}
+  .warn-box.soft{background:#fffbeb;border-left-color:#f59e0b;color:#92400e}
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Tính toán công nghệ</a>
+  <span class="sep">/</span>
+  <span class="current">Lượng hoá chất định lượng</span>
+</div>
+
+<main class="main-wrap">
+
+<div class="container">
+  <header class="tool-header">
+    <h1>💊 Công cụ tính lượng hoá chất định lượng</h1>
+    <p>Ước tính lượng cần định lượng cho sáu nhóm hoá chất: PAC / PAM / natri hypoclorit / nguồn cacbon / hoá chất khử phốt pho / điều chỉnh pH</p>
+  </header>
+
+  <div class="body">
+
+    <!-- 共用参数 -->
+    <div class="shared-box">
+      <h2>📌 Thông số chung (áp dụng cho mọi hoá chất)</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="Q">Lưu lượng nước xử lý Q <span class="unit" style="color:#0e7490;font-weight:600;">m³/h (theo giờ, không phải m³/d)</span></label>
+          <input type="number" id="Q" value="500" step="10">
+        </div>
+        <div class="field">
+          <label for="hours">Thời gian vận hành mỗi ngày <span class="unit">h/d</span></label>
+          <input type="number" id="hours" value="24" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- Hoá chất切换 -->
+    <div class="drug-tabs">
+      <button class="drug-tab active" data-drug="PAC" onclick="setDrug('PAC')">
+        <span class="icon">🟤</span>Keo tụ PAC
+      </button>
+      <button class="drug-tab" data-drug="PAM" onclick="setDrug('PAM')">
+        <span class="icon">🧵</span>Tạo bông PAM
+      </button>
+      <button class="drug-tab" data-drug="NaClO" onclick="setDrug('NaClO')">
+        <span class="icon">🟡</span>Natri hypoclorit
+      </button>
+      <button class="drug-tab" data-drug="carbon" onclick="setDrug('carbon')">
+        <span class="icon">⚫</span>Nguồn cacbon
+      </button>
+      <button class="drug-tab" data-drug="P" onclick="setDrug('P')">
+        <span class="icon">🔶</span>Hoá chất khử phốt pho
+      </button>
+      <button class="drug-tab" data-drug="pH" onclick="setDrug('pH')">
+        <span class="icon">🧪</span>Điều chỉnh pH
+      </button>
+    </div>
+
+    <!-- ===================== PAC ===================== -->
+    <div class="drug-panel active" id="panel-PAC">
+      <div class="section-title">Thông số chất keo tụ PAC (polyaluminium clorua)</div>
+      <div class="grid">
+        <div class="field">
+          <label for="pac_dose">Nồng độ định lượng (theo hoá chất thương phẩm) <span class="unit">mg/L</span></label>
+          <input type="number" id="pac_dose" value="30" step="5">
+        </div>
+        <div class="field">
+          <label for="pac_al2o3">Hàm lượng Al₂O₃ trong hoá chất thương phẩm <span class="unit">%</span></label>
+          <input type="number" id="pac_al2o3" value="30" step="1">
+        </div>
+        <div class="field">
+          <label for="pac_conc">Nồng độ pha dung dịch hoá chất <span class="unit">% (W/W)</span></label>
+          <input type="number" id="pac_conc" value="10" step="1">
+        </div>
+        <div class="field">
+          <label for="pac_rho">Khối lượng riêng dung dịch hoá chất <span class="unit">kg/L</span></label>
+          <input type="number" id="pac_rho" value="1.08" step="0.01">
+        </div>
+        <div class="field">
+          <label for="pac_price">Đơn giá mua <span class="unit">nhân dân tệ/t</span></label>
+          <input type="number" id="pac_price" value="1800" step="50">
+        </div>
+      </div>
+
+      <div class="results">
+        <h2>Kết quả tính định lượng PAC</h2>
+        <div class="result-row">
+          <span class="result-label">Nồng độ định lượng (tính theo Al₂O₃)</span>
+          <span><span class="result-value" id="pac_r_al2o3">—</span><span class="result-unit">mg/L</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lượng hoá chất rắn dùng mỗi giờ (thương phẩm)</b></span>
+          <span><span class="result-value big" id="pac_r_solid">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng định lượng dung dịch (sau pha loãng)</span>
+          <span><span class="result-value" id="pac_r_liquid">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng chọn bơm định lượng (gồm hệ số an toàn 1.3)</span>
+          <span><span class="result-value" id="pac_r_pump">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng ngày (dạng rắn)</span>
+          <span><span class="result-value" id="pac_r_day">—</span><span class="result-unit">kg/d</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng tháng</span>
+          <span><span class="result-value" id="pac_r_month">—</span><span class="result-unit">t/tháng</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí mua hằng năm</b></span>
+          <span><span class="result-value big" id="pac_r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chi phí hoá chất trên mỗi mét khối nước</span>
+          <span><span class="result-value" id="pac_r_unit_cost">—</span><span class="result-unit">nhân dân tệ/m³ nước</span></span>
+        </div>
+      </div>
+      <div class="info-box">💡 Nồng độ PAC thường dùng: nước cấp đô thị 10-30 mg/L; nước thải đô thị 20-80 mg/L; nước thải dệt nhuộm/hoá chất 50-500 mg/L. Nên xác định liều tối ưu bằng thử nghiệm Jartest.</div>
+    </div>
+
+    <!-- ===================== PAM ===================== -->
+    <div class="drug-panel" id="panel-PAM">
+      <div class="section-title">Thông số chất tạo bông PAM (polyacrylamit)</div>
+      <div class="grid">
+        <div class="field">
+          <label for="pam_type">Loại ion</label>
+          <select id="pam_type">
+            <option value="cation">Cation (CPAM) — thường dùng để tách nước bùn</option>
+            <option value="anion">Anion (APAM) — thường dùng cho nước cấp/khai khoáng</option>
+            <option value="nonion">Không ion (NPAM) — ứng dụng đặc biệt</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pam_use">Ứng dụng</label>
+          <select id="pam_use">
+            <option value="water">Trợ keo tụ nước cấp/nước thải (theo lưu lượng nước)</option>
+            <option value="sludge">Tách nước bùn (theo lượng bùn khô)</option>
+          </select>
+        </div>
+        <div class="field" id="pam_dose_water_field">
+          <label for="pam_dose_water">Nồng độ định lượng (theo lưu lượng nước) <span class="unit">mg/L</span></label>
+          <input type="number" id="pam_dose_water" value="1.0" step="0.1">
+        </div>
+        <div class="field" id="pam_dose_sludge_field" style="display:none;">
+          <label for="pam_dose_sludge">Tỷ lệ định lượng (theo lượng bùn khô) <span class="unit">kg hoá chất/tDS</span></label>
+          <input type="number" id="pam_dose_sludge" value="5" step="0.5">
+        </div>
+        <div class="field" id="pam_sludge_q_field" style="display:none;">
+          <label for="pam_sludge_q">Lượng bùn khô xử lý <span class="unit">kgDS/h</span></label>
+          <input type="number" id="pam_sludge_q" value="100" step="10">
+        </div>
+        <div class="field">
+          <label for="pam_conc">Nồng độ pha dung dịch hoá chất <span class="unit">‰ (g/L)</span></label>
+          <input type="number" id="pam_conc" value="2" step="0.5">
+        </div>
+        <div class="field">
+          <label for="pam_price">Đơn giá mua <span class="unit">nhân dân tệ/kg</span></label>
+          <input type="number" id="pam_price" value="22" step="1">
+        </div>
+      </div>
+
+      <div class="results">
+        <h2>Kết quả tính định lượng PAM</h2>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lượng PAM rắn tiêu thụ</b></span>
+          <span><span class="result-value big" id="pam_r_solid">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng dung dịch pha chế (sau pha loãng)</span>
+          <span><span class="result-value" id="pam_r_liquid">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng nước hoà tan</span>
+          <span><span class="result-value" id="pam_r_water">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng ngày (dạng rắn)</span>
+          <span><span class="result-value" id="pam_r_day">—</span><span class="result-unit">kg/d</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng tháng</span>
+          <span><span class="result-value" id="pam_r_month">—</span><span class="result-unit">kg/tháng</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí mua hằng năm</b></span>
+          <span><span class="result-value big" id="pam_r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chi phí hoá chất trên mỗi mét khối nước<span id="pam_unit_note"></span></span>
+          <span><span class="result-value" id="pam_r_unit_cost">—</span><span class="result-unit">nhân dân tệ/m³ nước</span></span>
+        </div>
+      </div>
+      <div class="info-box">💡 Liều PAM thường dùng: trợ keo tụ 0.5-2.0 mg/L; tách nước bùn bằng CPAM 3-8 kg/tDS. Nồng độ dung dịch nên là 0.1-0.3%, thời gian ủ ≥30min; không nên pha quá đặc vì sẽ khó hoà tan.</div>
+    </div>
+
+    <!-- ===================== NaClO ===================== -->
+    <div class="drug-panel" id="panel-NaClO">
+      <div class="section-title">Thông số chất khử trùng natri hypoclorit (NaClO)</div>
+      <div class="grid">
+        <div class="field">
+          <label for="cl_dose">Nồng độ định lượng (theo clo hoạt tính) <span class="unit">mg/L</span></label>
+          <input type="number" id="cl_dose" value="5" step="0.5">
+        </div>
+        <div class="field">
+          <label for="cl_active">Hàm lượng clo hoạt tính trong dung dịch thương phẩm <span class="unit">%</span></label>
+          <input type="number" id="cl_active" value="10" step="1">
+        </div>
+        <div class="field">
+          <label for="cl_rho">Khối lượng riêng dung dịch thương phẩm <span class="unit">kg/L</span></label>
+          <input type="number" id="cl_rho" value="1.20" step="0.01">
+        </div>
+        <div class="field">
+          <label for="cl_price">Đơn giá mua <span class="unit">nhân dân tệ/t (dung dịch thương phẩm)</span></label>
+          <input type="number" id="cl_price" value="900" step="50">
+        </div>
+      </div>
+
+      <div class="results">
+        <h2>Kết quả tính định lượng natri hypoclorit</h2>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lưu lượng định lượng dung dịch thương phẩm</b></span>
+          <span><span class="result-value big" id="cl_r_liquid">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng clo hoạt tính tương đương</span>
+          <span><span class="result-value" id="cl_r_cl">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dung dịch thương phẩm dùng hằng ngày</span>
+          <span><span class="result-value" id="cl_r_day">—</span><span class="result-unit">L/d</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng chọn bơm định lượng (gồm hệ số an toàn 1.3)</span>
+          <span><span class="result-value" id="cl_r_pump">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dung dịch thương phẩm dùng hằng năm</span>
+          <span><span class="result-value" id="cl_r_year_m">—</span><span class="result-unit">t/a</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí mua hằng năm</b></span>
+          <span><span class="result-value big" id="cl_r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chi phí hoá chất trên mỗi mét khối nước</span>
+          <span><span class="result-value" id="cl_r_unit_cost">—</span><span class="result-unit">nhân dân tệ/m³ nước</span></span>
+        </div>
+      </div>
+      <div class="info-box">💡 Liều clo hoạt tính tham khảo: nước cấp đô thị 1-2 mg/L; nước tái sử dụng 3-5 mg/L; khử trùng nước sau xử lý thứ cấp 3-8 mg/L; nước thải bệnh viện 15-50 mg/L (thời gian tiếp xúc trên 30min). Dung dịch natri hypoclorit thương phẩm thường có nồng độ 10-12%, giảm dần theo từng tháng lưu trữ.</div>
+    </div>
+
+    <!-- ===================== Nguồn cacbon ===================== -->
+    <div class="drug-panel" id="panel-carbon">
+      <div class="section-title">Thông số nguồn cacbon bổ sung (khử nitơ bằng khử nitrat)</div>
+      <div class="grid">
+        <div class="field">
+          <label for="c_type">Loại nguồn cacbon</label>
+          <select id="c_type" onchange="updateCarbon()">
+            <option value="methanol">Metanol (CH₃OH)</option>
+            <option value="acetate">Natri axetat (CH₃COONa)</option>
+            <option value="glucose">Glucozơ</option>
+            <option value="compound">Nguồn cacbon hỗn hợp (thương phẩm)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="c_N">Lượng NO₃⁻-N cần khử nitrat <span class="unit">mg/L</span></label>
+          <input type="number" id="c_N" value="20" step="1">
+        </div>
+        <div class="field">
+          <label for="c_cn">Tỷ lệ C/N (theo COD) <span class="unit">—</span></label>
+          <input type="number" id="c_cn" value="4.98" step="0.1">
+        </div>
+        <div class="field">
+          <label for="c_cod_in">COD khả dụng trong nước đầu vào <span class="unit">mg/L</span></label>
+          <input type="number" id="c_cod_in" value="20" step="5">
+        </div>
+        <div class="field">
+          <label for="c_cod_eq">Đương lượng COD của hoá chất (theo chất tinh khiết) <span class="unit">gCOD/g</span></label>
+          <input type="number" id="c_cod_eq" value="1.5" step="0.05">
+        </div>
+        <div class="field">
+          <label for="c_conc">Hàm lượng hoạt chất trong hoá chất thương phẩm <span class="unit">%</span></label>
+          <input type="number" id="c_conc" value="100" step="5">
+        </div>
+        <div class="field" id="c_rho_field">
+          <label for="c_rho">Khối lượng riêng hoá chất (dạng lỏng) <span class="unit">kg/L</span></label>
+          <input type="number" id="c_rho" value="0.79" step="0.01">
+        </div>
+        <div class="field">
+          <label for="c_price">Đơn giá mua <span class="unit">nhân dân tệ/t</span></label>
+          <input type="number" id="c_price" value="2800" step="100">
+        </div>
+      </div>
+
+      <div class="results">
+        <h2>Kết quả tính định lượng nguồn cacbon</h2>
+        <div class="result-row">
+          <span class="result-label">Tổng COD cần để khử nitơ</span>
+          <span><span class="result-value" id="c_r_need">—</span><span class="result-unit">kgCOD/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">COD khả dụng từ nước đầu vào</span>
+          <span><span class="result-value" id="c_r_in">—</span><span class="result-unit">kgCOD/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">COD thiếu hụt (cần bổ sung)</span>
+          <span><span class="result-value" id="c_r_gap">—</span><span class="result-unit">kgCOD/h</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lượng hoá chất bổ sung (thương phẩm)</b></span>
+          <span><span class="result-value big" id="c_r_solid">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row" id="c_liquid_row">
+          <span class="result-label">Lưu lượng thể tích hoá chất (dạng lỏng)</span>
+          <span><span class="result-value" id="c_r_liquid">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng ngày</span>
+          <span><span class="result-value" id="c_r_day">—</span><span class="result-unit">kg/d</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí mua hằng năm</b></span>
+          <span><span class="result-value big" id="c_r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chi phí hoá chất trên mỗi mét khối nước</span>
+          <span><span class="result-value" id="c_r_unit_cost">—</span><span class="result-unit">nhân dân tệ/m³ nước</span></span>
+        </div>
+      </div>
+      <div class="info-box">💡 Đương lượng COD điển hình: metanol 1.5, natri axetat 0.78 (tính theo natri axetat khan; natri axetat ngậm ba nước dạng rắn có hàm lượng hoạt chất khoảng 58%, tương đương khoảng 0.45 gCOD/g sản phẩm), glucozơ 1.07, nguồn cacbon hỗn hợp 1.0-1.4 (tuỳ sản phẩm). Lượng hoá chất thương phẩm = COD thiếu hụt ÷ đương lượng COD ÷ hàm lượng hoạt chất. C/N lý thuyết cho khử nitrat ≈ 2.86 (theo COD/NO₃-N); thực tế thiết kế chọn 4-6 để khử nitrat hoàn toàn. Giá trị mặc định 4.98 tính cho metanol: COD/N = 2.86/(1−1.42×0.3) ≈ 4.98 (hệ số sinh khối 0.3 gVSS/gCOD). Khi đổi nguồn cacbon, C/N không tự thay đổi; với nguồn có hệ số sinh khối cao hơn như natri axetat nên chọn giá trị cao hơn phù hợp.</div>
+    </div>
+
+    <!-- ===================== Hoá chất khử phốt pho ===================== -->
+    <div class="drug-panel" id="panel-P">
+      <div class="section-title">Thông số hoá chất khử phốt pho bằng phương pháp hoá học</div>
+      <div class="grid">
+        <div class="field">
+          <label for="p_type">Loại hoá chất khử phốt pho</label>
+          <select id="p_type" onchange="updateP()">
+            <option value="PAC">PAC (polyaluminium clorua)</option>
+            <option value="PFS">PFS (polyferric sunfat)</option>
+            <option value="FeCl3">FeCl₃ (sắt(III) clorua)</option>
+            <option value="FeSO4">FeSO₄ (sắt(II) sunfat)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p_TPo">TP đầu vào <span class="unit">mg/L</span></label>
+          <input type="number" id="p_TPo" value="4" step="0.5">
+        </div>
+        <div class="field">
+          <label for="p_TPe">TP đầu ra (mục tiêu) <span class="unit">mg/L</span></label>
+          <input type="number" id="p_TPe" value="0.3" step="0.1">
+        </div>
+        <div class="field">
+          <label for="p_bio">Phần khử phốt pho sinh học <span class="unit">mg/L</span></label>
+          <input type="number" id="p_bio" value="1.5" step="0.5">
+        </div>
+        <div class="field">
+          <label for="p_mole">Tỷ lệ mol kim loại/phốt pho <span class="unit">—</span></label>
+          <input type="number" id="p_mole" value="2.0" step="0.1">
+        </div>
+        <div class="field">
+          <label for="p_metal">Hàm lượng hoạt chất <span class="unit">% (PAC tính theo Al₂O₃, muối sắt theo Fe)</span></label>
+          <input type="number" id="p_metal" value="10" step="1">
+        </div>
+        <div class="field">
+          <label for="p_price">Đơn giá mua <span class="unit">nhân dân tệ/t</span></label>
+          <input type="number" id="p_price" value="700" step="50">
+          <span id="p_price_note" style="font-size:11.5px;color:#9ca3af;margin-top:4px;">Giá tham khảo PAC lỏng (10% Al₂O₃), điều chỉnh theo báo giá của nhà sản xuất</span>
+        </div>
+      </div>
+
+      <div class="results">
+        <h2>Kết quả tính định lượng hoá chất khử phốt pho</h2>
+        <div class="result-row">
+          <span class="result-label">Mục tiêu khử phốt pho hoá học Δ P</span>
+          <span><span class="result-value" id="p_r_dP">—</span><span class="result-unit">mg/L</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng phốt pho cần loại bỏ</span>
+          <span><span class="result-value" id="p_r_Pmass">—</span><span class="result-unit">kgP/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng kim loại cần thiết (Al hoặc Fe)</span>
+          <span><span class="result-value" id="p_r_metal">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lượng hoá chất thương phẩm định lượng</b></span>
+          <span><span class="result-value big" id="p_r_solid">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Nồng độ định lượng tương đương</span>
+          <span><span class="result-value" id="p_r_dose">—</span><span class="result-unit">mg/L</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng ngày</span>
+          <span><span class="result-value" id="p_r_day">—</span><span class="result-unit">kg/d</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí mua hằng năm</b></span>
+          <span><span class="result-value big" id="p_r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chi phí khử phốt pho trên mỗi mét khối nước</span>
+          <span><span class="result-value" id="p_r_unit_cost">—</span><span class="result-unit">nhân dân tệ/m³ nước</span></span>
+        </div>
+      </div>
+      <div class="info-box">💡 Tỷ lệ mol Me/P: với TP đầu ra ≤ 1.0 mg/L chọn 1.2-1.5; TP ≤ 0.5 chọn 1.5-2.0; TP ≤ 0.3 chọn 2.0-3.0. Quá trình đồng thời tạo bùn hoá học, cần lưu ý lượng bùn tăng.</div>
+    </div>
+
+    <!-- ===================== Điều chỉnh pH ===================== -->
+    <div class="drug-panel" id="panel-pH">
+      <div class="section-title">Thông số hoá chất điều chỉnh pH (ước tính đơn giản)</div>
+      <div class="grid">
+        <div class="field">
+          <label for="ph_dir">Chiều điều chỉnh</label>
+          <select id="ph_dir" onchange="updatePH()">
+            <option value="up">Từ axit sang kiềm (thêm kiềm)</option>
+            <option value="down">Từ kiềm sang axit (thêm axit)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ph_chem">Loại hoá chất</label>
+          <select id="ph_chem">
+            <option value="NaOH">NaOH（xút lỏng 32%）</option>
+            <option value="Ca(OH)2">Ca(OH)₂（vôi）</option>
+            <option value="Na2CO3">Na₂CO₃（sôđa）</option>
+            <option value="HCl">HCl（axit clohidric 31%）</option>
+            <option value="H2SO4">H₂SO₄（axit sunfuric 98%）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ph_in">pH đầu vào</label>
+          <input type="number" id="ph_in" value="5.5" step="0.1">
+        </div>
+        <div class="field">
+          <label for="ph_target">pH mục tiêu</label>
+          <input type="number" id="ph_target" value="7.5" step="0.1">
+        </div>
+        <div class="field">
+          <label for="ph_alk">Độ axit/kiềm cần trung hoà <span class="unit">mmol/L</span></label>
+          <input type="number" id="ph_alk" value="3" step="0.5">
+        </div>
+        <div class="field">
+          <label for="ph_purity">Độ tinh khiết/nồng độ hoá chất <span class="unit">%</span></label>
+          <input type="number" id="ph_purity" value="32" step="1">
+        </div>
+        <div class="field">
+          <label for="ph_rho">Khối lượng riêng hoá chất <span class="unit">kg/L</span></label>
+          <input type="number" id="ph_rho" value="1.35" step="0.01">
+        </div>
+        <div class="field">
+          <label for="ph_price">Đơn giá mua <span class="unit">nhân dân tệ/t</span></label>
+          <input type="number" id="ph_price" value="1200" step="50">
+        </div>
+        <div class="field">
+          <label for="ph_safety">Hệ số an toàn định lượng <span class="unit">—</span></label>
+          <input type="number" id="ph_safety" value="1.2" step="0.05">
+        </div>
+      </div>
+
+      <div class="results">
+        <h2>Kết quả tính định lượng chất điều chỉnh pH</h2>
+        <div class="result-row">
+          <span class="result-label">Mức thay đổi pH ΔpH (mục tiêu − đầu vào, chỉ kiểm tra, không dùng để tính)</span>
+          <span><span class="result-value" id="ph_r_dph">—</span><span class="result-unit"></span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng chất cần trung hoà</span>
+          <span><span class="result-value" id="ph_r_mol">—</span><span class="result-unit">mol/h</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lượng hoá chất thương phẩm định lượng</b> (đã bao gồm hệ số an toàn ×<span id="ph_sf_lbl">1.2</span>)</span>
+          <span><span class="result-value big" id="ph_r_mass">—</span><span class="result-unit">kg/h</span></span>
+        </div>
+        <div class="result-row" id="ph_vol_row">
+          <span class="result-label">Lưu lượng thể tích hoá chất lỏng</span>
+          <span><span class="result-value" id="ph_r_vol">—</span><span class="result-unit">L/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Nồng độ định lượng tương đương</span>
+          <span><span class="result-value" id="ph_r_dose">—</span><span class="result-unit">mg/L</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lượng dùng hằng ngày</span>
+          <span><span class="result-value" id="ph_r_day">—</span><span class="result-unit">kg/d</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí mua hằng năm</b></span>
+          <span><span class="result-value big" id="ph_r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+      </div>
+      <div class="info-box">💡 Điều chỉnh pH cần xét khả năng đệm cacbonat của nước (độ kiềm/độ axit); không thể tính chỉ từ chênh lệch pH. Nên xác định liều thực tế bằng thí nghiệm. Công cụ ước tính theo lượng trung hoà độ kiềm/độ axit; kết quả đã nhân hệ số an toàn nhập ở trên (khuyến nghị 1.2-1.5), không nhân thêm lần nữa. pH đầu vào/mục tiêu chỉ dùng để kiểm tra chiều điều chỉnh và hiển thị ΔpH, không tham gia tính liều.</div>
+    </div>
+
+    <div class="warn-box" id="warnBox" style="display:none;"></div>
+    <div class="warn-box soft" id="hintBox" style="display:none;"></div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="copyResults()">📋 Sao chép kết quả</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">🔄 Khôi phục mặc định</button>
+      <button class="btn btn-secondary" onclick="toggleFormula()">📖 Xem công thức</button>
+    </div>
+
+    <div class="formula-box" id="formulaBox" style="display:none;">
+      <h3>① Công thức chung tính lượng hoá chất rắn mỗi giờ</h3>
+      <code>M = Q × C × 10⁻³  [kg/h]</code>
+      <p>Q [m³/h], C [mg/L] = [g/m³]. Chia cho hàm lượng hoạt chất để được lượng hoá chất thương phẩm.</p>
+
+      <h3>② Pha dung dịch và định lượng chất lỏng</h3>
+      <code>V_liquid = M / (ρ_liquid × ω)  [L/h]</code>
+      <p>ρ_liquid là khối lượng riêng dung dịch [kg/L], ω là nồng độ pha chế (phần khối lượng, dạng thập phân). Khi chọn bơm định lượng thường dùng hệ số an toàn 1.2-1.5; công cụ này dùng 1.3.</p>
+
+      <h3>③ Định lượng nguồn cacbon (khử nitơ bằng khử nitrat)</h3>
+      <p>Theo cân bằng hoá học lý thuyết của quá trình khử nitrat, mỗi 1 kg NO₃⁻-N được khử cần 2.86 kg COD.</p>
+      <code>COD_bổ sung = Q × [C/N × NO₃⁻-N − COD khả dụng] / 1000  [kgCOD/h]</code>
+      <code>Lượng hoá chất = COD_bổ sung / đương lượng COD / hàm lượng hoạt chất  [kg/h]</code>
+      <p>Tỷ lệ C/N thiết kế là 4-6 (có xét tiêu thụ cho tổng hợp tế bào). Đương lượng COD tính theo chất tinh khiết (natri axetat 0.78 gCOD/g tính theo chất khan); để tính lượng thương phẩm, chia thêm cho hàm lượng hoạt chất. Ví dụ natri axetat ngậm ba nước có hàm lượng hoạt chất 58% tương đương 0.78 × 0.58 ≈ 0.45 gCOD/g sản phẩm.</p>
+
+      <h3>④ Khử phốt pho hoá học (phương pháp tỷ lệ mol Me/P)</h3>
+      <code>Δ P = TP_o − TP_e − phần khử sinh học  [mg/L]</code>
+      <code>Lượng kim loại định lượng = Δ P × M_Me/M_P × tỷ lệ mol Me/P  [mg/L]</code>
+      <code>Lượng hoá chất thương phẩm = lượng kim loại định lượng / hàm lượng kim loại hoạt tính; hàm lượng kim loại hoạt tính của PAC = hàm lượng Al₂O₃ × 0.529 (2×27/102)</code>
+      <p>M_Al = 27, M_Fe = 55.85, M_P = 31. PAC thương phẩm ghi hàm lượng Al₂O₃, cần quy đổi sang hàm lượng Al; muối sắt (PFS, FeCl₃, FeSO₄) tính trực tiếp theo hàm lượng Fe.</p>
+
+      <h3>⑤ Điều chỉnh pH (phương pháp độ kiềm/độ axit)</h3>
+      <code>n = Q [m³/h] × độ kiềm (hoặc độ axit) [mmol/L]  [mol/h]</code>
+      <code>Khối lượng hoá chất = n × M / số đương lượng / hàm lượng hoạt chất / 1000 × hệ số an toàn  [kg/h]</code>
+      <p>M (khối lượng mol) và số đương lượng: NaOH=40 (1), Ca(OH)₂=74 (2), Na₂CO₃=106 (tính theo 1: khi trung hoà đến gần trung tính, CO₃²⁻ chỉ chuyển thành HCO₃⁻, mỗi mol chỉ tiêu thụ 1 mol H⁺), HCl=36.5 (1), H₂SO₄=98 (2). Hệ số an toàn mặc định là 1.2, có thể thay đổi trong bảng; pH đầu vào/mục tiêu chỉ dùng để kiểm tra chiều điều chỉnh.</p>
+
+      <h3>Tra nhanh thông số hoá chất thường dùng</h3>
+      <table>
+        <tr><th>Hoá chất</th><th>Hàm lượng hoạt chất</th><th>Khối lượng riêng kg/L</th><th>Liều điển hình</th></tr>
+        <tr><td>PAC（lỏng）</td><td>10% Al₂O₃</td><td>1.20</td><td>10-50 mg/L</td></tr>
+        <tr><td>PAC（rắn）</td><td>28-30% Al₂O₃</td><td>—</td><td>—</td></tr>
+        <tr><td>PAM（CPAM）</td><td>≥88% chất rắn</td><td>—</td><td>3-8 kg/tDS</td></tr>
+        <tr><td>Natri hypoclorit</td><td>10-12% clo hoạt tính</td><td>1.20</td><td>3-8 mg/L</td></tr>
+        <tr><td>Metanol</td><td>≥99.5%</td><td>0.79</td><td>theo COD thiếu hụt</td></tr>
+        <tr><td>Natri axetat</td><td>58-60%</td><td>1.05</td><td>theo COD thiếu hụt</td></tr>
+        <tr><td>PFS</td><td>11% Fe</td><td>1.45</td><td>30-150 mg/L</td></tr>
+        <tr><td>xút lỏng（NaOH）</td><td>32%</td><td>1.35</td><td>theo độ kiềm</td></tr>
+        <tr><td>axit clohidric</td><td>31%</td><td>1.16</td><td>theo độ axit</td></tr>
+        <tr><td>axit sunfuric</td><td>98%</td><td>1.84</td><td>theo độ axit</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      ⚠️ Công cụ dùng để ước tính trong giai đoạn thiết kế phương án. Liều thực tế cần được xác định bằng thử nghiệm Jartest, thử nghiệm pilot hoặc chạy thử tại hiện trường. Thông số hoá chất thương phẩm căn cứ vào báo cáo kiểm nghiệm khi mua; các lô và nhà sản xuất có thể khác nhau đáng kể.
+    </div>
+
+  </div>
+
+  <footer class="tool-inner-footer">Bộ công cụ xử lý nước · Chỉ dùng tham khảo cho ước tính kỹ thuật</footer>
+</div>
+</main>
+
+<!-- 统一页脚 -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = id => parseFloat($(id).value) || 0;
+
+  let currentDrug = 'PAC';
+
+  function setDrug(d) {
+    currentDrug = d;
+    document.querySelectorAll('.drug-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-drug="${d}"]`).classList.add('active');
+    document.querySelectorAll('.drug-panel').forEach(p => p.classList.remove('active'));
+    $('panel-'+d).classList.add('active');
+    calc();
+  }
+
+  // PAM Ứng dụng切换
+  document.addEventListener('DOMContentLoaded', () => {
+    const pamUse = $('pam_use');
+    if (pamUse) {
+      pamUse.addEventListener('change', () => {
+        const isSludge = pamUse.value === 'sludge';
+        $('pam_dose_water_field').style.display = isSludge ? 'none' : 'flex';
+        $('pam_dose_sludge_field').style.display = isSludge ? 'flex' : 'none';
+        $('pam_sludge_q_field').style.display = isSludge ? 'flex' : 'none';
+        calc();
+      });
+    }
+  });
+
+  // rắnNguồn cacbon（Natri axetat三水合物、Glucozơ）不显示体积量与密度
+  const SOLID_CARBON = ['acetate', 'glucose'];
+  function syncCarbonForm() {
+    const solid = SOLID_CARBON.includes($('c_type').value);
+    $('c_rho_field').style.display = solid ? 'none' : 'flex';
+    $('c_liquid_row').style.display = solid ? 'none' : 'flex';
+  }
+  const SOLID_PH = ['Ca(OH)2', 'Na2CO3'];
+
+  // Loại nguồn cacbon切换默认参数
+  function updateCarbon() {
+    const t = $('c_type').value;
+    const defaults = {
+      methanol: {cod_eq: 1.5, conc: 100, rho: 0.79, price: 2800},
+      acetate:  {cod_eq: 0.78, conc: 58, rho: 1.05, price: 2000},  // 0.78 gCOD/g 按无水 CH3COONa 计；conc=58% 为三水Natri axetatHàm lượng hoạt chất → 0.45 gCOD/g 商品
+      glucose:  {cod_eq: 1.07, conc: 100, rho: 1.0, price: 3500},
+      compound: {cod_eq: 1.2, conc: 100, rho: 1.10, price: 2500}
+    };
+    const d = defaults[t];
+    $('c_cod_eq').value = d.cod_eq;
+    $('c_conc').value = d.conc;
+    $('c_rho').value = d.rho;
+    $('c_price').value = d.price;
+    syncCarbonForm();
+    calc();
+  }
+
+  // Loại hoá chất khử phốt pho切换默认金属hàm lượng
+  function updateP() {
+    const t = $('p_type').value;
+    const defaults = {
+      PAC:   {metal: 10, price: 700},   // 10% Al2O3 lỏng PAC 参考价（rắn 30% 约 1800 nhân dân tệ/t），按厂家报价调整；按 Al2O3 标示hàm lượng，calc() 内乘 0.529 换算为 Al
+      PFS:   {metal: 11, price: 1200},
+      FeCl3: {metal: 13, price: 1500},
+      FeSO4: {metal: 20, price: 800}
+    };
+    const d = defaults[t];
+    $('p_metal').value = d.metal;
+    $('p_price').value = d.price;
+    calc();
+  }
+
+  // pH Hoá chất默认纯度/密度/单价（单价为参考价，仅作占位）
+  const phChemDefaults = {
+    'NaOH':    {purity: 32, rho: 1.35, price: 1200},
+    'HCl':     {purity: 31, rho: 1.16, price: 600},
+    'H2SO4':   {purity: 98, rho: 1.84, price: 800},
+    'Ca(OH)2': {purity: 90, rho: 1.0,  price: 500},
+    'Na2CO3':  {purity: 99, rho: 1.0,  price: 1500}
+  };
+  function syncPHDefaults() {
+    const d = phChemDefaults[$('ph_chem').value];
+    if (!d) return;
+    $('ph_purity').value = d.purity;
+    $('ph_rho').value = d.rho;
+    $('ph_price').value = d.price;
+  }
+
+  // pH Hoá chất切换默认
+  function updatePH() {
+    const dir = $('ph_dir').value;
+    const sel = $('ph_chem');
+    sel.innerHTML = '';
+    if (dir === 'up') {
+      sel.innerHTML = `
+        <option value="NaOH">NaOH（xút lỏng 32%）</option>
+        <option value="Ca(OH)2">Ca(OH)₂（vôi）</option>
+        <option value="Na2CO3">Na₂CO₃（sôđa）</option>`;
+    } else {
+      sel.innerHTML = `
+        <option value="HCl">HCl（axit clohidric 31%）</option>
+        <option value="H2SO4">H₂SO₄（axit sunfuric 98%）</option>`;
+    }
+    syncPHDefaults();
+    calc();
+  }
+
+  // 输入校验规则：pos 须 > 0；nn 不能为负；ph 0–14
+  const RULES = {
+    PAC:    [['pac_dose','Nồng độ định lượng','nn'],['pac_al2o3','Hàm lượng Al₂O₃','nn'],['pac_conc','Nồng độ pha dung dịch hoá chất','pos'],['pac_rho','Khối lượng riêng dung dịch hoá chất','pos'],['pac_price','Đơn giá mua','nn']],
+    PAM:    [['pam_dose_water','Nồng độ định lượng','nn'],['pam_dose_sludge','Tỷ lệ định lượng','nn'],['pam_sludge_q','Lượng bùn khô xử lý','nn'],['pam_conc','Nồng độ pha dung dịch hoá chất','pos'],['pam_price','Đơn giá mua','nn']],
+    NaClO:  [['cl_dose','Nồng độ định lượng','nn'],['cl_active','Hàm lượng clo hoạt tính','pos'],['cl_rho','Khối lượng riêng dung dịch thương phẩm','pos'],['cl_price','Đơn giá mua','nn']],
+    carbon: [['c_N','Lượng NO₃⁻-N','nn'],['c_cn','Tỷ lệ C/N','nn'],['c_cod_in','COD khả dụng trong nước đầu vào','nn'],['c_cod_eq','Đương lượng COD','pos'],['c_conc','Hàm lượng hoạt chất trong hoá chất thương phẩm','pos'],['c_rho','Khối lượng riêng hoá chất','pos'],['c_price','Đơn giá mua','nn']],
+    P:      [['p_TPo','TP đầu vào','nn'],['p_TPe','TP đầu ra','nn'],['p_bio','Phần khử phốt pho sinh học','nn'],['p_mole','Tỷ lệ mol kim loại/phốt pho','nn'],['p_metal','Hàm lượng hoạt chất','pos'],['p_price','Đơn giá mua','nn']],
+    pH:     [['ph_in','pH đầu vào','ph'],['ph_target','pH mục tiêu','ph'],['ph_alk','Độ axit/kiềm cần trung hoà','nn'],['ph_purity','Độ tinh khiết hoá chất','pos'],['ph_rho','Khối lượng riêng hoá chất','pos'],['ph_price','Đơn giá mua','nn'],['ph_safety','Hệ số an toàn định lượng','pos']]
+  };
+  function showMsg(id, html) {
+    const el = $(id);
+    el.innerHTML = html || '';
+    el.style.display = html ? 'block' : 'none';
+  }
+  function validate(drug) {
+    document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+    const rules = [['Q','Lưu lượng nước xử lý Q','pos'],['hours','Thời gian vận hành mỗi ngày','pos']].concat(RULES[drug] || []);
+    const errs = [];
+    rules.forEach(([id, name, rule]) => {
+      const el = $(id);
+      if (!el || el.closest('.field').style.display === 'none') return;  // 隐藏的输入不校验
+      const v = parseFloat(el.value);
+      let msg = '';
+      if (isNaN(v)) msg = `Vui lòng nhập ${name}`;
+      else if (rule === 'pos' && v <= 0) msg = `Vui lòng nhập giá trị lớn hơn 0 cho ${name}`;
+      else if (rule === 'nn' && v < 0) msg = `${name} không được âm`;
+      else if (rule === 'ph' && (v < 0 || v > 14)) msg = `${name} phải nằm trong khoảng 0–14`;
+      if (msg) { el.classList.add('invalid'); errs.push(msg); }
+    });
+    if (num('hours') > 24) { $('hours').classList.add('invalid'); errs.push('Thời gian vận hành mỗi ngày không được vượt quá 24 h'); }
+    if (drug === 'pH' && SOLID_PH.includes($('ph_chem').value)) {
+      // rắnHoá chất不需要密度，撤销其校验错误
+      const i = errs.findIndex(e => e.includes('Khối lượng riêng hoá chất'));
+      if (i >= 0) { errs.splice(i, 1); $('ph_rho').classList.remove('invalid'); }
+    }
+    return errs;
+  }
+
+  function calc() {
+    const Q = num('Q');           // m³/h
+    const hours = num('hours');
+    syncCarbonForm();
+    $('p_price_note').textContent = $('p_type').value === 'PAC' ? 'Giá tham khảo PAC lỏng (10% Al₂O₃), điều chỉnh theo báo giá của nhà sản xuất' : 'Giá tham khảo, điều chỉnh theo báo giá của nhà sản xuất';
+    $('ph_vol_row').style.display = SOLID_PH.includes($('ph_chem').value) ? 'none' : 'flex';
+    showMsg('hintBox', '');
+    const errs = validate(currentDrug);
+    if (errs.length) {
+      $('panel-' + currentDrug).querySelectorAll('.result-value').forEach(el => el.textContent = '—');
+      showMsg('warnBox', '⚠️ ' + errs.join('；'));
+      return;
+    }
+    showMsg('warnBox', '');
+
+    // ========== PAC ==========
+    if (currentDrug === 'PAC') {
+      const dose = num('pac_dose'), al2o3 = num('pac_al2o3')/100;
+      const conc = num('pac_conc')/100, rho = num('pac_rho'), price = num('pac_price');
+      const solid = Q * dose / 1000;       // kg/h 商品
+      const al_eq = dose * al2o3;           // mg/L as Al2O3
+      const liquid = (conc>0 && rho>0) ? solid/(rho*conc) : 0;  // L/h
+      const pump = liquid * 1.3;
+      const day = solid * hours;
+      const month = day * 30 / 1000;
+      const year_cost = day * 365 * price / 1000 / 10000;  // 万元
+      const unit_cost = (Q*hours)>0 ? (day * price / 1000) / (Q * hours) : 0;
+
+      $('pac_r_al2o3').textContent = al_eq.toFixed(1);
+      $('pac_r_solid').textContent = solid.toFixed(2);
+      $('pac_r_liquid').textContent = liquid.toFixed(1);
+      $('pac_r_pump').textContent = pump.toFixed(1);
+      $('pac_r_day').textContent = day.toFixed(1);
+      $('pac_r_month').textContent = month.toFixed(2);
+      $('pac_r_year_cost').textContent = year_cost.toFixed(2);
+      $('pac_r_unit_cost').textContent = unit_cost.toFixed(3);
+    }
+
+    // ========== PAM ==========
+    if (currentDrug === 'PAM') {
+      const use = $('pam_use').value;
+      const conc = num('pam_conc')/1000;   // ‰ → 小数
+      const price = num('pam_price');       // nhân dân tệ/kg
+      let solid;  // kg/h
+      if (use === 'water') {
+        const dose = num('pam_dose_water');
+        solid = Q * dose / 1000;
+      } else {
+        const sludge_q = num('pam_sludge_q');  // kgDS/h
+        const dose = num('pam_dose_sludge');   // kg hoá chất/tDS
+        solid = sludge_q * dose / 1000;
+      }
+      const liquid = conc>0 ? solid/conc : 0;  // L/h
+      const water = liquid - solid;
+      const day = solid * hours;
+      const month = day * 30;
+      const year_cost = day * 365 * price / 10000;
+      const unit_cost = (day * price) / (Q * hours);  // nhân dân tệ/m³ nước
+      $('pam_unit_note').textContent = use === 'sludge' ? ' (phân bổ theo lưu lượng chung Q)' : '';
+      if (use === 'sludge') showMsg('hintBox', '💡 Ở chế độ tách nước bùn, lượng PAM được tính theo lượng bùn khô; thông số chung “lưu lượng nước xử lý Q” chỉ dùng để phân bổ chi phí trên mỗi mét khối nước.');
+
+      $('pam_r_solid').textContent = solid.toFixed(3);
+      $('pam_r_liquid').textContent = liquid.toFixed(1);
+      $('pam_r_water').textContent = water.toFixed(1);
+      $('pam_r_day').textContent = day.toFixed(2);
+      $('pam_r_month').textContent = month.toFixed(1);
+      $('pam_r_year_cost').textContent = year_cost.toFixed(2);
+      $('pam_r_unit_cost').textContent = unit_cost.toFixed(4);
+    }
+
+    // ========== NaClO ==========
+    if (currentDrug === 'NaClO') {
+      const dose = num('cl_dose'), active = num('cl_active')/100;
+      const rho = num('cl_rho'), price = num('cl_price');
+      const cl_mass = Q * dose / 1000;  // kgclo hoạt tính/h
+      const liquid = (active>0 && rho>0) ? cl_mass / (active * rho) : 0;  // L/h
+      const pump = liquid * 1.3;
+      const day_L = liquid * hours;
+      const year_m = liquid * rho * hours * 365 / 1000;  // t/a
+      const year_cost = year_m * price / 10000;
+      const unit_cost = (Q*hours)>0 ? (liquid * rho * hours * price / 1000) / (Q * hours) : 0;
+
+      $('cl_r_liquid').textContent = liquid.toFixed(1);
+      $('cl_r_cl').textContent = cl_mass.toFixed(3);
+      $('cl_r_day').textContent = day_L.toFixed(0);
+      $('cl_r_pump').textContent = pump.toFixed(1);
+      $('cl_r_year_m').textContent = year_m.toFixed(1);
+      $('cl_r_year_cost').textContent = year_cost.toFixed(2);
+      $('cl_r_unit_cost').textContent = unit_cost.toFixed(3);
+    }
+
+    // ========== Nguồn cacbon ==========
+    if (currentDrug === 'carbon') {
+      const N = num('c_N'), cn = num('c_cn'), cod_in = num('c_cod_in');
+      const cod_eq = num('c_cod_eq'), conc = num('c_conc')/100;
+      const rho = num('c_rho'), price = num('c_price');
+
+      const cod_need_per_L = cn * N;         // mg/L
+      const cod_gap_per_L = Math.max(cod_need_per_L - cod_in, 0);  // mg/L
+      const cod_need = Q * cod_need_per_L / 1000;  // kg/h
+      const cod_in_mass = Q * cod_in / 1000;
+      const cod_gap = Q * cod_gap_per_L / 1000;
+
+      const solid = (cod_eq>0 && conc>0) ? cod_gap / cod_eq / conc : 0; // kg/h 商品药
+      const liquid = rho>0 ? solid/rho : 0;
+      const day = solid * hours;
+      const year_cost = day * 365 * price / 1000 / 10000;
+      const unit_cost = (Q*hours)>0 ? (day * price / 1000) / (Q * hours) : 0;
+
+      $('c_r_need').textContent = cod_need.toFixed(2);
+      $('c_r_in').textContent = cod_in_mass.toFixed(2);
+      $('c_r_gap').textContent = cod_gap.toFixed(2);
+      $('c_r_solid').textContent = solid.toFixed(2);
+      $('c_r_liquid').textContent = liquid.toFixed(1);
+      $('c_r_day').textContent = day.toFixed(1);
+      $('c_r_year_cost').textContent = year_cost.toFixed(2);
+      $('c_r_unit_cost').textContent = unit_cost.toFixed(3);
+    }
+
+    // ========== Hoá chất khử phốt pho ==========
+    if (currentDrug === 'P') {
+      const type = $('p_type').value;
+      const TPo = num('p_TPo'), TPe = num('p_TPe'), bio = num('p_bio');
+      const mole = num('p_mole');
+      // PAC 商品按 Al2O3 标示，换算为 Al：2×27/102 = 0.529；铁盐直接按 Fe hàm lượng
+      const metal_content = num('p_metal')/100 * (type === 'PAC' ? 0.529 : 1);
+      const price = num('p_price');
+
+      const dP = Math.max(TPo - TPe - bio, 0);  // mg/L 需化学除
+      const Pmass = Q * dP / 1000;  // kgP/h
+      const M_P = 31;
+      const M_metal = (type === 'PAC') ? 27 : 55.85;  // Al or Fe
+      // 金属量 = dP * M_metal/M_P * 摩尔比
+      const metal_dose_mgL = dP * M_metal / M_P * mole;
+      const metal_mass = Q * metal_dose_mgL / 1000;  // kg金属/h
+
+      const solid = metal_content>0 ? metal_mass / metal_content : 0;  // kg商品/h
+      const dose_eq = Q>0 ? solid * 1000 / Q : 0;  // mg/L
+      const day = solid * hours;
+      const year_cost = day * 365 * price / 1000 / 10000;
+      const unit_cost = (Q*hours)>0 ? (day * price / 1000) / (Q * hours) : 0;
+
+      $('p_r_dP').textContent = dP.toFixed(2);
+      $('p_r_Pmass').textContent = Pmass.toFixed(3);
+      $('p_r_metal').textContent = metal_mass.toFixed(3);
+      $('p_r_solid').textContent = solid.toFixed(2);
+      $('p_r_dose').textContent = dose_eq.toFixed(1);
+      $('p_r_day').textContent = day.toFixed(1);
+      $('p_r_year_cost').textContent = year_cost.toFixed(2);
+      $('p_r_unit_cost').textContent = unit_cost.toFixed(3);
+    }
+
+    // ========== pH ==========
+    if (currentDrug === 'pH') {
+      const chem = $('ph_chem').value;
+      const alk = num('ph_alk');  // mmol/L
+      const purity = num('ph_purity')/100;
+      const rho = num('ph_rho');
+      const price = num('ph_price');
+
+      // 摩尔质量与价数
+      const chemData = {
+        'NaOH':    {M: 40,    valence: 1},
+        'Ca(OH)2': {M: 74,    valence: 2},
+        'Na2CO3':  {M: 106,   valence: 1},  // 中和至中性：CO3²⁻ → HCO3⁻，只消耗 1 个当量
+        'HCl':     {M: 36.5,  valence: 1},
+        'H2SO4':   {M: 98,    valence: 2}
+      };
+      const cd = chemData[chem] || {M: 40, valence: 1};
+      const n = Q * alk;  // mol/h (Q m³/h × mmol/L × 1000/1000 = mol/h)
+      const safety = num('ph_safety');
+      const ph_in = num('ph_in'), ph_target = num('ph_target');
+      const dph = ph_target - ph_in;
+      const dir = $('ph_dir').value;
+      if ((dir === 'up' && dph <= 0) || (dir === 'down' && dph >= 0)) {
+        showMsg('hintBox', `💡 Chiều điều chỉnh không phù hợp với pH: hiện chọn “${dir === 'up' ? 'thêm kiềm (pH mục tiêu phải cao hơn pH đầu vào)' : 'thêm axit (pH mục tiêu phải thấp hơn pH đầu vào)'}”, pH đầu vào ${ph_in} → pH mục tiêu ${ph_target}, hãy kiểm tra chiều điều chỉnh hoặc giá trị pH.`);
+      }
+      const mass = n * cd.M / cd.valence / purity / 1000 * safety;  // kg/h
+      const vol = rho>0 ? mass/rho : 0;  // L/h
+      const dose_eq = Q>0 ? mass * 1000 / Q : 0;
+      const day = mass * hours;
+      const year_cost = day * 365 * price / 1000 / 10000;
+
+      $('ph_r_dph').textContent = (dph > 0 ? '+' : '') + dph.toFixed(1);
+      $('ph_sf_lbl').textContent = safety;
+      $('ph_r_mol').textContent = n.toFixed(1);
+      $('ph_r_mass').textContent = mass.toFixed(2);
+      $('ph_r_vol').textContent = vol.toFixed(1);
+      $('ph_r_dose').textContent = dose_eq.toFixed(1);
+      $('ph_r_day').textContent = day.toFixed(1);
+      $('ph_r_year_cost').textContent = year_cost.toFixed(2);
+    }
+  }
+
+  function copyResults() {
+    let txt = 'Kết quả tính định lượng hoá chất - ' + currentDrug + '\n————————————————\n';
+    txt += `Lưu lượng nước xử lý: ${num('Q')} m³/h, Vận hành hằng ngày: ${num('hours')} h\n\n`;
+    const panel = $('panel-'+currentDrug);
+    panel.querySelectorAll('.result-row').forEach(row => {
+      if (row.style.display === 'none') return;
+      const label = row.querySelector('.result-label').innerText.trim();
+      const value = row.querySelector('.result-value').textContent;
+      const unit = row.querySelector('.result-unit').textContent;
+      txt += `${label}: ${value} ${unit}\n`;
+    });
+    ['warnBox', 'hintBox'].forEach(id => { if ($(id).style.display !== 'none') txt += '\n' + $(id).textContent + '\n'; });
+    navigator.clipboard.writeText(txt).then(() => {
+      alert('Đã sao chép kết quả vào bộ nhớ tạm');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() {
+    // 恢复 HTML 中的默认值（不用 reload，避免浏览器回填表单且保留当前Hoá chất页签）
+    $('ph_dir').value = 'up';
+    updatePH();
+    document.querySelectorAll('input').forEach(el => { el.value = el.defaultValue; });
+    document.querySelectorAll('select').forEach(sel => {
+      const def = [...sel.options].find(o => o.defaultSelected) || sel.options[0];
+      sel.value = def.value;
+    });
+    const isSludge = $('pam_use').value === 'sludge';
+    $('pam_dose_water_field').style.display = isSludge ? 'none' : 'flex';
+    $('pam_dose_sludge_field').style.display = isSludge ? 'flex' : 'none';
+    $('pam_sludge_q_field').style.display = isSludge ? 'flex' : 'none';
+    calc();
+  }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // ph_chem 切换时先同步默认纯度/密度/单价，再计算（需注册在通用 calc 监听之前）
+  $('ph_chem').addEventListener('change', syncPHDefaults);
+
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+
+  updatePH();  // 首次加载按默认Chiều điều chỉnh（加碱）过滤Hoá chất列表，内部已调用 calc()
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1228 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Công cụ tính chọn máy bơm | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Tính chọn máy bơm trực tuyến: thành phần cột áp hệ thống, công suất thủy lực, trục và động cơ, điện năng và chi phí vận hành, kiểm tra xâm thực NPSH và phân tích bơm song song, điều tốc biến tần; phục vụ lựa chọn sơ bộ bơm cấp thoát nước và nâng nước thải.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .invalid { border-color: #ef4444 !important; background: #fef2f2 !important; }
+
+  /* 统一顶部导航 */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600; font-size: 16.5px;
+    color: var(--ink); letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--text-faint); margin-top: 1px;
+  }
+  .nav-links {
+    display: flex; gap: 24px; font-size: 14px; align-items: center;
+  }
+  .nav-links a {
+    color: var(--text); text-decoration: none;
+    transition: color 0.15s; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←"; margin-right: 4px; color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* 面包屑 */
+  .breadcrumb {
+    max-width: 820px; margin: 0 auto;
+    padding: 20px 16px 0;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb a {
+    color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  /* 主体外壳 */
+  .main-wrap { flex: 1; padding: 16px; }
+
+  /* 统一页脚 */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: 40px;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px; color: var(--text);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.7; max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex; justify-content: space-between;
+    align-items: center; font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit; text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+  /* 工具内部的小footer */
+  .tool-inner-footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  header.tool-header {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: #fff;
+    padding: 24px 24px 20px;
+  }
+  header.tool-header h1 { font-size: 22px; margin-bottom: 6px; }
+  header.tool-header p { font-size: 13px; opacity: 0.9; }
+  .body { padding: 24px; }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0e7490;
+    margin: 20px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0f2fe;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field .unit { color: #9ca3af; font-size: 12px; font-weight: normal; }
+  .field input, .field select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  }
+  .field .helper {
+    font-size: 11.5px;
+    color: #059669;
+    margin-top: 4px;
+  }
+
+  /* 分组开关 */
+  .sub-section {
+    background: #f8fafc;
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+  .sub-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .auto-hint {
+    background: #e0f2fe;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #075985;
+    margin-top: 8px;
+  }
+
+  .results {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #0891b2;
+  }
+  .results h2 { font-size: 16px; color: #0e7490; margin-bottom: 14px; }
+  .result-group {
+    margin-bottom: 16px;
+  }
+  .result-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0e7490;
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    background: #cffafe;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px dashed #bae6fd;
+    gap: 10px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4b5563; font-size: 13.5px; }
+  .result-value {
+    font-size: 19px;
+    font-weight: 600;
+    color: #0891b2;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-value.big { font-size: 23px; color: #0e7490; }
+  .result-unit { color: #6b7280; font-size: 13px; margin-left: 4px; font-weight: normal; }
+  .highlight-row {
+    background: #ecfeff;
+    padding: 10px 12px !important;
+    border-radius: 6px;
+    border: 1px solid #67e8f9;
+    border-bottom: 1px solid #67e8f9 !important;
+  }
+
+  /* NPSH校核 */
+  .check-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .check-ok { background: #dcfce7; color: #166534; border-left: 3px solid #22c55e; }
+  .check-warn { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+  .check-bad { background: #fee2e2; color: #991b1b; border-left: 3px solid #ef4444; }
+
+  /* 型号建议卡 */
+  .model-card {
+    margin-top: 16px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 10px;
+    border: 2px solid #0891b2;
+  }
+  .model-card .title {
+    font-size: 13px;
+    color: #0e7490;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .model-card .model-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0e7490;
+    font-family: "SF Mono", Consolas, monospace;
+    letter-spacing: 1px;
+  }
+  .model-card .model-desc {
+    font-size: 12.5px;
+    color: #64748b;
+    margin-top: 6px;
+  }
+
+  /* 公式与参考 */
+  .formula-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+  .formula-box h3 { font-size: 14px; color: #374151; margin: 14px 0 8px; }
+  .formula-box h3:first-child { margin-top: 0; }
+  .formula-box code {
+    display: block;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: #0e7490;
+    overflow-x: auto;
+  }
+  .formula-box p { margin: 6px 0; font-size: 12.5px; }
+  .formula-box table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .formula-box th, .formula-box td {
+    padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb;
+  }
+  .formula-box th { background: #f1f5f9; color: #374151; }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-primary { background: #0891b2; color: #fff; }
+  .btn-primary:hover { background: #0e7490; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  .note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #92400e;
+    border-left: 3px solid #f59e0b;
+  }
+  @media (max-width: 480px) {
+    .main-wrap { padding: 8px; }
+    header.tool-header { padding: 18px; }
+    header.tool-header h1 { font-size: 19px; }
+    .result-value { font-size: 17px; }
+    .result-value.big { font-size: 20px; }
+  }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Lựa chọn thiết bị</a>
+  <span class="sep">/</span>
+  <span class="current">Chọn máy bơm</span>
+</div>
+
+<main class="main-wrap">
+
+<div class="container">
+  <header class="tool-header">
+    <h1>⚙️ Công cụ tính chọn máy bơm</h1>
+    <p>Cột áp hệ thống · Công suất trục/động cơ · Kiểm tra xâm thực NPSH · Phân tích song song/biến tần</p>
+  </header>
+
+  <div class="body">
+
+    <div class="section-title">① Thông số vận hành cơ bản</div>
+    <div class="grid">
+      <div class="field">
+        <label for="Q">Lưu lượng thiết kế Q <span class="unit">m³/h</span></label>
+        <input type="number" id="Q" value="100" step="10">
+      </div>
+      <div class="field">
+        <label for="fluid">Loại môi chất</label>
+        <select id="fluid" onchange="updateFluid()">
+          <option value="clean_water" selected>Nước sạch</option>
+          <option value="sewage">Nước thải (sau song chắn rác thô/trung bình)</option>
+          <option value="sludge">Bùn (độ ẩm ≥97%)</option>
+          <option value="seawater">Nước biển</option>
+          <option value="chemical">Dung dịch hóa chất</option>
+          <option value="custom">Tùy chỉnh</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="rho">Khối lượng riêng môi chất ρ <span class="unit">kg/m³</span></label>
+        <input type="number" id="rho" value="1000" step="10">
+      </div>
+      <div class="field">
+        <label for="T">Nhiệt độ môi chất T <span class="unit">℃</span></label>
+        <input type="number" id="T" value="20" step="1">
+      </div>
+      <div class="field">
+        <label for="pump_type">Loại máy bơm</label>
+        <select id="pump_type" onchange="updatePumpType()">
+          <option value="centrifugal" selected>Bơm ly tâm (ISG/IH/IS)</option>
+          <option value="submerged">Bơm chìm (WQ/QW)</option>
+          <option value="axial">Bơm hướng trục (ZLB)</option>
+          <option value="screw">Bơm trục vít</option>
+          <option value="dosing">Bơm định lượng</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-title">② Cột áp hệ thống (tự động cộng hoặc nhập trực tiếp)</div>
+
+    <div class="sub-section">
+      <h3>Cột áp hình học (cột áp tĩnh)</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="z_suck">Mực nước thấp nhất bể hút <span class="unit">m</span></label>
+          <input type="number" id="z_suck" value="0" step="0.1">
+        </div>
+        <div class="field">
+          <label for="z_disch">Mực nước cao nhất bể xả <span class="unit">m</span></label>
+          <input type="number" id="z_disch" value="15" step="0.5">
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <h3>Cột áp áp suất (nhập khi hệ thống kín)</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="P1">Áp suất dư phía hút P₁ <span class="unit">kPa</span></label>
+          <input type="number" id="P1" value="0" step="10">
+          <div class="helper">Áp suất dư trên mặt chất lỏng bể/bình hút; lấy 0 với bể hở; cũng tính vào NPSHa</div>
+        </div>
+        <div class="field">
+          <label for="P2">Áp suất dư phía đẩy P₂ <span class="unit">kPa</span></label>
+          <input type="number" id="P2" value="0" step="10">
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <h3>Tổn thất cột áp đường ống</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="hf_s">Tổn thất ống hút (dọc đường + cục bộ) <span class="unit">m</span></label>
+          <input type="number" id="hf_s" value="0.5" step="0.1">
+          <div class="helper">Gồm tổn thất cục bộ phía hút tại cửa vào, van chân, cút, van cổng...; cũng dùng tính NPSHa</div>
+        </div>
+        <div class="field">
+          <label for="hf_d">Tổn thất dọc đường ống đẩy <span class="unit">m</span></label>
+          <input type="number" id="hf_d" value="3.0" step="0.1">
+        </div>
+        <div class="field">
+          <label for="hj">Tổn thất cục bộ ống đẩy <span class="unit">m</span></label>
+          <input type="number" id="hj" value="1.5" step="0.1">
+          <div class="helper">Van một chiều, van cổng, cút, cửa ra...; nhập tổn thất cục bộ phía hút vào ô tổn thất ống hút bên trái</div>
+        </div>
+        <div class="field">
+          <label for="H_margin">Cột áp dự phòng (hệ số an toàn) <span class="unit">%</span></label>
+          <input type="number" id="H_margin" value="10" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">③ Hiệu suất và động cơ</div>
+    <div class="grid">
+      <div class="field">
+        <label for="eta_pump">Hiệu suất bơm η_pump <span class="unit">%</span></label>
+        <input type="number" id="eta_pump" value="75" step="1">
+        <div class="helper" id="eta_hint" style="display:none;"></div>
+      </div>
+      <div class="field">
+        <label for="eta_trans">Hiệu suất truyền động η_trans <span class="unit">%</span></label>
+        <input type="number" id="eta_trans" value="98" step="1">
+      </div>
+      <div class="field">
+        <label for="eta_motor">Hiệu suất động cơ η_motor <span class="unit">%</span></label>
+        <input type="number" id="eta_motor" value="92" step="1">
+      </div>
+      <div class="field">
+        <label for="K">Hệ số dự phòng công suất động cơ K</label>
+        <input type="number" id="K" value="1.15" step="0.05">
+      </div>
+      <div class="field">
+        <label for="hours">Thời gian vận hành mỗi ngày <span class="unit">h/d</span></label>
+        <input type="number" id="hours" value="24" step="1">
+      </div>
+      <div class="field">
+        <label for="price">Đơn giá điện <span class="unit">nhân dân tệ/kWh</span></label>
+        <input type="number" id="price" value="0.65" step="0.01">
+      </div>
+    </div>
+
+    <div class="section-title">④ Kiểm tra xâm thực NPSH</div>
+    <div class="grid">
+      <div class="field">
+        <label for="altitude">Độ cao so với mực nước biển <span class="unit">m</span></label>
+        <input type="number" id="altitude" value="0" step="50">
+      </div>
+      <div class="field">
+        <label for="Hs_geom">Chiều cao hút hình học Hs <span class="unit">m</span></label>
+        <input type="number" id="Hs_geom" value="3" step="0.5">
+        <div class="helper">Từ mặt nước đến đường tâm bơm (hút lên lấy dấu dương, ngập hút lấy dấu âm)</div>
+      </div>
+      <div class="field">
+        <label for="NPSHr">NPSH yêu cầu của bơm NPSHr <span class="unit">m</span></label>
+        <input type="number" id="NPSHr" value="3.5" step="0.1">
+        <div class="helper">Tra tài liệu bơm hoặc thông tin từ nhà sản xuất</div>
+      </div>
+      <div class="field">
+        <label for="NPSH_safe">Dự phòng an toàn chống xâm thực <span class="unit">m</span></label>
+        <input type="number" id="NPSH_safe" value="0.5" step="0.1">
+      </div>
+    </div>
+
+    <div class="section-title">⑤ Phân tích song song/biến tần (không bắt buộc)</div>
+    <div class="grid">
+      <div class="field">
+        <label for="n_parallel">Số bơm lắp song song n <span class="unit">bơm</span></label>
+        <input type="number" id="n_parallel" value="2" step="1">
+      </div>
+      <div class="field">
+        <label for="n_backup">Trong đó dự phòng <span class="unit">bơm</span></label>
+        <input type="number" id="n_backup" value="1" step="1">
+      </div>
+      <div class="field">
+        <label for="speed_ratio">Tỷ lệ điều tốc biến tần <span class="unit">% (so với tốc độ định mức)</span></label>
+        <input type="number" id="speed_ratio" value="100" step="5">
+      </div>
+      <div class="field">
+        <label for="H0_ratio">Hệ số cột áp đóng van H₀/H (nâng cao) <span class="unit">lần</span></label>
+        <input type="number" id="H0_ratio" value="1.25" step="0.05">
+        <div class="helper">Ước tính biến tần dùng đường đặc tính bơm giả định H = H₀ − k·Q², H₀ = hệ số × cột áp thiết kế; bơm ly tâm thường có hệ số 1.1–1.4</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <h2>Kết quả tính toán</h2>
+
+      <div class="result-group">
+        <div class="result-group-title">Các thành phần cột áp hệ thống</div>
+        <div class="result-row">
+          <span class="result-label">Cột áp hình học Hg</span>
+          <span><span class="result-value" id="r_Hg">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Cột áp áp suất Hp</span>
+          <span><span class="result-value" id="r_Hp">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Tổng tổn thất cột áp hw</span>
+          <span><span class="result-value" id="r_hw">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Cột áp hệ thống yêu cầu H (gồm dự phòng)</b></span>
+          <span><span class="result-value big" id="r_H">—</span><span class="result-unit">m</span></span>
+        </div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title" id="pw_title">Tính công suất (một bơm)</div>
+        <div class="result-row">
+          <span class="result-label">Công suất hữu ích Pe (công suất thủy lực)</span>
+          <span><span class="result-value" id="r_Pe">—</span><span class="result-unit">kW</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Công suất trục bơm Psh</span>
+          <span><span class="result-value" id="r_Psh">—</span><span class="result-unit">kW</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b id="lbl_Pm">Công suất động cơ lắp đặt Pm (gồm hệ số K)</b></span>
+          <span><span class="result-value big" id="r_Pm">—</span><span class="result-unit">kW</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label" id="lbl_Pm_std">Công suất động cơ đề xuất (cỡ tiêu chuẩn)</span>
+          <span><span class="result-value" id="r_Pm_std">—</span><span class="result-unit">kW</span></span>
+        </div>
+        <div class="check-box" id="checkHead" style="display:none;"></div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title">Điện năng và chi phí vận hành</div>
+        <div class="result-row">
+          <span class="result-label">Điện năng tiêu thụ để nâng mỗi tấn nước</span>
+          <span><span class="result-value" id="r_ekwh">—</span><span class="result-unit">kWh/m³</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Điện năng tiêu thụ mỗi ngày</span>
+          <span><span class="result-value" id="r_day_kwh">—</span><span class="result-unit">kWh/d</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Chi phí điện hằng năm (tất cả bơm làm việc)</b></span>
+          <span><span class="result-value big" id="r_year_cost">—</span><span class="result-unit">vạn nhân dân tệ/a</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chi phí điện mỗi tấn nước</span>
+          <span><span class="result-value" id="r_unit_cost">—</span><span class="result-unit">nhân dân tệ/m³</span></span>
+        </div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title">Kiểm tra xâm thực NPSH</div>
+        <div class="result-row">
+          <span class="result-label">Áp suất khí quyển Pa</span>
+          <span><span class="result-value" id="r_Pa">—</span><span class="result-unit">kPa</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Áp suất hơi bão hòa Pv</span>
+          <span><span class="result-value" id="r_Pv">—</span><span class="result-unit">kPa</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">NPSH khả dụng NPSHa</span>
+          <span><span class="result-value" id="r_NPSHa">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Chiều cao hút cho phép lớn nhất Hs,max</span>
+          <span><span class="result-value" id="r_Hs_max">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="check-box" id="checkNPSH">Đang kiểm tra...</div>
+      </div>
+
+      <div class="result-group" id="parallel_group" style="display:none;">
+        <div class="result-group-title">Phân tích song song</div>
+        <div class="result-row">
+          <span class="result-label">Số bơm làm việc</span>
+          <span><span class="result-value" id="r_n_work">—</span><span class="result-unit">bơm</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng mỗi bơm</span>
+          <span><span class="result-value" id="r_Q_each">—</span><span class="result-unit">m³/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Công suất động cơ mỗi bơm</span>
+          <span><span class="result-value" id="r_Pm_each">—</span><span class="result-unit">kW</span></span>
+        </div>
+        <div class="check-box" id="checkParallel" style="display:none;"></div>
+      </div>
+
+      <div class="result-group" id="vfd_group" style="display:none;">
+        <div class="result-group-title">Vận hành biến tần (ước tính tại giao điểm đường bơm bậc hai giả định và đường hệ thống)</div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng sau điều tốc Q'</span>
+          <span><span class="result-value" id="r_Q_vfd">—</span><span class="result-unit">m³/h</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Cột áp sau điều tốc H'</span>
+          <span><span class="result-value" id="r_H_vfd">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Công suất sau điều tốc P'</span>
+          <span><span class="result-value" id="r_P_vfd">—</span><span class="result-unit">kW</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Tỷ lệ tiết kiệm điện ước tính</span>
+          <span><span class="result-value" id="r_save">—</span><span class="result-unit">%</span></span>
+        </div>
+        <div class="check-box" id="checkVFD" style="display:none;"></div>
+        <div class="helper" id="vfd_note" style="margin-top:8px;color:#64748b;">Ước tính theo đường đặc tính bơm bậc hai giả định (công suất xấp xỉ theo hiệu suất thiết kế); lấy đường đặc tính của nhà sản xuất làm chuẩn.</div>
+      </div>
+
+      <div class="model-card">
+        <div class="title">🔖 Đề xuất lựa chọn</div>
+        <div class="model-name" id="r_suggest">Q = — m³/h, H = — m</div>
+        <div class="model-desc" id="r_suggest_desc">Chọn theo lưu lượng và cột áp này trong tài liệu nhà sản xuất; ưu tiên điểm làm việc trong vùng hiệu suất cao (80-110% Q_opt).</div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="copyResults()">📋 Sao chép kết quả</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">🔄 Khôi phục mặc định</button>
+      <button class="btn btn-secondary" onclick="toggleFormula()">📖 Xem công thức</button>
+    </div>
+
+    <div class="formula-box" id="formulaBox" style="display:none;">
+      <h3>① Thành phần cột áp hệ thống</h3>
+      <code>H = Hg + Hp + hw + H_margin</code>
+      <p>Hg = z₂ − z₁（cao độ mặt nước bể xả − cao độ mặt nước bể hút, m）<br>
+         Hp = (P₂ − P₁)/(ρ·g) × 1000（chênh lệch áp suất dư hai phía, kPa, quy đổi sang cột chất lỏng, m）<br>
+         hw = hf_s + hf_d + hj（tổn thất ống hút dọc đường + cục bộ, ống đẩy dọc đường, ống đẩy cục bộ）<br>
+         H_margin：phần dự phòng, thường lấy 5-15% tổng cột áp。</p>
+
+      <h3>② Tính công suất</h3>
+      <code>Pe = ρ·g·Q·H / 1000 / 3600  [kW]（công suất thủy lực）</code>
+      <code>Psh = Pe / η_pump / η_trans  [kW]（công suất trục）</code>
+      <code>Pm = K · Psh  [kW]（động cơ lắp đặt, K là hệ số dự phòng）</code>
+      <code>P_in = Psh / η_motor  [kW]（công suất điện đầu vào động cơ, dùng tính điện năng）</code>
+      <p>Công thức đơn giản hóa (nước sạch ρ=1000, g=9.81)：</p>
+      <code>P_e = Q·H / 367  [kW]  （Q tính bằng m³/h, H tính bằng m）</code>
+
+      <h3>③ Kiểm tra xâm thực NPSH</h3>
+      <code>NPSHa = (Pa + P₁ − Pv)/(ρ·g) × 1000 − Hs − hf_s  [m]</code>
+      <p>Pa là áp suất khí quyển (theo độ cao), P₁ là áp suất dư trên mặt nước bể hút (bể hở bằng 0), Pv là áp suất hơi bão hòa (theo nhiệt độ nước), Hs là chiều cao hút hình học (hút lên lấy dấu dương), hf_s là tổng tổn thất cột áp ống hút (dọc đường + tổn thất cục bộ tại cửa vào, van chân, cút...; van chân và lưới lọc có trở lực lớn, bỏ sót sẽ làm NPSHa bị đánh giá cao).</p>
+      <code>NPSHa ≥ NPSHr + dự phòng an toàn（0.5~1.0 m）</code>
+      <p><strong>Chiều cao hút cho phép lớn nhất</strong>：</p>
+      <code>Hs_max = (Pa + P₁ − Pv)/(ρ·g)·1000 − NPSHr − hf_s − dự phòng an toàn</code>
+
+      <h3>④ Điểm làm việc khi điều tốc biến tần (đường bơm giả định × đường hệ thống)</h3>
+      <p>Các định luật tương tự Q∝n, H∝n² chỉ mô tả sự dịch chuyển của đường bơm; điểm làm việc thực tế do giao điểm đường bơm và đường hệ thống quyết định. Khi có cột áp tĩnh, không thể trực tiếp lấy Q'=rQ, H'=r²H. Công cụ tìm giao điểm theo phép gần đúng sau (r = n'/n):</p>
+      <code>Đường bơm (giả định bậc hai)：H = r²·H₀ − k·Q²，H₀ = hệ số cột áp đóng van × H_design，k = (H₀ − H_design)/Q_design²</code>
+      <code>đường đặc tính hệ thống：H = Hst + (H_design − Hst)·(Q/Q_design)²，Hst = Hg + Hp（cột áp tĩnh, cột áp dự phòng tính vào phần cột áp động, đường cong đi qua điểm thiết kế）</code>
+      <code>Q' = Q_design·√[(r²·H₀ − Hst)/(H₀ − Hst)]，H' thay vào đường đặc tính hệ thống；r²·H₀ ≤ Hst thì bơm không thể tạo dòng chảy</code>
+      <code>P' = ρ·g·Q'·H' / (η_pump·η_trans) / 1000  [kW]（η lấy theo hiệu suất thiết kế, gần đúng; điểm hiệu suất thực tế thay đổi sau khi giảm tốc）</code>
+      <p>Tỷ lệ tiết kiệm điện = 1 − P'/Psh. Với nhiều bơm chạy song song cùng tốc độ, tính theo tổng lưu lượng cho kết quả tương tự. ⚠️ Đường đặc tính bơm bậc hai chỉ là giả định để ước tính; lấy đường đặc tính của nhà sản xuất làm chuẩn.</p>
+
+      <h3>⑤ Quan hệ giữa độ cao, áp suất khí quyển và áp suất hơi nước</h3>
+      <table>
+        <tr><th>Độ cao (m)</th><th>Áp suất khí quyển (kPa)</th></tr>
+        <tr><td>0 (mực nước biển)</td><td>101.3</td></tr>
+        <tr><td>500</td><td>95.5</td></tr>
+        <tr><td>1000</td><td>89.9</td></tr>
+        <tr><td>2000</td><td>79.5</td></tr>
+        <tr><td>3000</td><td>70.1</td></tr>
+      </table>
+      <table>
+        <tr><th>Nhiệt độ nước (℃)</th><th>Áp suất hơi bão hòa Pv (kPa)</th></tr>
+        <tr><td>10</td><td>1.23</td></tr>
+        <tr><td>20</td><td>2.34</td></tr>
+        <tr><td>30</td><td>4.24</td></tr>
+        <tr><td>40</td><td>7.38</td></tr>
+        <tr><td>60</td><td>19.92</td></tr>
+      </table>
+
+      <h3>⑥ Cỡ công suất động cơ tiêu chuẩn (dòng Y/Y2/YE3, cấp công suất GB/T)</h3>
+      <p>0.37、0.55、0.75、1.1、1.5、2.2、3、4、5.5、7.5、11、15、18.5、22、30、37、45、55、75、90、110、132、160、185、200、220、250、280、315、355、400、450、500、560、630、710、800、900、1000 kW</p>
+      <p>Chọn cấp gần nhất lớn hơn hoặc bằng Pm; trên 1000 kW làm tròn lên theo bước 100 kW và phải xác nhận với nhà sản xuất. Công cụ chọn máy thổi khí dùng cùng bảng cấp công suất.</p>
+
+      <h3>⑦ Thông số đề xuất cho các ứng dụng phổ biến</h3>
+      <table>
+        <tr><th>Ứng dụng</th><th>Loại bơm</th><th>Hiệu suất điển hình</th></tr>
+        <tr><td>Bơm nâng nước cấp (nước sạch)</td><td>IS/ISG/SH bơm ly tâm</td><td>75-85%</td></tr>
+        <tr><td>Bơm nâng nước thải</td><td>WQ/QW bơm chìm nước thải</td><td>55-70%</td></tr>
+        <tr><td>Cột áp thấp, lưu lượng lớn (nước mưa/tiêu úng)</td><td>ZLB bơm hướng trục</td><td>70-85%</td></tr>
+        <tr><td>Vận chuyển bùn</td><td>Bơm trục vít/bơm rôto thùy</td><td>40-60%</td></tr>
+        <tr><td>Định lượng hóa chất</td><td>Bơm định lượng pít-tông/màng</td><td>85-95%</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      ⚠️ Công cụ hỗ trợ lập phương án và lựa chọn sơ bộ. Phải xác nhận mẫu cuối cùng theo đường đặc tính của nhà sản xuất, sao cho điểm làm việc nằm trong vùng hiệu suất cao 80-110% Q_opt. Với môi chất chứa tạp chất (nước thải, bùn), cần bảo đảm đường dẫn dòng đủ rộng và dự phòng 15-20% so với công suất trên nhãn.
+    </div>
+
+  </div>
+
+  <footer class="tool-inner-footer">Bộ công cụ xử lý nước · Chỉ để tham khảo khi ước tính kỹ thuật</footer>
+</div>
+</main>
+
+<!-- 统一页脚 -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = id => parseFloat($(id).value) || 0;
+
+  // 标准电机功率规格
+  // 标准电机功率档位（GB/T 系列，与Chọn máy thổi khí计算器共用同一列表）
+  const STD_MOTORS = [0.37,0.55,0.75,1.1,1.5,2.2,3,4,5.5,7.5,11,15,18.5,22,30,37,45,55,75,90,110,132,160,185,200,220,250,280,315,355,400,450,500,560,630,710,800,900,1000];
+  // 读取原始数值（空/非数字返回 NaN，用于校验）
+  const raw = id => { const s = $(id).value.trim(); return s === '' ? NaN : Number(s); };
+
+  const FLUID_NAMES = {clean_water:'Nước sạch', sewage:'Nước thải', sludge:'Bùn', seawater:'Nước biển', chemical:'Dung dịch hóa chất'};
+  const PUMP_NAMES = {centrifugal:'bơm ly tâm', submerged:'Bơm chìm', axial:'bơm hướng trục', screw:'Bơm trục vít', dosing:'Bơm định lượng'};
+  function setEtaHint(txt) {
+    const h = $('eta_hint');
+    if (!h) return;
+    h.textContent = txt || '';
+    h.style.display = txt ? 'block' : 'none';
+  }
+
+  // Loại môi chất默认参数
+  function updateFluid() {
+    const t = $('fluid').value;
+    const defaults = {
+      clean_water: {rho: 1000, eta_pump: 75},
+      sewage:      {rho: 1010, eta_pump: 65},
+      sludge:      {rho: 1020, eta_pump: 55},
+      seawater:    {rho: 1025, eta_pump: 72},
+      chemical:    {rho: 1100, eta_pump: 70},
+    };
+    if (defaults[t]) {
+      $('rho').value = defaults[t].rho;
+      $('eta_pump').value = defaults[t].eta_pump;
+      setEtaHint(`Đã đặt hiệu suất mặc định ${defaults[t].eta_pump}% theo môi chất «${FLUID_NAMES[t]}» (ghi đè giá trị mặc định theo loại bơm; có thể sửa thủ công)`);
+    }
+    calc();
+  }
+
+  // Loại máy bơm推荐效率
+  function updatePumpType() {
+    const t = $('pump_type').value;
+    const defaults = {
+      centrifugal: {eta_pump: 75, NPSHr: 3.5},
+      submerged:   {eta_pump: 65, NPSHr: 2.0},
+      axial:       {eta_pump: 78, NPSHr: 5.0},
+      screw:       {eta_pump: 55, NPSHr: 2.5},
+      dosing:      {eta_pump: 90, NPSHr: 1.5},
+    };
+    if (defaults[t]) {
+      $('eta_pump').value = defaults[t].eta_pump;
+      $('NPSHr').value = defaults[t].NPSHr;
+      setEtaHint(`Đã đặt hiệu suất mặc định ${defaults[t].eta_pump}% và NPSHr ${defaults[t].NPSHr} m theo loại bơm «${PUMP_NAMES[t]}» (ghi đè hiệu suất mặc định theo môi chất; có thể sửa thủ công)`);
+    }
+    calc();
+  }
+
+  // Áp suất khí quyển随Độ cao变化
+  function Pa_by_alt(alt) {
+    return 101.325 * Math.pow(1 - 0.0000225577 * alt, 5.25588);
+  }
+  // Áp suất hơi bão hòa Antoine 简化
+  function Pv_by_T(T) {
+    // Tetens: Pv(kPa) = 0.611 * exp(17.27*T/(T+237.3))
+    return 0.611 * Math.exp(17.27 * T / (T + 237.3));
+  }
+
+  // 选最近的标准电机规格（向上圆整）
+  function pickStdMotor(P) {
+    for (let m of STD_MOTORS) if (m >= P) return m;
+    return Math.ceil(P / 100) * 100;  // 超出档位表，按 100 kW 向上取整，须厂家确认
+  }
+
+  // 电机档位显示：< 1 kW 保留原值（0.37/0.55/0.75），其余保留 1 位小数
+  const fmtMotor = m => m < 1 ? String(m) : m.toFixed(1);
+
+  // 输入校验：不合格时结果区显示“—”并在 NPSH 校核框提示
+  function validateInputs() {
+    const rules = [
+      ['Q',         v => v > 0,              'Nhập lưu lượng thiết kế Q lớn hơn 0'],
+      ['rho',       v => v > 0,              'Nhập khối lượng riêng môi chất ρ lớn hơn 0'],
+      ['H_margin',  v => v >= 0,             'Cột áp dự phòng không được âm'],
+      ['eta_pump',  v => v > 0 && v <= 100,  'Hiệu suất bơm η_pump phải trong khoảng 0–100% (lớn hơn 0)'],
+      ['eta_trans', v => v > 0 && v <= 100,  'Hiệu suất truyền động η_trans phải trong khoảng 0–100% (lớn hơn 0)'],
+      ['eta_motor', v => v > 0 && v <= 100,  'Hiệu suất động cơ η_motor phải trong khoảng 0–100% (lớn hơn 0)'],
+      ['K',         v => v > 0,              'Nhập hệ số dự phòng công suất động cơ K lớn hơn 0'],
+      ['hours',     v => v >= 0 && v <= 24,  'Thời gian vận hành mỗi ngày phải trong khoảng 0–24 h'],
+      ['price',     v => v >= 0,             'Đơn giá điện không được âm'],
+      ['NPSHr',     v => v >= 0,             'NPSH yêu cầu NPSHr không được âm'],
+      ['NPSH_safe', v => v >= 0,             'Dự phòng an toàn chống xâm thực không được âm'],
+      ['n_parallel',v => Number.isInteger(v) && v >= 1, 'Số bơm lắp song song phải là số nguyên không nhỏ hơn 1'],
+      ['n_backup',  v => Number.isInteger(v) && v >= 0, 'Số bơm dự phòng phải là số nguyên không nhỏ hơn 0'],
+      ['speed_ratio', v => v > 0,            'Nhập tỷ lệ điều tốc biến tần lớn hơn 0'],
+      ['H0_ratio',  v => v > 1 && v <= 3,    'Hệ số cột áp đóng van H₀/H phải trong khoảng 1–3 (lớn hơn 1)'],
+    ];
+    const errs = [];
+    rules.forEach(([id, ok, msg]) => {
+      const el = $(id);
+      const v = raw(id);
+      const bad = isNaN(v) || !ok(v);
+      el.classList.toggle('invalid', bad);
+      if (bad) errs.push(msg);
+    });
+    // 温度限定在 Tetens 蒸汽压公式的合理适用范围内
+    const T = raw('T');
+    const badT = isNaN(T) || T <= -50 || T >= 200;
+    $('T').classList.toggle('invalid', badT);
+    if (badT) errs.push('Nhiệt độ môi chất T phải trong khoảng -50 ~ 200 ℃');
+    // Độ cao：留空按 0 m（mực nước biển）；填写时限 −500–6000 m（与其他工具一致）
+    const altRaw = $('altitude').value.trim(), alt = raw('altitude');
+    const badAlt = altRaw !== '' && !(alt >= -500 && alt <= 6000);
+    $('altitude').classList.toggle('invalid', badAlt);
+    if (badAlt) errs.push('Độ cao so với mực nước biển phải trong khoảng −500–6000 m (thống nhất với các công cụ khác)');
+    return errs;
+  }
+
+  function showInvalid(errs) {
+    document.querySelectorAll('.results [id^="r_"]').forEach(el => { el.textContent = '—'; });
+    $('r_suggest').textContent = 'Q = — m³/h, H = — m';
+    $('r_suggest_desc').textContent = 'Dữ liệu không hợp lệ; hãy sửa các thông số được đánh dấu đỏ.';
+    $('parallel_group').style.display = 'none';
+    $('vfd_group').style.display = 'none';
+    $('checkHead').style.display = 'none';
+    const cbox = $('checkNPSH');
+    cbox.className = 'check-box check-bad';
+    cbox.textContent = '✗ ' + errs.join('；');
+  }
+
+  function calc() {
+    const errs = validateInputs();
+    if (errs.length) { showInvalid(errs); return; }
+
+    const Q = num('Q');  // m³/h
+    const rho = num('rho');
+    const T = num('T');
+    const g = 9.81;
+
+    // 扬程组成
+    const Hg = num('z_disch') - num('z_suck');
+    const P1 = num('P1'), P2 = num('P2');
+    const Hp = (P2 - P1) * 1000 / (rho * g);  // kPa换算成m液柱
+    const hw = num('hf_s') + num('hf_d') + num('hj');  // 吸水管(沿程+局部) + 压水管沿程 + 压水管局部
+    const H_base = Hg + Hp + hw;
+    const margin = num('H_margin') / 100;
+    const H = H_base * (1 + margin);
+
+    // 效率
+    const eta_pump = num('eta_pump') / 100;
+    const eta_trans = num('eta_trans') / 100;
+    const eta_motor = num('eta_motor') / 100;
+    const K = num('K');
+
+    // 功率
+    const Pe = rho * g * (Q/3600) * H / 1000;  // kW
+    const Psh = eta_pump > 0 && eta_trans > 0 ? Pe / eta_pump / eta_trans : 0;
+    const Pm = K * Psh;  // 配套电机功率（K 为储备系数，不再除以Hiệu suất động cơ）
+    const P_in = eta_motor > 0 ? Psh / eta_motor : 0;  // 电机输入电功率 kW
+    const Pm_std = pickStdMotor(Pm);
+
+    // 并联
+    const n_parallel = raw('n_parallel');  // 已校验为正整数
+    const n_backup = raw('n_backup');      // 已校验为非负整数
+    const n_work = Math.max(1, n_parallel - n_backup);
+    const Q_each = Q / n_work;
+
+    // 为了给每台泵算功率，按Lưu lượng mỗi bơm重算（扬程H在并联中基本不变）
+    const Pe_each = rho * g * (Q_each/3600) * H / 1000;
+    const Psh_each = eta_pump > 0 && eta_trans > 0 ? Pe_each / eta_pump / eta_trans : 0;
+    const Pm_each = K * Psh_each;
+    const P_in_each = eta_motor > 0 ? Psh_each / eta_motor : 0;  // 单泵实际输入电功率 kW
+    const Pm_each_std = pickStdMotor(Pm_each);
+
+    // 运行电费（按 n_work 台工作泵的实际输入电功率，而非铭牌功率）
+    const hours = num('hours');
+    const price = num('price');
+    const total_power = P_in_each * n_work;  // kW
+    const day_kwh = total_power * hours;
+    const year_cost = day_kwh * 365 * price / 10000;  // vạn 元
+    const unit_cost = Q > 0 ? (total_power * price) / Q : 0;  // 元/m³
+    const ekwh = Q > 0 ? total_power / Q : 0;  // kWh/m³
+
+    // NPSH 校核
+    const alt = num('altitude');
+    const Pa = Pa_by_alt(alt);
+    const Pv = Pv_by_T(T);
+    const Hs = num('Hs_geom');
+    const hf_s = num('hf_s');  // 吸水管总损失（沿程 + 局部）
+    const NPSHr = num('NPSHr');
+    const NPSH_safe = num('NPSH_safe');
+    // 计入吸水池液面表压 P1（开口水池 P1 = 0）
+    const NPSHa = (Pa + P1 - Pv) * 1000 / (rho * g) - Hs - hf_s;
+    const Hs_max = (Pa + P1 - Pv) * 1000 / (rho * g) - NPSHr - hf_s - NPSH_safe;
+    const NPSH_margin = NPSHa - NPSHr;
+
+    // 变频分析
+    // 假定泵曲线 H = r²·H0 − k·Q²（H0 = hệ số cột áp đóng van × H，k 由设计点求出），
+    // đường đặc tính hệ thống H = Hst + (H − Hst)·(Q/Q)²（Hst = Hg + Hp 静扬程，富余扬程计入动扬程，曲线过设计点），联立求交点
+    const speed_ratio = num('speed_ratio') / 100;
+    const H0 = num('H0_ratio') * H;
+    const Hst = Hg + Hp;
+    // (r²H0 − Hst) = (H0 − Hst)·(Q'/Q)²
+    const vfd_curve_ok = H > 0 && H0 - Hst > 0;    // 设计点、关死点需高于静扬程，否则假定曲线无意义
+    const vfd_num = speed_ratio * speed_ratio * H0 - Hst;
+    const vfd_below_static = vfd_curve_ok && vfd_num <= 0;  // r²·H0 ≤ Hst：泵无法出流
+    const x_vfd = vfd_curve_ok && vfd_num > 0 ? Math.sqrt(vfd_num / (H0 - Hst)) : NaN;  // Q'/Q
+    const Q_vfd = Q * x_vfd;
+    const H_vfd = Hst + (H - Hst) * x_vfd * x_vfd;
+    const P_vfd = rho * g * (Q_vfd/3600) * H_vfd / 1000 / eta_pump / eta_trans;  // công suất trục，η 取设计效率（近似）
+    const save = Psh > 0 ? (1 - P_vfd/Psh) * 100 : 0;
+
+    // 渲染结果
+    $('r_Hg').textContent = Hg.toFixed(2);
+    $('r_Hp').textContent = Hp.toFixed(2);
+    $('r_hw').textContent = hw.toFixed(2);
+    $('r_H').textContent = H.toFixed(2);
+    $('r_Pe').textContent = Pe.toFixed(2);
+    $('r_Psh').textContent = Psh.toFixed(2);
+    $('r_Pm').textContent = Pm.toFixed(2);
+    $('r_Pm_std').textContent = fmtMotor(Pm_std);
+
+    $('r_ekwh').textContent = ekwh.toFixed(3);
+    $('r_day_kwh').textContent = day_kwh.toFixed(0);
+    $('r_year_cost').textContent = year_cost.toFixed(2);
+    $('r_unit_cost').textContent = unit_cost.toFixed(3);
+
+    $('r_Pa').textContent = Pa.toFixed(2);
+    $('r_Pv').textContent = Pv.toFixed(2);
+    $('r_NPSHa').textContent = NPSHa.toFixed(2);
+    $('r_Hs_max').textContent = Hs_max.toFixed(2);
+
+    // NPSH 校核结果
+    const cbox = $('checkNPSH');
+    if (NPSH_margin >= NPSH_safe) {
+      cbox.className = 'check-box check-ok';
+      cbox.innerHTML = `✓ Đạt: NPSHa (${NPSHa.toFixed(2)} m) ≥ NPSHr (${NPSHr.toFixed(2)} m) + ${NPSH_safe.toFixed(1)} m dự phòng an toàn; mức dự phòng ${NPSH_margin.toFixed(2)} m`;
+    } else if (NPSH_margin >= 0) {
+      cbox.className = 'check-box check-warn';
+      cbox.innerHTML = `⚠ Dự phòng an toàn không đủ: NPSHa − NPSHr = ${NPSH_margin.toFixed(2)} m, nhỏ hơn mức yêu cầu ${NPSH_safe.toFixed(1)} m; nên giảm Hs hoặc chọn bơm có NPSHr thấp hơn`;
+    } else {
+      cbox.className = 'check-box check-bad';
+      cbox.innerHTML = `✗ Nguy cơ xâm thực: NPSHa (${NPSHa.toFixed(2)} m) &lt; NPSHr (${NPSHr.toFixed(2)} m), chắc chắn xảy ra xâm thực! Phải hạ vị trí bơm ≥ ${(NPSHr - NPSHa + NPSH_safe).toFixed(2)} m hoặc lắp đặt ngập hút`;
+    }
+
+    // 多台工作泵时，顶部功率按总流量计算，仅为单泵等效参考；实际单泵电机见Phân tích song song
+    const multiWork = n_work > 1;
+    $('pw_title').textContent = multiWork ? `Tính công suất (quy đổi một bơm theo tổng lưu lượng, chỉ tham khảo; xem từng bơm thực tế trong phân tích song song bên dưới)` : 'Tính công suất (một bơm)';
+    $('lbl_Pm').textContent = multiWork ? 'Pm quy đổi một bơm theo tổng lưu lượng (chỉ tham khảo)' : 'Công suất động cơ lắp đặt Pm (gồm hệ số K)';
+    $('lbl_Pm_std').textContent = multiWork ? 'Cỡ tiêu chuẩn quy đổi một bơm theo tổng lưu lượng (chỉ tham khảo)' : 'Công suất động cơ đề xuất (cỡ tiêu chuẩn)';
+
+    // 并联显示
+    const backup_overflow = n_backup > 0 && n_backup >= n_parallel;
+    if (n_parallel > 1 || backup_overflow) {
+      $('parallel_group').style.display = 'block';
+      $('r_n_work').textContent = `${n_work} (tổng ${n_parallel} bơm, gồm ${n_backup} bơm dự phòng)`;
+      $('r_Q_each').textContent = Q_each.toFixed(1);
+      $('r_Pm_each').textContent = `${Pm_each.toFixed(2)} → ${fmtMotor(Pm_each_std)} (tiêu chuẩn)`;
+      const pbox = $('checkParallel');
+      if (backup_overflow) {
+        pbox.style.display = 'block';
+        pbox.className = 'check-box check-warn';
+        pbox.textContent = `⚠ Số bơm dự phòng (${n_backup}) không nhỏ hơn số bơm lắp song song (${n_parallel}); đã tính với 1 bơm làm việc, hãy kiểm tra lại số lượng`;
+      } else {
+        pbox.style.display = 'none';
+      }
+    } else {
+      $('parallel_group').style.display = 'none';
+    }
+
+    // 变频显示
+    if (Math.abs(speed_ratio - 1) > 0.001) {
+      $('vfd_group').style.display = 'block';
+      const vbox = $('checkVFD');
+      if (!vfd_curve_ok || vfd_below_static) {
+        $('r_Q_vfd').textContent = vfd_below_static ? '— Không có dòng chảy' : '—';
+        $('r_H_vfd').textContent = '—';
+        $('r_P_vfd').textContent = '—';
+        $('r_save').textContent = '—';
+        vbox.style.display = 'block';
+        if (!vfd_curve_ok) {
+          vbox.className = 'check-box check-warn';
+          vbox.textContent = `⚠ Cột áp thiết kế hoặc cột áp đóng van H₀ (${H0.toFixed(2)} m) không cao hơn cột áp tĩnh Hst (${Hst.toFixed(2)} m); không tìm được giao điểm giữa đường bơm giả định và đường hệ thống, chưa ước tính biến tần`;
+        } else {
+          vbox.className = 'check-box check-bad';
+          vbox.textContent = `✗ Ở tỷ lệ điều tốc ${(speed_ratio*100).toFixed(0)}%, cột áp đóng van r²·H₀ = ${(speed_ratio*speed_ratio*H0).toFixed(2)} m ≤ cột áp tĩnh Hst = ${Hst.toFixed(2)} m; đường bơm và đường hệ thống không có giao điểm dương, bơm không thể tạo dòng chảy; tỷ lệ điều tốc tối thiểu khoảng ${(Math.sqrt(Math.max(Hst,0)/H0)*100).toFixed(0)}% (theo đường bơm giả định)`;
+        }
+      } else {
+        $('r_Q_vfd').textContent = Q_vfd.toFixed(1);
+        $('r_H_vfd').textContent = H_vfd.toFixed(2);
+        $('r_P_vfd').textContent = P_vfd.toFixed(2);
+        $('r_save').textContent = save.toFixed(1);
+        vbox.style.display = 'none';
+      }
+    } else {
+      $('vfd_group').style.display = 'none';
+    }
+
+    // Đề xuất lựa chọn
+    if (n_parallel > 1) {
+      $('r_suggest').textContent = `Mỗi bơm: Q = ${Q_each.toFixed(0)} m³/h, H = ${H.toFixed(1)} m, N = ${Pm_each_std} kW × ${n_parallel} bơm`;
+    } else {
+      $('r_suggest').textContent = `Q = ${Q.toFixed(0)} m³/h, H = ${H.toFixed(1)} m, N = ${Pm_std} kW`;
+    }
+    const type_names = {centrifugal:'bơm ly tâm đứng ISG', submerged:'bơm chìm nước thải WQ', axial:'bơm hướng trục ZLB', screw:'Bơm trục vít', dosing:'Bơm định lượng'};
+    $('r_suggest_desc').textContent = `Đề xuất lựa chọn: ${type_names[$('pump_type').value] || 'bơm ly tâm'}. Tra tài liệu nhà sản xuất và chọn bơm sao cho điểm làm việc nằm trong vùng hiệu suất cao (80-110% Q_opt).`;
+
+    // 系统扬程 ≤ 0（吸水液面高于出水液面等）：不输出负功率/负电费，不推荐电机
+    const hbox = $('checkHead');
+    if (H <= 0) {
+      ['r_Pe','r_Psh','r_Pm','r_Pm_std','r_ekwh','r_day_kwh','r_year_cost','r_unit_cost','r_Pm_each']
+        .forEach(id => { $(id).textContent = '—'; });
+      $('vfd_group').style.display = 'none';
+      hbox.style.display = 'block';
+      hbox.className = 'check-box check-warn';
+      hbox.textContent = '⚠ Cột áp hệ thống ≤ 0: có thể tự chảy, không cần bơm nâng (hoặc hãy kiểm tra cao độ mặt nước)';
+      $('r_suggest').textContent = `Q = ${Q.toFixed(0)} m³/h, H = ${H.toFixed(1)} m, N = —`;
+      $('r_suggest_desc').textContent = 'Cột áp hệ thống ≤ 0, có thể tự chảy và không cần lắp bơm; hãy kiểm tra cao độ mặt nước hút/xả và áp suất nhập vào.';
+    } else {
+      hbox.style.display = 'none';
+    }
+  }
+
+  function copyResults() {
+    const txt = `Kết quả tính chọn máy bơm
+————————————————
+Lưu lượng thiết kế Q = ${num('Q')} m³/h
+Cột áp hệ thống H = ${$('r_H').textContent} m
+Môi chất: ${$('fluid').options[$('fluid').selectedIndex].text}, ρ=${num('rho')} kg/m³, T=${num('T')}℃
+
+【Các thành phần cột áp】
+Cột áp hình học Hg = ${$('r_Hg').textContent} m
+Cột áp áp suất Hp = ${$('r_Hp').textContent} m
+Tổn thất cột áp hw = ${$('r_hw').textContent} m（ống hút ${num('hf_s')} + ống đẩy dọc đường ${num('hf_d')} + ống đẩy cục bộ ${num('hj')}）
+
+【Công suất${$('pw_title').textContent.replace('Tính công suất', '')}】
+Công suất hữu ích Pe = ${$('r_Pe').textContent} kW
+Công suất trục bơm Psh = ${$('r_Psh').textContent} kW
+${$('lbl_Pm').textContent} = ${$('r_Pm').textContent} kW → tiêu chuẩn ${$('r_Pm_std').textContent} kW
+
+【Điện năng】
+Điện năng mỗi tấn nước = ${$('r_ekwh').textContent} kWh/m³
+Điện năng mỗi ngày = ${$('r_day_kwh').textContent} kWh/d
+Chi phí điện hằng năm = ${$('r_year_cost').textContent} vạn nhân dân tệ
+Chi phí điện mỗi tấn nước = ${$('r_unit_cost').textContent} nhân dân tệ/m³${$('checkHead').style.display !== 'none' ? '\n' + $('checkHead').textContent : ''}
+
+【Kiểm tra NPSH】
+Pa = ${$('r_Pa').textContent} kPa, Pv = ${$('r_Pv').textContent} kPa
+NPSHa = ${$('r_NPSHa').textContent} m, NPSHr = ${num('NPSHr')} m
+Chiều cao hút cho phép lớn nhất = ${$('r_Hs_max').textContent} m
+${$('checkNPSH').textContent}
+${$('parallel_group').style.display !== 'none' ? `
+【Phân tích song song】
+Số bơm làm việc = ${$('r_n_work').textContent} bơm
+Lưu lượng mỗi bơm = ${$('r_Q_each').textContent} m³/h
+Công suất động cơ mỗi bơm = ${$('r_Pm_each').textContent} kW${$('checkParallel').style.display !== 'none' ? '\n' + $('checkParallel').textContent : ''}
+` : ''}${$('vfd_group').style.display !== 'none' ? `
+【Vận hành biến tần (tỷ lệ điều tốc ${num('speed_ratio')}%，hệ số cột áp đóng van ${num('H0_ratio')}，ước tính theo đường bơm bậc hai giả định, lấy đường đặc tính nhà sản xuất làm chuẩn)】
+Q' = ${$('r_Q_vfd').textContent} m³/h
+H' = ${$('r_H_vfd').textContent} m
+P' = ${$('r_P_vfd').textContent} kW
+Tỷ lệ tiết kiệm điện = ${$('r_save').textContent} %${$('checkVFD').style.display !== 'none' ? '\n' + $('checkVFD').textContent : ''}
+` : ''}
+【Đề xuất lựa chọn】
+${$('r_suggest').textContent}`;
+    navigator.clipboard.writeText(txt).then(() => {
+      alert('Đã sao chép kết quả vào bộ nhớ tạm');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() {
+    // 显式恢复 HTML 默认值（部分浏览器 reload 会保留表单输入）
+    document.querySelectorAll('input').forEach(el => { el.value = el.defaultValue; el.classList.remove('invalid'); });
+    document.querySelectorAll('select').forEach(el => {
+      [...el.options].forEach(o => { o.selected = o.defaultSelected; });
+    });
+    setEtaHint('');
+    calc();
+  }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+  $('eta_pump').addEventListener('input', () => setEtaHint('Hiệu suất bơm nhập thủ công; đổi môi chất hoặc loại bơm sẽ ghi đè giá trị này'));
+
+  calc();
+</script>
+
+</body>
+</html>

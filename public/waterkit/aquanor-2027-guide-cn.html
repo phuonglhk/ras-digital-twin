@@ -1,0 +1,809 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aqua Nor 2027: Hướng dẫn tham quan và mua sắm | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Aqua Nor 2027 diễn ra từ ngày 24–26 tháng 8 năm 2027 tại Trondheim, Na Uy. Hướng dẫn cho người mua Trung Quốc: đặt chỗ ở trước một năm, thị thực Schengen và EES, hẹn gặp trước kỳ nghỉ tháng 7, ước tính chi phí và danh sách chuẩn bị.">
+<meta name="keywords" content="Aqua Nor 2027,triển lãm thủy sản Na Uy,Trondheim,triển lãm nuôi trồng thủy sản,thị thực Schengen,chuyến công tác Na Uy,Nor-Fishing,WaterKit">
+<meta name="author" content="Công ty TNHH Tư vấn Công nghệ Dengdeng Hải Nam">
+<meta name="theme-color" content="#0891b2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bộ công cụ xử lý nước WaterKit">
+<meta property="og:locale" content="vi_VN">
+<meta property="og:title" content="Aqua Nor 2027: Hướng dẫn tham quan và mua sắm｜Trondheim, Na Uy">
+<meta property="og:description" content="Hướng dẫn cho người mua Trung Quốc: đặt chỗ ở trước một năm, thị thực Schengen và EES, hẹn gặp trước kỳ nghỉ tháng 7, ước tính chi phí và danh sách chuẩn bị.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Aqua Nor 2027: Hướng dẫn tham quan và mua sắm｜Trondheim, Na Uy">
+<meta name="twitter:description" content="Hướng dẫn cho người mua Trung Quốc: đặt chỗ ở trước một năm, thị thực Schengen và EES, hẹn gặp trước kỳ nghỉ tháng 7, ước tính chi phí và danh sách chuẩn bị.">
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"Event",
+  "name":"Aqua Nor 2027",
+  "startDate":"2027-08-24",
+  "endDate":"2027-08-26",
+  "eventStatus":"https://schema.org/EventScheduled",
+  "eventAttendanceMode":"https://schema.org/OfflineEventAttendanceMode",
+  "location":{
+    "@type":"Place",
+    "name":"Trondheim Spektrum",
+    "address":{"@type":"PostalAddress","addressLocality":"Trondheim","addressCountry":"NO"}
+  },
+  "organizer":{"@type":"Organization","name":"Nor-Fishing Foundation","url":"https://aquanor.no/"},
+  "description":"Triển lãm công nghệ nuôi trồng thủy sản lớn nhất thế giới, với khoảng 700 đơn vị trưng bày và 25.000 khách tham quan."
+}
+</script>
+
+<style>
+  :root {
+    --brand: #0891b2; --brand-dark: #0e7490; --brand-light: #e0f2fe;
+    --text: #0f172a; --text-muted: #64748b; --text-faint: #94a3b8;
+    --border: #e2e8f0; --bg: #f8fafc; --white: #ffffff;
+    --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --info: #2563eb;
+    --radius: 8px;
+    --ink: #0f172a; --bg-section: #f1f5f9;
+    --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+    --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.75; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+  a { color: var(--brand); text-decoration: none; }
+
+  /* ===== 统一顶部导航 ===== */
+  .topbar { background: rgba(255,255,255,0.92); border-bottom: 1px solid var(--border); position: relative; z-index: 101; }
+  .topbar-inner { max-width: 1280px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+  .brand-mark { width: 34px; height: 34px; background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%); border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 16px; letter-spacing: -1px; box-shadow: 0 2px 6px rgba(8,145,178,0.25); }
+  .brand-name { font-weight: 600; font-size: 16.5px; color: var(--ink); letter-spacing: -0.2px; line-height: 1.5; }
+  .brand-sub { font-size: 11px; color: var(--text-faint); margin-top: 1px; line-height: 1.5; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; align-items: center; }
+  .nav-links a { color: var(--text); text-decoration: none; transition: color 0.15s; font-weight: 500; }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before { content: "←"; margin-right: 4px; color: var(--brand); }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* ===== Hero（原 masthead） ===== */
+  .hero { background: linear-gradient(135deg, #0c4a6e 0%, #0e7490 60%, #0891b2 100%); color: #fff; padding: 36px 0 32px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  .masthead .meta { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; font-weight: 600; margin: 0 0 12px; display: inline-block; background: rgba(255,255,255,0.15); padding: 3px 12px; border-radius: 20px; }
+  .masthead h1 { font-size: clamp(24px, 4vw, 34px); line-height: 1.3; font-weight: 700; max-width: 22ch; }
+  .masthead h1 em { font-style: normal; display: block; font-size: .46em; letter-spacing: .02em; font-weight: 500; opacity: .8; margin-top: 8px; }
+  .masthead .standfirst { margin: 14px 0 0; max-width: 46em; font-size: 14.5px; line-height: 1.75; opacity: .9; }
+  .masthead .standfirst b { font-weight: 700; color: #fff; }
+  .readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 24px 0 0; }
+  .readout div { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22); border-radius: 10px; padding: 12px 16px; }
+  .readout dt { font-size: 12px; opacity: .78; margin: 0 0 2px; }
+  .readout dd { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.35; font-variant-numeric: tabular-nums; }
+  .readout dd small { font-size: 12px; font-weight: 400; opacity: .82; }
+
+  /* ===== 正文布局 ===== */
+  .page { flex: 1; }
+  .grid { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 36px; margin-top: 28px; padding-bottom: 60px; align-items: start; }
+  nav.toc { position: sticky; top: 16px; font-size: 13px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px 12px; }
+  nav.toc p { margin: 0 0 8px 6px; color: var(--text-muted); font-size: 12px; font-weight: 700; letter-spacing: .05em; }
+  nav.toc a { display: block; padding: 5px 8px; color: var(--text-muted); border-radius: 6px; line-height: 1.5; transition: background .15s, color .15s; }
+  nav.toc a:hover, nav.toc a:focus-visible { color: var(--brand); background: var(--bg); }
+  nav.toc a.on { color: var(--brand-dark); background: var(--brand-light); font-weight: 600; }
+  nav.toc a i { font-style: normal; color: var(--text-faint); margin-right: 6px; font-family: var(--mono); font-size: 11px; }
+  nav.toc a.on i { color: var(--brand); }
+
+  main section { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px 14px; margin: 0 0 18px; scroll-margin-top: 16px; }
+  main .head { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+  main .head span { flex: none; min-width: 30px; height: 26px; padding: 0 6px; background: var(--brand); color: #fff; border-radius: 13px; display: grid; place-items: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  main .head h2 { font-size: 19px; font-weight: 700; line-height: 1.4; color: var(--text); }
+  main h3 { font-size: 15.5px; margin: 24px 0 8px; font-weight: 700; color: var(--brand-dark); }
+  main h3:first-child { margin-top: 0; }
+  main p { margin: 0 0 12px; max-width: 48em; }
+  main ul { margin: 0 0 14px; list-style: none; max-width: 48em; }
+  main li { padding-left: 18px; position: relative; margin-bottom: 8px; }
+  main ul > li::before { content: ''; position: absolute; left: 4px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+  main ol { margin: 0 0 14px; counter-reset: n; list-style: none; max-width: 48em; }
+  main ol > li { padding-left: 32px; counter-increment: n; margin-bottom: 10px; }
+  main ol > li::before { content: counter(n); position: absolute; left: 0; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-light); color: var(--brand-dark); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+  main b, main strong { font-weight: 600; }
+  main a { color: var(--brand); word-break: break-all; }
+  main .en { font-family: var(--mono); font-size: .88em; color: var(--text-muted); }
+
+  main .note { background: #f0f9ff; border-left: 3px solid var(--brand); border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 0 0 14px; font-size: 13.5px; line-height: 1.75; color: var(--text-muted); max-width: 48em; }
+  main .note b { color: var(--text); }
+  main .note.warn { background: #fffbeb; border-left-color: var(--warn); color: #78350f; }
+  main .note.warn b { color: #b45309; }
+
+  main .panel { border: 1px solid #bae6fd; background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%); border-radius: 10px; padding: 14px 18px; margin: 0 0 16px; max-width: 48em; }
+  main .panel h4 { margin: 0 0 6px; font-size: 14px; color: var(--brand-dark); font-weight: 700; }
+  main .panel.warn { background: #fef2f2; border-color: #fecaca; }
+  main .panel.warn h4 { color: #b91c1c; }
+  main .panel p:last-child, main .panel ul:last-child, main .panel li:last-child { margin-bottom: 0; }
+
+  main table { border-collapse: separate; border-spacing: 0; width: 100%; max-width: 48em; margin: 0 0 16px; font-size: 13.5px; line-height: 1.65; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  main caption { text-align: left; font-size: 12px; font-weight: 600; color: var(--text-muted); padding-bottom: 6px; }
+  main th { text-align: left; font-size: 12px; color: var(--text-muted); font-weight: 600; padding: 9px 12px; background: var(--bg-section); border-bottom: 1px solid var(--border); }
+  main td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  main tbody tr:last-child td { border-bottom: 0; }
+  main .num { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; color: var(--brand-dark); }
+
+  /* timeline */
+  .tl { max-width: 48em; margin: 0 0 16px; position: relative; }
+  .tl-row { display: grid; grid-template-columns: 120px 1fr; gap: 18px; padding: 10px 0 10px; position: relative; }
+  .tl-row + .tl-row { border-top: 1px dashed var(--border); }
+  .tl-when { font-size: 13px; color: var(--brand-dark); font-weight: 700; line-height: 1.5; padding-top: 2px; }
+  .tl-when small { display: block; color: var(--text-faint); font-weight: 400; font-size: 11.5px; }
+  .tl-what { border-left: 3px solid var(--brand-light); padding-left: 14px; }
+  .tl-what b { display: block; margin-bottom: 2px; }
+  .tl-what span { font-size: 13.5px; color: var(--text-muted); }
+
+  /* calculator */
+  .calc { border: 1px solid var(--border); border-radius: 12px; background: var(--white); margin: 0 0 16px; max-width: 48em; overflow: hidden; }
+  .calc-in { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; padding: 16px 18px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .field input, .field select { border: 1.5px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 14px; font-family: var(--font); background: white; color: var(--text); width: 100%; transition: border-color 0.15s; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--brand); }
+  main .field .hint { font-size: 11.5px; color: var(--text-faint); margin: 2px 0 0; line-height: 1.55; }
+  .calc-out { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px 18px 12px; background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%); }
+  .calc-out div { background: rgba(255,255,255,0.75); border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; }
+  .calc-out dt { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+  .calc-out dd { margin: 0; font-size: 18px; font-weight: 700; color: var(--brand-dark); font-variant-numeric: tabular-nums; }
+  main .verdict { padding: 4px 18px 14px; font-size: 13px; color: var(--text-muted); background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%); margin: 0; max-width: none; }
+
+  /* checklist */
+  .check-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+  main .meter { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+  .meter b { color: var(--brand-dark); font-weight: 700; }
+  .bar { height: 6px; background: var(--bg-section); border-radius: 3px; margin-bottom: 16px; max-width: 48em; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--brand) 0%, var(--brand-dark) 100%); width: 0; border-radius: 3px; transition: width .25s ease; }
+  .checks { max-width: 48em; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+  .checks label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; line-height: 1.65; transition: background .15s; }
+  .checks label:last-child { border-bottom: 0; }
+  .checks label:hover { background: var(--bg); }
+  .checks input { appearance: none; -webkit-appearance: none; flex: none; width: 17px; height: 17px; margin: 3px 0 0; border: 1.5px solid #cbd5e1; border-radius: 4px; background: var(--white); cursor: pointer; position: relative; }
+  .checks input:checked { background: var(--brand); border-color: var(--brand); }
+  .checks input:checked::after { content: ''; position: absolute; left: 5px; top: 1px; width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(42deg); }
+  .checks input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .checks label:has(input:checked) span { color: var(--text-faint); text-decoration: line-through; }
+  .checks em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--brand-dark); background: var(--brand-light); border-radius: 10px; padding: 1px 8px; flex: none; margin-top: 2px; min-width: 60px; text-align: center; }
+  .reset { font-family: var(--font); font-size: 12.5px; font-weight: 600; color: var(--text-muted); background: var(--white); border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; transition: all .15s; }
+  .reset:hover { border-color: var(--brand); color: var(--brand); }
+
+  /* 正文说明（来源与时效） */
+  footer.guide-notes { background: var(--bg-section); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+  footer.guide-notes p { max-width: none; margin-bottom: 10px; }
+  footer.guide-notes b { color: var(--text); }
+  footer.guide-notes .stamp { font-size: 12px; color: var(--text-faint); margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border); }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; gap: 0; margin-top: 20px; }
+    nav.toc { display: none; }
+    .readout { grid-template-columns: 1fr 1fr; }
+    .calc-in { grid-template-columns: 1fr; }
+    .calc-out { grid-template-columns: 1fr; }
+    .tl-row { grid-template-columns: 1fr; gap: 4px; }
+    .checks em { display: none; }
+  }
+  @media (max-width: 600px) {
+    .wrap { padding: 0 16px; }
+    .hero { padding: 26px 0 24px; }
+    main section { padding: 18px 16px 8px; border-radius: 10px; }
+    main .head h2 { font-size: 17px; }
+    footer.guide-notes { padding: 16px; }
+    main table { font-size: 13px; }
+    main th, main td { padding: 8px 9px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ===== 统一页脚 ===== */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: auto;
+    line-height: 1.5;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(5, 1fr);
+    gap: 32px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 1080px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  @media (max-width: 720px) {
+    .site-footer { padding: 40px 20px 28px; }
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px 20px; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px;
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<div class="hero">
+<div class="wrap">
+
+<header class="masthead">
+  <p class="meta">TRONDHEIM · 2027.08.24–26 · TRONDHEIM SPEKTRUM</p>
+  <h1>Aqua Nor 2027: Hướng dẫn tham quan và mua sắm<em>Dành cho người mua và khách thương mại Trung Quốc</em></h1>
+  <p class="standfirst">Dành cho các đoàn Trung Quốc đến Na Uy tham quan triển lãm, tìm thiết bị và gặp nhà cung cấp. Hướng dẫn này làm rõ <b>những việc cần lên lịch ngược</b>: đặt chỗ ở trước một năm, nộp hồ sơ thị thực trước ba tháng và gửi lịch hẹn trước kỳ nghỉ tháng 7 của người Na Uy. Nếu sai thứ tự, bạn có thể không đến được hoặc không gặp được đối tác.</p>
+
+  <dl class="readout">
+    <div><dt>Thời gian triển lãm</dt><dd>08.24–26<small> Thứ Ba đến thứ Năm</small></dd></div>
+    <div><dt>Giờ mở cửa</dt><dd>10:00–17:00</dd></div>
+    <div><dt>Đơn vị trưng bày</dt><dd>Khoảng 700 <small>đơn vị</small></dd></div>
+    <div><dt>Còn đến ngày khai mạc</dt><dd id="cd">—</dd></div>
+  </dl>
+</header>
+
+</div>
+</div>
+
+<div class="page">
+<div class="wrap">
+
+<div class="grid">
+
+<nav class="toc" aria-label="Mục lục">
+  <p>Mục lục</p>
+  <a href="#s0"><i>00</i>Xem trước: Lập lịch ngược</a>
+  <a href="#s1"><i>01</i>Chỗ ở: Việc cần làm đầu tiên</a>
+  <a href="#s2"><i>02</i>Thị thực Schengen và EES</a>
+  <a href="#s3"><i>03</i>Vé máy bay và nối chuyến</a>
+  <a href="#s4"><i>04</i>Trước triển lãm: Đăng ký và hẹn gặp</a>
+  <a href="#s5"><i>05</i>Khi đến nơi: Thanh toán, liên lạc và thời tiết</a>
+  <a href="#s6"><i>06</i>Sử dụng ba ngày như thế nào</a>
+  <a href="#s7"><i>07</i>Làm việc với người Na Uy</a>
+  <a href="#s8"><i>08</i>Trao đổi với nhà cung cấp: Cần hỏi gì</a>
+  <a href="#s9"><i>09</i>Ước tính chi phí</a>
+  <a href="#s10"><i>10</i>Danh sách chuẩn bị trước chuyến đi</a>
+</nav>
+
+<main>
+
+<!-- 0 -->
+<section id="s0">
+  <div class="head"><span>00</span><h2>Xem trước: Lập lịch ngược</h2></div>
+  <p>Aqua Nor diễn ra hai năm một lần, là triển lãm công nghệ nuôi trồng thủy sản lớn nhất thế giới, thu hút khoảng 25.000 khách từ hơn 80 quốc gia. Sự kiện luân phiên với Nor-Fishing (triển lãm công nghệ thủy sản); cả hai do cùng một quỹ tổ chức tại Trondheim nhưng là hai triển lãm khác nhau: Nor-Fishing vào năm chẵn, Aqua Nor vào năm lẻ. Tháng 8 năm 2026 diễn ra Nor-Fishing; kỳ Aqua Nor tiếp theo là tháng 8 năm 2027.</p>
+  <p>Quá trình chuẩn bị <b>bị ràng buộc bởi một số mốc thời gian bên ngoài</b>, không thể tùy ý thực hiện bất cứ lúc nào. Hãy lên lịch ngược theo thứ tự sau:</p>
+
+  <div class="tl">
+    <div class="tl-row">
+      <div class="tl-when">Ngay bây giờ<small>Càng sớm càng tốt</small></div>
+      <div class="tl-what"><b>Đặt chỗ ở</b><span>Airbnb, Booking và Finn nhận đặt quanh năm. Hãy chọn chỗ được hủy miễn phí và đặt trước. Đây là khâu gấp nhất trong hướng dẫn.</span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-when">Tháng 1 năm 2027<small>Khoảng T-7 tháng</small></div>
+      <div class="tl-what"><b>Hệ thống đặt khách sạn chính thức mở cửa</b><span>Mở cho đơn vị trưng bày trước, rồi đến khách tham quan sau hai tuần. Ban tổ chức thông báo ngày cụ thể qua trang web và email; hãy đăng ký nhận tin trước.</span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-when">Tháng 5–6 năm 2027<small>T-3–2 tháng</small></div>
+      <div class="tl-what"><b>Nộp hồ sơ thị thực Schengen</b><span>Có thể nộp sớm nhất trước 6 tháng. Mùa cao điểm thiếu lịch hẹn và việc lấy lịch cũng mất thời gian; đừng đợi đến tháng 7.</span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-when">Tháng 6 năm 2027<small>T-2 tháng</small></div>
+      <div class="tl-what"><b>Gửi email hẹn gặp</b><span>Phải gửi trước kỳ nghỉ hè của người Na Uy. Email gửi vào tháng 7 gần như sẽ không được xử lý.</span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-when">Tháng 7 năm 2027<small>T-1 tháng</small></div>
+      <div class="tl-what"><b>Na Uy vào kỳ nghỉ hè</b><span>Đừng trông chờ phản hồi công việc trong tháng này. Hãy dùng thời gian để đặt vé máy bay, đăng ký và tìm hiểu trước.</span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-when">Đầu tháng 8<small>T-2 tuần</small></div>
+      <div class="tl-what"><b>Xác nhận cuộc hẹn + đăng ký trực tuyến</b><span>Tuần đầu sau khi người Na Uy trở lại từ kỳ nghỉ là thời điểm tốt nhất để xác nhận lại cuộc hẹn.</span></div>
+    </div>
+  </div>
+
+  <div class="note warn"><b>Không được đảo ngược thứ tự.</b> Hồ sơ thị thực cần xác nhận chỗ ở và thông tin vé khứ hồi, vì vậy phải đặt chỗ ở trước. Email hẹn gặp cần gửi trước tháng 7, nghĩa là phải tìm hiểu xong trong tháng 6. Một khâu chậm trễ có thể ảnh hưởng đến toàn bộ các bước sau.</div>
+</section>
+
+<!-- 1 -->
+<section id="s1">
+  <div class="head"><span>01</span><h2>Chỗ ở: Khâu gấp nhất của chuyến đi</h2></div>
+  <p>Trondheim có hơn 200.000 dân và khoảng 4,500–5,000 phòng khách sạn. Triển lãm đón khoảng 25.000 lượt khách trong ba ngày; nhiều người địa phương đi về trong ngày, nhưng khách từ nơi khác và nước ngoài cùng các đơn vị trưng bày vẫn vượt xa khả năng đáp ứng của khách sạn.</p>
+  <p><b>Không phải cả thành phố hết chỗ, mà các phòng khách sạn ở trung tâm sẽ nhanh chóng kín.</b> Số liệu của ban tổ chức cho thấy: trong triển lãm năm 2025 có khoảng 2,500 căn lưu trú cho thuê, tỷ lệ thuê 66%, khoảng một phần ba không được thuê. Nói cách khác, <b>vẫn có chỗ ở, chỉ là không nằm ở những nơi bạn thường nghĩ tới</b>.</p>
+
+  <table>
+    <caption>Giá thực tế tham khảo trong kỳ AQUA NOR năm 2025</caption>
+    <thead><tr><th style="width:34%">Loại</th><th style="width:30%">Giá trung bình (mỗi đêm)</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Khách sạn nội thành</td><td class="num">Khoảng NOK 3,692</td><td>Theo tỷ giá 0.70, tương đương khoảng 2,600 nhân dân tệ mỗi đêm. Đây là giá giao dịch trung bình thực tế trong kỳ triển lãm, không phải giá niêm yết.</td></tr>
+      <tr><td>Chỗ ở Airbnb</td><td class="num">Khoảng NOK 1,524</td><td>Chỉ bằng khoảng 40% giá khách sạn; đây là giá thuê nguyên căn, không phải giá mỗi người.</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>Các đoàn Trung Quốc nên ưu tiên chỗ ở cho thuê thay vì khách sạn.</b> Với đoàn ba hoặc bốn người, thuê nguyên căn hộ rẻ hơn đặt ba phòng khách sạn trên một nửa và còn có bếp. Tự nấu vài bữa ở Na Uy giúp tiết kiệm đáng kể.</p>
+
+  <h3>Gợi ý thực hiện</h3>
+  <ul>
+    <li><b>Đặt ngay chỗ ở được hủy miễn phí.</b> Airbnb, Booking và Finn <span class="en">(finn.no)</span> nhận đặt quanh năm. Hãy giữ chỗ trước, chi tiết có thể điều chỉnh sau.</li>
+    <li><b>So sánh giá lại khi hệ thống chính thức mở vào tháng 1 năm 2027.</b> Ban tổ chức có nhiều phòng theo thỏa thuận với khách sạn đối tác; kênh dành cho khách mở muộn hơn kênh dành cho đơn vị trưng bày hai tuần. Hãy thử cả hai và chọn phương án có lợi hơn.</li>
+    <li><b>Không nhất thiết phải ở trung tâm.</b> Byåsen, Lade và Ranheim thuận tiện đi xe buýt và có giá thấp hơn nhiều. Trondheim khá gọn, địa điểm triển lãm vốn cũng gần trung tâm.</li>
+    <li><b>Nếu thực sự không đặt được, hãy cân nhắc Stjørdal.</b> Đây là nơi có sân bay, cách địa điểm triển lãm khoảng 35 km, có tàu trực tiếp và thời gian đi lại khoảng 35 phút.</li>
+  </ul>
+
+  <div class="note">Khi đặt chỗ ở, hãy kiểm tra có cung cấp bộ đồ giường và khăn tắm, có thang máy và có tự nhận phòng hay không. Nhiều chủ nhà Na Uy không có mặt tại địa phương trong kỳ triển lãm và chỉ liên lạc qua tin nhắn.</div>
+</section>
+
+<!-- 2 -->
+<section id="s2">
+  <div class="head"><span>02</span><h2>Thị thực Schengen và EES</h2></div>
+  <p>Na Uy thuộc khối Schengen nhưng <b>không phải thành viên EU</b>. Điều này không ảnh hưởng đến thủ tục thị thực (vẫn xin thị thực Schengen), nhưng rất quan trọng khi mang mẫu hàng hoặc thiết bị vào nước này: Na Uy không thuộc liên minh hải quan EU, nên quy tắc thông quan khác hẳn khi tham gia triển lãm ở Đức hoặc Hà Lan. Khách tham quan thường không gặp vấn đề này, nhưng nếu mang mẫu máy hoặc thiết bị trình diễn, cần kiểm tra riêng.</p>
+
+  <h3>Quy trình: Trực tuyến trước, đến trung tâm sau</h3>
+  <p>Nhiều người tưởng chỉ cần đến trung tâm thị thực xếp hàng, nhưng thứ tự thực tế là:</p>
+  <ol>
+    <li>Điền đơn trên <b>hệ thống trực tuyến của Cục Di trú Na Uy</b> <span class="en">selfservice.udi.no</span>;</li>
+    <li>Nộp lệ phí thị thực trực tuyến, in đơn và biên lai;</li>
+    <li>Đặt lịch nộp tại <b>Trung tâm tiếp nhận hồ sơ thị thực Na Uy VFS Global</b>;</li>
+    <li>Trực tiếp đến nộp hồ sơ, lấy dấu vân tay cả mười ngón và chụp ảnh kỹ thuật số.</li>
+  </ol>
+  <p>Các trung tâm phục vụ theo khu vực cư trú; có trung tâm tại Bắc Kinh, Thượng Hải, Quảng Châu, Thẩm Dương, Tây An, Vũ Hán, Thành Đô, Trường Sa, Hàng Châu và các thành phố khác. Bạn phải đến trung tâm phụ trách nơi mình cư trú. Chọn loại <b>thị thực công tác</b>.</p>
+
+  <table>
+    <caption>Danh sách hồ sơ · Những mục dễ bị bỏ sót đã được đánh dấu</caption>
+    <thead><tr><th style="width:32%">Hồ sơ</th><th>Yêu cầu</th></tr></thead>
+    <tbody>
+      <tr><td><b>Bảo hiểm y tế du lịch</b></td><td><b>Mục dễ bỏ sót nhất và cũng dễ khiến hồ sơ bị từ chối.</b> Mức bảo hiểm tối thiểu <b>30.000 euro</b>, bao gồm cấp cứu y tế, vận chuyển y tế và hồi hương thi hài; có hiệu lực trong <b>toàn bộ thời gian lưu trú tại Schengen</b>. Hợp đồng bằng tiếng Anh, ghi tên phiên âm Latin của người nộp và phạm vi bảo hiểm là “Schengen” hoặc “toàn cầu”.</td></tr>
+      <tr><td>Hộ chiếu</td><td>Được cấp trong vòng 10 năm gần đây, còn hạn <b>trên 3 tháng</b> sau chuyến đi và có ít nhất <b>2 trang thị thực trống</b>.</td></tr>
+      <tr><td>Thư mời và giấy tờ chứng minh mục đích</td><td>Thư mời của đơn vị trưng bày, giấy xác nhận tham gia triển lãm do ban tổ chức cấp hoặc email xác nhận cuộc gặp với doanh nghiệp dự kiến làm việc.</td></tr>
+      <tr><td>Xác nhận chỗ ở</td><td>Đặt phòng khách sạn hoặc chỗ ở cho thuê bao phủ toàn bộ thời gian lưu trú tại Schengen.</td></tr>
+      <tr><td>Đặt chỗ vé máy bay khứ hồi</td><td>Chỉ cần xác nhận đặt chỗ; nên xuất vé và thanh toán sau khi được cấp thị thực.</td></tr>
+      <tr><td>Chứng minh tài chính</td><td>Sao kê ngân hàng 3–6 tháng gần nhất, với số dư đủ trang trải chuyến đi. Chi phí ở Na Uy cao, đừng chuẩn bị sát mức tối thiểu.</td></tr>
+      <tr><td>Giấy tờ việc làm và công ty</td><td>Bản sao giấy phép kinh doanh có đóng dấu công ty, giấy xác nhận việc làm và thư cử đi công tác bằng tiếng Anh do công ty cấp.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">Chi phí tham khảo: lệ phí thị thực Schengen <b>90 euro</b>/người (trẻ 6–12 tuổi: 45 euro); phí dịch vụ VFS từ ngày 1 tháng 3 năm 2026 là <b>6.5 euro, khoảng 53 nhân dân tệ</b>/người, không hoàn lại. Số tiền thực tế theo thông báo của trung tâm thị thực.</div>
+
+  <div class="panel warn">
+    <h4>Một sai lầm dễ dẫn đến từ chối: Nộp đơn sai quốc gia</h4>
+    <p>Hồ sơ thị thực Schengen phải nộp cho <b>quốc gia là điểm đến chính</b>. Nếu đến Na Uy tham quan triển lãm, dù nối chuyến ở Frankfurt hay Amsterdam, bạn vẫn phải xin thị thực <b>Na Uy</b>, không thể xin thị thực Đức chỉ vì dễ đặt lịch hơn. Nước lưu trú lâu nhất là điểm đến chính; quy định này được kiểm tra chặt chẽ.</p>
+  </div>
+
+  <h3>Canh thời gian như thế nào</h3>
+  <p>Có thể nộp sớm nhất trước sáu tháng. Thông thường, kết quả có trong vòng 15 ngày sau khi lãnh sự quán nhận hồ sơ; một số quốc tịch phải qua thủ tục tham vấn giữa các nước thành viên, mất khoảng 8 ngày. Nút thắt thực sự là <b>lịch hẹn</b>: từ tháng 5 đến tháng 8 là mùa du lịch cao điểm ở châu Âu và thường phải chờ vài tuần mới có lịch.</p>
+  <div class="note warn"><b>Nên bắt đầu đặt lịch từ giữa tháng 5 năm 2027 và hoàn tất nộp hồ sơ trong tháng 6.</b> Hãy dự phòng thời gian bổ sung giấy tờ và đặt lại lịch.</div>
+
+  <h3>EES: Quy trình nhập cảnh đã thay đổi</h3>
+  <p>Hệ thống xuất nhập cảnh của EU (EES) đã được triển khai tại 29 quốc gia châu Âu, trong đó có Na Uy. Những ảnh hưởng thực tế:</p>
+  <ul>
+    <li><b>Hộ chiếu không còn được đóng dấu</b>; thông tin xuất nhập cảnh được ghi điện tử.</li>
+    <li><b>Lần nhập cảnh đầu tiên cần thu thập ảnh khuôn mặt và dấu vân tay</b>. Việc đăng ký chậm hơn trước, vì vậy hãy dự phòng thêm thời gian xếp hàng tại cửa khẩu Schengen đầu tiên. Thông tin được lưu trong vài năm, giúp các lần nhập cảnh sau nhanh hơn; lần đầu là lâu nhất.</li>
+    <li>Số ngày lưu trú được <b>tính gộp trên tất cả các nước áp dụng EES</b>, tối đa 90 ngày trong mỗi 180 ngày. Nếu đến châu Âu nhiều lần trong năm, bạn cần tự theo dõi hạn mức này.</li>
+  </ul>
+  <div class="note">Nếu đã xin thị thực Schengen và lấy dấu vân tay trong 59 tháng qua, lần nộp này có thể không cần lấy lại, nhưng vẫn phải trực tiếp đến xác minh. Hãy làm theo thông báo đặt lịch của trung tâm thị thực.</div>
+  <div class="note">Một hệ thống khác là ETIAS bắt đầu triển khai từ cuối năm 2026, nhưng dành cho công dân <b>các nước được miễn thị thực</b> (Mỹ, Canada, Úc, Nhật Bản, v.v.). Công dân Trung Quốc cần thị thực nên không áp dụng ETIAS; đừng để bên trung gian gây nhầm lẫn và thu thêm tiền.</div>
+</section>
+
+<!-- 3 -->
+<section id="s3">
+  <div class="head"><span>03</span><h2>Vé máy bay và nối chuyến</h2></div>
+  <p>Sân bay Trondheim có mã <b>TRD</b> (Værnes, tại Stjørdal), <b>không có đường bay thẳng đến Trung Quốc</b>. Có hai cách đi:</p>
+  <ul>
+    <li><b>Nối chuyến nội địa tại Oslo (OSL)</b>, bay đến Trondheim khoảng 55 phút. Chuyến bay dày, đây là phương án ổn định nhất.</li>
+    <li><b>Nối chuyến qua các trung tâm hàng không châu Âu</b> (Helsinki, Amsterdam, Frankfurt, Copenhagen, Munich, Istanbul, Doha).</li>
+  </ul>
+
+  <div class="panel">
+    <h4>Điểm nối chuyến quyết định nơi làm thủ tục nhập cảnh</h4>
+    <p>Kiểm tra nhập cảnh Schengen diễn ra tại <b>cửa khẩu Schengen đầu tiên</b>, không phải Trondheim. Nếu nhập cảnh qua Helsinki, Frankfurt hoặc Amsterdam, bạn xếp hàng làm thủ tục EES và kiểm soát biên giới tại đó; nếu qua Istanbul hoặc Doha (ngoài Schengen), bạn làm thủ tục tại Oslo.</p>
+    <p>Vì vậy, <b>hãy dành ít nhất 2.5–3 giờ nối chuyến tại sân bay Schengen đầu tiên</b>. Sau khi EES được triển khai, hàng đợi tại các cửa khẩu này dài hơn rõ rệt; chỉ dành 90 phút như trước rất dễ bị lỡ chuyến tiếp theo.</p>
+  </div>
+
+  <div class="note">Các hãng hàng không Trung Quốc có thể bay qua không phận Nga, còn hãng châu Âu thì không; thời gian bay và giá vé trên cùng tuyến có thể khác biệt đáng kể. Hãy so sánh cả hai nhóm khi đặt vé.</div>
+
+  <h3>Từ sân bay vào trung tâm</h3>
+  <ul>
+    <li><b>Tàu hỏa</b>: Sân bay có ga Værnes, đi thẳng đến Trondheim S (ga trung tâm), mất khoảng 35 phút và thuận tiện nhất.</li>
+    <li><b>Xe buýt sân bay Flybussen</b>: Khoảng 40 phút đến trung tâm, dừng tại các khách sạn chính trên đường.</li>
+    <li>Taxi rất đắt, chỉ kinh tế khi ba hoặc bốn người chia tiền.</li>
+  </ul>
+</section>
+
+<!-- 4 -->
+<section id="s4">
+  <div class="head"><span>04</span><h2>Trước triển lãm: Đăng ký và hẹn gặp</h2></div>
+
+  <h3>Vé vào cửa và đăng ký trực tuyến</h3>
+  <p>Khách tham quan thường phải <b>mua vé</b>: vé kỳ 2023 giá <b>NOK 750</b>, mở bán ngày 21 tháng 2 năm đó trên <b>aquanor.no</b>; giá và thời điểm mở bán kỳ 2027 cần xem thông báo chính thức. Một cách khác là <b>nhận lời mời từ đơn vị trưng bày</b>: các kỳ trước, mỗi đơn vị có 50 suất mời miễn phí; bạn có thể nhờ doanh nghiệp dự định gặp gửi lời mời. Dù mua vé hay dùng lời mời, hãy <b>đăng ký trực tuyến trước</b> để nhận giấy vào cửa điện tử; xếp hàng đăng ký tại chỗ sẽ làm mất buổi sáng đầu tiên quý giá.</p>
+  <div class="note warn"><b>Vé vào cửa không thay thế hồ sơ thị thực.</b> Các kỳ trước, vé mở bán khoảng nửa năm trước triển lãm, nhưng vé hoặc giấy vào cửa điện tử chỉ chứng minh bạn được vào cửa; <b>đừng trông cậy vào đó làm giấy tờ xin thị thực</b>. Khi xin thị thực, hãy dùng thư mời của đơn vị trưng bày, giấy xác nhận tham gia do ban tổ chức cấp hoặc email xác nhận cuộc gặp với doanh nghiệp dự kiến làm việc. Hai việc này độc lập với nhau.</div>
+
+  <h3>Hẹn gặp: Phần thực sự quyết định thành công</h3>
+  <p>700 đơn vị trưng bày, ba ngày, mỗi ngày bảy giờ, tổng cộng khoảng 21 giờ. Nếu chỉ đến nơi rồi vừa xem vừa trò chuyện, bạn sẽ lướt qua tất cả và mang về một đống tài liệu quảng cáo. <b>Những cuộc gặp thực sự có giá trị phải được hẹn trước.</b></p>
+  <ol>
+    <li><b>Tìm hiểu trong tháng 5.</b> Trang chính thức có danh sách đơn vị trưng bày các kỳ trước; danh sách năm 2027 sẽ được công bố gần ngày triển lãm. Chọn lọc 15–25 đơn vị mục tiêu theo nhóm hàng cần mua, đừng chọn quá nhiều.</li>
+    <li><b>Gửi email đầu tiên trong tháng 6.</b> Nêu rõ bạn là ai, công ty làm gì, muốn trao đổi về sản phẩm cụ thể nào và muốn gặp vào ngày giờ nào. Người Na Uy trả lời trực tiếp: có thể gặp hay không đều nói rõ.</li>
+    <li><b>Đừng gửi vào tháng 7.</b> Na Uy đang nghỉ hè; email có thể nằm trong hộp thư không ai đọc và bạn lại tưởng đối tác không quan tâm.</li>
+    <li><b>Xác nhận lại vào đầu tháng 8.</b> Tuần đầu đối tác trở lại sau kỳ nghỉ là thời điểm tốt nhất để chốt giờ cụ thể.</li>
+    <li><b>Xếp tối đa 5–6 cuộc gặp mỗi ngày</b>, dành 45 phút cho mỗi cuộc cùng thời gian di chuyển. Lịch quá kín sẽ khiến cuộc nào cũng không thể trao đổi sâu.</li>
+  </ol>
+
+  <div class="note">Đính kèm hồ sơ giới thiệu công ty một trang (tiếng Anh, PDF), nêu quy mô, thiết bị hiện có và khối lượng dự kiến mua. Nhà cung cấp Na Uy rất coi trọng việc đối tác có thực sự nghiêm túc mua hàng hay không; một trang có số liệu hữu ích hơn mười trang quảng cáo.</div>
+</section>
+
+<!-- 5 -->
+<section id="s5">
+  <div class="head"><span>05</span><h2>Khi đến nơi: Thanh toán, liên lạc và thời tiết</h2></div>
+
+  <h3>Thói quen thanh toán rất khác</h3>
+  <p>Na Uy là một trong những quốc gia gần với xã hội không tiền mặt nhất, nhưng <b>Alipay và WeChat Pay hầu như không dùng được ở đây</b>. Điều này khác thói quen trong nước và là khó khăn thường gặp của các đoàn Trung Quốc khi đến nơi.</p>
+  <ul>
+    <li><b>Phải mang thẻ Visa hoặc Mastercard dùng được ở nước ngoài</b>; trước khi đi, xác nhận với ngân hàng phát hành rằng giao dịch quốc tế đã được kích hoạt.</li>
+    <li>Thẻ UnionPay được chấp nhận ở ít nơi, không nên dùng làm phương thức chính.</li>
+    <li><b>Có thể dùng tiền mặt nhưng không cần mang nhiều.</b> Từ tháng 10 năm 2024, luật Na Uy yêu cầu cửa hàng thực tế có nhân viên phải chấp nhận thanh toán tiền mặt đến 20.000 kroner; từ chối có thể bị phạt. Tuy nhiên, thực tế gần như ai cũng dùng thẻ; đổi vài trăm kroner để dự phòng là đủ.</li>
+    <li>Vipps người địa phương sử dụng cần tài khoản ngân hàng Na Uy; bạn không thể đăng ký nên không cần cân nhắc.</li>
+  </ul>
+
+  <h3>Liên lạc</h3>
+  <p>Na Uy không hạn chế mạng; WeChat, ứng dụng Alipay, Google và các trang web trong và ngoài Trung Quốc đều dùng bình thường, giúp liên lạc với gia đình dễ dàng. Bạn có thể bật chuyển vùng quốc tế với nhà mạng trong nước hoặc mua eSIM châu Âu. Na Uy không thuộc EU nhưng thuộc Khu vực Kinh tế châu Âu; khi mua gói dữ liệu châu Âu, hãy xác nhận gói <b>có bao gồm Na Uy</b>, vì một số gói EU giá rẻ loại trừ nước này.</p>
+
+  <h3>Thời tiết và trang phục</h3>
+  <p>Cuối tháng 8, Trondheim có nhiệt độ khoảng 11–18°C, thường có mây mưa và gió khá mạnh. Hãy mang áo khoác chống gió, chống nước và áo len mỏng; đừng chỉ chuẩn bị theo ý nghĩ về “mùa hè châu Âu”. Bên trong khu triển lãm ấm, mặc nhiều lớp để dễ cởi hoặc thêm là phù hợp nhất.</p>
+
+  <h3>Ăn uống và đồ có cồn</h3>
+  <ul>
+    <li>Giá cả ở Na Uy rất cao. Một bữa chính tại nhà hàng thường tốn NOK 400–600 mỗi người; bữa trưa đơn giản khoảng NOK 200.</li>
+    <li><b>Bia, rượu vang và rượu mạnh chỉ có thể mua tại cửa hàng độc quyền nhà nước Vinmonopolet</b>; siêu thị chỉ bán bia độ cồn thấp. Cửa hàng này đóng cửa Chủ nhật và đóng sớm vào thứ Bảy.</li>
+    <li>Có nhà hàng Trung Quốc nhưng lựa chọn hạn chế. Chỗ ở cho thuê có thể tự nấu ăn tạo khác biệt lớn cho đoàn ở dài ngày.</li>
+    <li><b>Không cần tiền boa.</b> Na Uy không có văn hóa tiền boa, phí phục vụ đã bao gồm trong giá.</li>
+  </ul>
+</section>
+
+<!-- 6 -->
+<section id="s6">
+  <div class="head"><span>06</span><h2>Sử dụng ba ngày như thế nào</h2></div>
+  <p>Triển lãm không chỉ diễn ra trong nhà. Ba nội dung có giá trị thực sự với người mua nằm ở những địa điểm khác nhau:</p>
+
+  <table>
+    <caption>Ba khu vực với mức độ ưu tiên khác nhau</caption>
+    <thead><tr><th style="width:30%">Khu vực</th><th>Giá trị đối với người mua</th></tr></thead>
+    <tbody>
+      <tr><td><b>Trondheim Spektrum</b><br><span class="en">Khu triển lãm chính</span></td><td>Gian hàng của 700 đơn vị trưng bày: thiết bị, thức ăn, sức khỏe cá, cảm biến và giám sát, chế biến và đóng gói. Hầu hết các cuộc hẹn diễn ra tại đây.</td></tr>
+      <tr><td><b>Khu cảng Skansen</b><br><span class="en">Khu trưng bày trên mặt nước</span></td><td>Trưng bày tàu thực tế và tàu công tác, mở rộng lên khoảng 20.000 mét vuông vào năm 2027. <b>Người mua thiết bị thường thu được nhiều nhất ở đây</b>: có thể lên tàu xem thiết bị thực tế, hữu ích hơn nhiều so với mô hình tại gian hàng.</td></tr>
+      <tr><td><b>Hội thảo và diễn đàn</b><br><span class="en">Seminars</span></td><td>Nơi thảo luận về xu hướng quản lý ngành và hướng phát triển công nghệ. Không cần hiểu hết mọi nội dung; chỉ cần nắm được xu hướng ngành đã đáng giá. Xem trang Seminars trên website chính thức để biết lịch trình và có cần đăng ký riêng hay không.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="panel">
+    <h4>Nếu có cơ hội, đừng bỏ lỡ chuyến tham quan vịnh hẹp</h4>
+    <p>Trong thời gian triển lãm có chuyến tàu tham quan cơ sở nuôi thực tế tại vịnh hẹp Trondheim. Với người mua Trung Quốc, <b>một lần xem hiện trường vận hành tại Na Uy có giá trị hơn mười cuộc trò chuyện tại gian hàng</b>: cách phối hợp thiết bị, thao tác của nhân viên và bố trí lối bảo trì là những điều khó tìm hiểu tại gian hàng. Số chỗ có hạn; hãy xin lời mời từ đơn vị trưng bày hoặc đăng ký trước.</p>
+  </div>
+
+  <h3>Gợi ý phân bổ thời gian</h3>
+  <ul>
+    <li><b>Ngày đầu:</b> Xếp nhiều cuộc gặp nhất khi mọi người còn sung sức; bố trí các cuộc đàm phán quan trọng vào buổi sáng.</li>
+    <li><b>Ngày thứ hai:</b> Tiếp tục gặp đối tác buổi sáng, buổi chiều đến Skansen xem tàu và thiết bị thực tế.</li>
+    <li><b>Ngày thứ ba:</b> Hoàn tất công việc, bổ sung những phần còn thiếu và gặp lại đối tác. Triển lãm bế mạc lúc 17:00 thứ Năm, nhưng buổi chiều khách đã thưa rõ rệt và nhân viên bắt đầu chuẩn bị tháo dỡ; đừng xếp cuộc gặp quan trọng vào thời gian này.</li>
+  </ul>
+</section>
+
+<!-- 7 -->
+<section id="s7">
+  <div class="head"><span>07</span><h2>Làm việc với người Na Uy</h2></div>
+  <p>Văn hóa kinh doanh Na Uy khác Trung Quốc ở nhiều điểm dễ bị hiểu sai. Những điều sau rất quan trọng trong thực tế.</p>
+
+  <table>
+    <caption>Thói quen Trung Quốc → Thực tế ở Na Uy</caption>
+    <thead><tr><th style="width:38%">Bạn kỳ vọng</th><th>Thực tế</th></tr></thead>
+    <tbody>
+      <tr><td>Đến muộn mười phút không sao</td><td><b>Đúng giờ đến từng phút.</b> Hẹn 14:00 nghĩa là 14:00; đến muộn mười phút là bất lịch sự và còn chiếm thời gian của khách hàng tiếp theo.</td></tr>
+      <tr><td>Gọi theo chức vụ và trao danh thiếp trước</td><td><b>Gọi trực tiếp bằng tên</b>, không dùng chức vụ. Danh thiếp ít được dùng, nhiều người không mang; trao đổi LinkedIn phổ biến hơn. Người mặc quần jeans có thể là tổng giám đốc.</td></tr>
+      <tr><td>Buổi tối tổ chức tiệc và nâng ly</td><td><b>Không có văn hóa tiệc tùng và mời rượu.</b> Bữa trưa công việc có thể chỉ là một chiếc sandwich và kết thúc trong nửa giờ. Buổi tối họ về với gia đình.</td></tr>
+      <tr><td>Tặng quà đắt tiền để thể hiện thành ý</td><td><b>Điều này có thể gây khó xử.</b> Doanh nghiệp Na Uy tuân thủ quy định chống tham nhũng nghiêm ngặt; nhận quà đắt tiền có thể vi phạm quy định công ty. Một món nhỏ mang nét Trung Quốc như trà hoặc đồ thủ công là đủ; giá trị càng thấp càng an toàn.</td></tr>
+      <tr><td>Trao đổi thuận lợi là có thể chốt ngay</td><td><b>Người Na Uy không cam kết ngay tại chỗ.</b> Quyết định được thảo luận tập thể; họ sẽ về họp, tính toán rồi trả lời. Không bày tỏ ngay không có nghĩa là không quan tâm.</td></tr>
+      <tr><td>Đối tác lịch sự = có quan tâm</td><td>Thực tế ngược lại. Người Na Uy nói thẳng: <b>quan tâm thì nói rõ, không quan tâm sẽ nói trực tiếp là không phù hợp</b>. Lịch sự tự nó không nói lên điều gì.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note warn"><b>Đừng quảng cáo quá mức.</b> Người Na Uy ít chấp nhận những lời tiếp thị; các cụm như “hàng đầu thế giới” hay “số một ngành” sẽ làm giảm độ tin cậy. <b>Hãy trình bày số liệu, thông số và các dự án thực tế</b> một cách chừng mực, chính xác và có thể kiểm chứng.</div>
+
+  <h3>Theo dõi sau cuộc gặp</h3>
+  <p>Email là kênh chính thức. Trong vòng 24 giờ sau cuộc gặp, hãy gửi tóm tắt ngắn: nội dung đã trao đổi, thông tin cần đối tác cung cấp, người phụ trách bước tiếp theo và thời hạn. Người Na Uy trả lời email nghiêm túc. Đừng trông đợi theo dõi qua WeChat, vì họ hầu như không dùng.</p>
+</section>
+
+<!-- 8 -->
+<section id="s8">
+  <div class="head"><span>08</span><h2>Trao đổi với nhà cung cấp: Cần hỏi gì</h2></div>
+  <p>Thời gian tại gian hàng có hạn; đặt đúng câu hỏi quan trọng hơn nghe hết bài giới thiệu. Những câu sau giúp nhanh chóng đánh giá có nên tiếp tục làm việc với nhà cung cấp hay không.</p>
+
+  <ol>
+    <li><b>“Các ông có đại lý hoặc đối tác tại Trung Quốc không?”</b><br>Đây là câu nên hỏi trước tiên. Nhiều doanh nghiệp Na Uy đã có đại lý độc quyền tại Trung Quốc; nếu có, bạn phải làm việc qua đại lý. Trao đổi trực tiếp có thể gây khó xử và người tại gian hàng cũng không quyết định giá. Hỏi rõ trước sẽ tránh mất công về sau.</li>
+    <li><b>“Phụ tùng được gửi từ đâu và thời gian giao bao lâu?”</b><br>Nếu thiết bị hỏng mà phải chờ phụ tùng ba tháng, công nghệ tốt đến đâu cũng vô ích. Hãy hỏi nơi lưu kho, thời gian giao phụ tùng thông dụng và có kho tại Trung Quốc hay không.</li>
+    <li><b>“Các ông có dự án tương tự tại Trung Quốc hoặc châu Á không?”</b><br>Điều kiện nuôi tại Na Uy (nhiệt độ thấp, nước sâu, sóng lớn) khác nhiều vùng biển Trung Quốc. Thiết bị hoạt động tốt ở Na Uy chưa chắc phù hợp với nơi bạn sử dụng. Nhà cung cấp có dự án tại châu Á giúp giảm rủi ro đáng kể.</li>
+    <li><b>“Số lượng đặt hàng tối thiểu là bao nhiêu?”</b><br>Nhà cung cấp Na Uy thường có quy mô không lớn; một số không nhận đơn nhỏ hoặc không muốn điều chỉnh sản phẩm cho khách hàng nhỏ. Hỏi sớm để tránh đến cuối mới phát hiện yêu cầu không phù hợp.</li>
+    <li><b>“Cần những chứng nhận nào và ai chịu trách nhiệm?”</b><br>Cần làm rõ ai chịu trách nhiệm chứng nhận và kiểm định khi đưa thiết bị vào Trung Quốc, và chi phí đã bao gồm trong báo giá hay chưa; nếu không dễ phát sinh tranh chấp khi ký hợp đồng.</li>
+    <li><b>“Việc lắp đặt, chạy thử và đào tạo được bố trí như thế nào?”</b><br>Chi phí đi lại và nhân công của kỹ sư Na Uy tại Trung Quốc rất cao. Khi thương lượng giá, phải tách riêng khoản này để tính, không gộp chung một cách mơ hồ.</li>
+  </ol>
+
+  <div class="note">Nhà cung cấp Na Uy thường có giá cao và thời gian giao hàng dài, nhưng chất lượng và dịch vụ hậu mãi đáng tin cậy. Nếu mục tiêu là giá thấp nhất, triển lãm này có thể không phù hợp; nếu cần thiết bị dùng được mười năm và hỗ trợ kỹ thuật có thể truy xuất, đây là nơi thích hợp.</div>
+</section>
+
+<!-- 9 -->
+<section id="s9">
+  <div class="head"><span>09</span><h2>Ước tính chi phí</h2></div>
+  <p>Giá cả Na Uy có thể gây bất ngờ lớn cho người đến lần đầu. Hãy tính rõ ngân sách trước khi quyết định số người và số ngày lưu trú.</p>
+
+  <div class="calc">
+    <div class="calc-in">
+      <div class="field">
+        <label>Số người</label>
+        <input id="pax" type="number" value="3" min="1" step="1" inputmode="numeric">
+        <p class="hint">Tổng số người đi cùng.</p>
+      </div>
+      <div class="field">
+        <label>Số đêm lưu trú</label>
+        <input id="nights" type="number" value="5" min="1" step="1" inputmode="numeric">
+        <p class="hint">Triển lãm kéo dài ba ngày; nên dành thêm một ngày trước và một ngày sau.</p>
+      </div>
+      <div class="field">
+        <label>Loại chỗ ở</label>
+        <select id="lodge">
+          <option value="airbnb">Thuê nguyên căn (khoảng NOK 1,600/đêm/căn)</option>
+          <option value="hotel">Khách sạn nội thành (khoảng NOK 3,700/đêm/phòng)</option>
+        </select>
+        <p class="hint">Tính mỗi người một phòng khách sạn hoặc mỗi 3 người một căn thuê. Giá trung bình năm 2025 là NOK 1,524 cho căn thuê và NOK 3,692 cho khách sạn; số liệu ở đây đã tăng nhẹ.</p>
+      </div>
+      <div class="field">
+        <label>Vé máy bay mỗi người (nhân dân tệ)</label>
+        <input id="air" type="number" value="9000" min="0" step="500" inputmode="numeric">
+        <p class="hint">Ước tính sơ bộ vé khứ hồi từ Trung Quốc đến Trondheim, bao gồm nối chuyến.</p>
+      </div>
+      <div class="field">
+        <label>Ăn uống và đi lại mỗi người mỗi ngày (NOK)</label>
+        <input id="daily" type="number" value="800" min="0" step="50" inputmode="numeric">
+        <p class="hint">Mức công tác thông thường tại Na Uy; tự nấu ăn có thể giảm xuống 500.</p>
+      </div>
+      <div class="field">
+        <label>Vé vào cửa mỗi người (NOK)</label>
+        <input id="ticket" type="number" value="750" min="0" step="50" inputmode="numeric">
+        <p class="hint">Vé khách tham quan năm 2023 là NOK 750; giá năm 2027 theo thông báo chính thức. Nhập 0 nếu được đơn vị trưng bày mời miễn phí.</p>
+      </div>
+      <div class="field">
+        <label>Tỷ giá: 1 NOK = ? nhân dân tệ</label>
+        <input id="fx" type="number" value="0.70" min="0" step="0.01" inputmode="decimal">
+        <p class="hint">Giá trị mặc định ước tính; hãy kiểm tra tỷ giá trong ngày trước chuyến đi.</p>
+      </div>
+    </div>
+    <dl class="calc-out">
+      <div><dt>Chi phí tại Na Uy</dt><dd id="o-nok">—</dd></div>
+      <div><dt>Tổng cộng (nhân dân tệ)</dt><dd id="o-cny">—</dd></div>
+      <div><dt>Bình quân mỗi người (nhân dân tệ)</dt><dd id="o-per">—</dd></div>
+    </dl>
+    <p class="verdict" id="o-note">—</p>
+  </div>
+
+  <div class="note">Chưa bao gồm lệ phí thị thực và phí dịch vụ (khoảng 96.5 euro/người), bảo hiểm y tế du lịch, vận chuyển mẫu hàng và tiếp đãi sau triển lãm. Chỗ ở là khoản dễ làm vượt ngân sách nhất, vì vậy nên thử tính nhiều phương án.</div>
+</section>
+
+<!-- 10 -->
+<section id="s10">
+  <div class="head"><span>10</span><h2>Danh sách chuẩn bị trước chuyến đi</h2></div>
+  <div class="check-head">
+    <p class="meter" id="meter">0 / 15 đã hoàn thành</p>
+    <button class="reset" id="reset" type="button">Xóa tất cả</button>
+  </div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="checks" id="checks">
+    <label><em>T-12 tháng</em><input type="checkbox"><span>Đã đặt chỗ ở được hủy miễn phí (căn thuê hoặc khách sạn)</span></label>
+    <label><em>T-12 tháng</em><input type="checkbox"><span>Đã đăng ký nhận bản tin chính thức của aquanor.no để chờ thông báo mở hệ thống đặt khách sạn</span></label>
+    <label><em>T-3 tháng</em><input type="checkbox"><span>Đã chọn danh sách đơn vị trưng bày mục tiêu (15–25 đơn vị)</span></label>
+    <label><em>T-3 tháng</em><input type="checkbox"><span>Đã xin thị thực Schengen trực tuyến tại selfservice.udi.no và đặt lịch nộp hồ sơ (Na Uy, không phải nước nối chuyến)</span></label>
+    <label><em>T-3 tháng</em><input type="checkbox"><span>Đã mua bảo hiểm y tế du lịch (mức bảo hiểm ≥30.000 euro, bao phủ toàn chuyến đi, hợp đồng tiếng Anh)</span></label>
+    <label><em>T-3 tháng</em><input type="checkbox"><span>Hộ chiếu được cấp không quá 10 năm, còn hạn trên 3 tháng sau chuyến đi và có ít nhất 2 trang thị thực trống</span></label>
+    <label><em>T-2 tháng</em><input type="checkbox"><span>Đã gửi email hẹn gặp trong tháng 6 (tránh kỳ nghỉ tháng 7 ở Na Uy)</span></label>
+    <label><em>T-2 tháng</em><input type="checkbox"><span>Đã chuẩn bị hồ sơ giới thiệu công ty một trang bằng tiếng Anh (PDF)</span></label>
+    <label><em>T-2 tháng</em><input type="checkbox"><span>Đã đặt vé máy bay và dành đủ 2.5–3 giờ tại điểm nối chuyến Schengen đầu tiên</span></label>
+    <label><em>T-1 tháng</em><input type="checkbox"><span>Đã kích hoạt giao dịch quốc tế cho Visa/Mastercard và thông báo lịch trình cho ngân hàng phát hành</span></label>
+    <label><em>T-2 tuần</em><input type="checkbox"><span>Đã mua vé hoặc đăng ký lời mời của đơn vị trưng bày và lưu giấy vào cửa điện tử</span></label>
+    <label><em>T-2 tuần</em><input type="checkbox"><span>Đã xác nhận lại các cuộc hẹn (sau khi đối tác trở lại từ kỳ nghỉ)</span></label>
+    <label><em>T-2 tuần</em><input type="checkbox"><span>Đã xác nhận chuyển vùng quốc tế hoặc eSIM châu Âu có vùng phủ tại Na Uy</span></label>
+    <label><em>T-1 tuần</em><input type="checkbox"><span>Đã chuẩn bị áo khoác chống gió, chống nước và đầu chuyển ổ cắm (Na Uy 230V/50Hz, ổ cắm chân tròn loại C và F)</span></label>
+    <label><em>T-1 tuần</em><input type="checkbox"><span>Đã chuẩn bị quà nhỏ (giá trị thấp để tránh gây vấn đề tuân thủ cho đối tác)</span></label>
+  </div>
+</section>
+
+<footer class="guide-notes">
+  <p><b>Nguồn thông tin và thời điểm áp dụng.</b> Thời gian, địa điểm và quy mô triển lãm lấy từ trang chính thức Aqua Nor; sức chứa chỗ ở và giá trung bình thực tế năm 2025 lấy từ phần câu hỏi thường gặp về lưu trú do ban tổ chức công bố; thông tin thị thực và EES lấy từ trung tâm tiếp nhận hồ sơ thị thực Na Uy và thông báo về hệ thống xuất nhập cảnh EU. Tất cả phản ánh tình hình tháng 9 năm 2026.</p>
+  <p><b>Những thông tin cần tự kiểm tra.</b> Ngày mở hệ thống đặt khách sạn chính thức năm 2027, giá và thời điểm bán vé khách tham quan, danh sách đơn vị trưng bày và cách đăng ký tham quan vịnh hẹp sẽ được công bố gần ngày triển lãm; hãy theo dõi thông báo trên aquanor.no. Thời gian xử lý và lịch hẹn thị thực thay đổi nhiều theo mùa, vì vậy phải dự phòng đủ thời gian.</p>
+  <p><b>Trường hợp khẩn cấp.</b> Trung Quốc có đại sứ quán tại Oslo, nhưng không có cơ quan lãnh sự tại Trondheim. Khi mất hộ chiếu, bị bệnh đột ngột hoặc gặp tai nạn, trước tiên hãy liên hệ đường dây hỗ trợ của công ty bảo hiểm, đồng thời tra cứu số trực bảo hộ lãnh sự trên trang đại sứ quán. Trước khi đi, hãy lưu ảnh chụp ngoại tuyến số hợp đồng bảo hiểm, số cứu trợ và thông tin liên hệ đại sứ quán.</p>
+  <p><b>Ngoài phạm vi hướng dẫn.</b> Các việc dành cho đơn vị trưng bày (đặt gian hàng, vận chuyển và thông quan hàng trưng bày, dựng gian hàng) không thuộc phạm vi này. Nếu bạn đi dựng gian hàng thay vì tham quan, bạn cần một danh sách chuẩn bị hoàn toàn khác.</p>
+  <p>Nội dung độc lập, không nhận tài trợ từ đơn vị trưng bày hoặc nhà cung cấp và không giới thiệu sản phẩm.</p>
+  <p class="stamp">Cập nhật lần cuối tháng 9 năm 2026 · Trạng thái đánh dấu chỉ được lưu trên thiết bị này</p>
+</footer>
+
+</main>
+</div>
+
+</div>
+</div>
+
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---- 倒计时 ---- */
+  var target=new Date(2027,7,24);
+  var cd=document.getElementById('cd');
+  var days=Math.ceil((target-new Date())/86400000);
+  cd.innerHTML = days>0
+    ? days+' <small>ngày</small>'
+    : (days===0 ? 'Hôm nay <small>khai mạc</small>' : 'Đã kết thúc');
+
+  /* ---- 费用估算 ---- */
+  var ids=['pax','nights','lodge','air','daily','ticket','fx'],el={};
+  ids.forEach(function(i){el[i]=document.getElementById(i);});
+  var oNok=document.getElementById('o-nok'),oCny=document.getElementById('o-cny'),
+      oPer=document.getElementById('o-per'),oNote=document.getElementById('o-note');
+
+  function fmt(n){return Math.round(n).toLocaleString('en-US');}
+
+  function calc(){
+    var pax=parseFloat(el.pax.value),nights=parseFloat(el.nights.value),
+        air=parseFloat(el.air.value),daily=parseFloat(el.daily.value),
+        ticket=parseFloat(el.ticket.value),fx=parseFloat(el.fx.value),hotel=el.lodge.value==='hotel';
+
+    if(![pax,nights,air,daily,ticket,fx].every(function(v){return isFinite(v)&&v>=0;})||pax<1){
+      oNok.textContent=oCny.textContent=oPer.textContent='—';
+      oNote.textContent='Vui lòng nhập đầy đủ số người, số đêm và chi phí.';
+      return;
+    }
+
+    var units=hotel?pax:Math.ceil(pax/3),
+        rate=hotel?3700:1600,
+        lodging=units*rate*nights,
+        living=pax*daily*nights,
+        nok=lodging+living+pax*ticket,
+        cny=nok*fx+air*pax;
+
+    oNok.textContent='NOK '+fmt(nok);
+    oCny.textContent='¥ '+fmt(cny);
+    oPer.textContent='¥ '+fmt(cny/pax);
+
+    if(hotel){
+      var alt=Math.ceil(pax/3)*1600*nights,
+          save=(lodging-alt)*fx;
+      oNote.textContent='Chuyển sang thuê căn hộ có thể tiết kiệm khoảng '+fmt(save)+' nhân dân tệ — chỗ ở là khoản có thể điều chỉnh lớn nhất của chuyến đi.';
+    }else{
+      oNote.textContent=units+' căn hộ × '+nights+' đêm. Chỗ ở chiếm '+Math.round(lodging/nok*100)+'% chi phí tại Na Uy.';
+    }
+  }
+  ids.forEach(function(i){el[i].addEventListener('input',calc);el[i].addEventListener('change',calc);});
+  calc();
+
+  /* ---- 清单 ---- */
+  var KEY='aquanor2027-checklist',
+      boxes=[].slice.call(document.querySelectorAll('#checks input')),
+      meter=document.getElementById('meter'),bar=document.getElementById('bar');
+
+  function paint(){
+    var n=boxes.filter(function(b){return b.checked;}).length;
+    meter.innerHTML = n===boxes.length
+      ? '<b>Đã hoàn thành cả '+boxes.length+' mục</b>'
+      : '<b>'+n+'</b> / '+boxes.length+' đã hoàn thành';
+    bar.style.width=(n/boxes.length*100)+'%';
+  }
+  /* 存储:优先 window.storage(异步),没有时退回 localStorage;读写都包 try/catch */
+  function hasRemote(){
+    try{ return !!(window.storage&&window.storage.get&&window.storage.set); }catch(e){ return false; }
+  }
+  function apply(v){
+    if(typeof v!=='string'||!v)return;
+    boxes.forEach(function(b,i){b.checked=v[i]==='1';});
+    paint();
+  }
+  function save(){
+    var s=boxes.map(function(b){return b.checked?1:0;}).join('');
+    if(hasRemote()){
+      try{
+        var p=window.storage.set(KEY,s);
+        if(p&&p.catch)p.catch(function(){});
+        return;
+      }catch(e){}
+    }
+    try{ window.localStorage.setItem(KEY,s); }catch(e){}
+  }
+  function loadLocal(){
+    try{ apply(window.localStorage.getItem(KEY)); }catch(e){}
+  }
+  function load(){
+    if(hasRemote()){
+      try{
+        var p=window.storage.get(KEY);
+        if(p&&p.then){
+          p.then(function(r){
+            if(r&&typeof r.value==='string'&&r.value)apply(r.value);
+          }).catch(function(){});
+        }
+        return;
+      }catch(e){}
+    }
+    loadLocal();
+  }
+  boxes.forEach(function(b){b.addEventListener('change',function(){paint();save();});});
+  document.getElementById('reset').addEventListener('click',function(){
+    boxes.forEach(function(b){b.checked=false;});paint();save();
+  });
+  paint();load();
+
+  /* ---- 目录高亮 ---- */
+  var links=[].slice.call(document.querySelectorAll('nav.toc a')),
+      secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting)return;
+        var i=secs.indexOf(e.target);
+        if(i<0)return;
+        links.forEach(function(l,j){l.classList.toggle('on',j===i);});
+      });
+    },{rootMargin:'-10% 0px -75% 0px'});
+    secs.forEach(function(s){if(s)io.observe(s);});
+  }
+})();
+</script>
+</body>
+</html>

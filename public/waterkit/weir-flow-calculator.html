@@ -1,0 +1,1299 @@
+<!-- Nguồn: https://github.com/phuonglhk070717/waterkit, nhánh viet-hoa; commit gốc 4110108537de98be5b757fc08cc8e457ac11f6d3; đã sửa đổi ngày 2026-11-06; giấy phép AGPL-3.0. -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Công cụ tính lưu lượng qua đập tràn | Bộ công cụ xử lý nước · WaterKit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230891b2'/%3E%3Ctext x='16' y='22.5' font-size='18' font-weight='700' text-anchor='middle' fill='white' font-family='Arial,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Tính lưu lượng qua đập tràn trực tuyến: đập thành mỏng chữ nhật, tam giác, hình thang Cipoletti và đập đỉnh rộng; tính lưu lượng từ cột nước hoặc ngược lại, có hiệu chỉnh co hẹp bên, vận tốc tới gần và dòng chảy ngập.">
+<style>
+  :root {
+    --brand: #0891b2;
+    --brand-dark: #0e7490;
+    --brand-light: #ecfeff;
+    --brand-border: #67e8f9;
+    --ink: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-section: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 统一顶部导航 */
+  .topbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+    letter-spacing: -1px;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .brand-name {
+    font-weight: 600; font-size: 16.5px;
+    color: var(--ink); letter-spacing: -0.2px;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--text-faint); margin-top: 1px;
+  }
+  .nav-links {
+    display: flex; gap: 24px; font-size: 14px; align-items: center;
+  }
+  .nav-links a {
+    color: var(--text); text-decoration: none;
+    transition: color 0.15s; font-weight: 500;
+  }
+  .nav-links a:hover { color: var(--brand); }
+  .nav-links a.back::before {
+    content: "←"; margin-right: 4px; color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .nav-links { gap: 16px; font-size: 13px; }
+    .nav-links a:not(.back) { display: none; }
+    .topbar-inner { padding: 12px 20px; }
+    .brand-name { font-size: 15px; }
+    .brand-sub { display: none; }
+  }
+
+  /* 面包屑 */
+  .breadcrumb {
+    max-width: 820px; margin: 0 auto;
+    padding: 20px 16px 0;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb a {
+    color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--brand); }
+  .breadcrumb .sep { margin: 0 8px; color: var(--text-faint); }
+  .breadcrumb .current { color: var(--ink); font-weight: 500; }
+
+  /* 主体外壳 */
+  .main-wrap { flex: 1; padding: 16px; }
+
+  /* 统一页脚 */
+  .site-footer {
+    background: var(--bg-section);
+    border-top: 1px solid var(--border);
+    padding: 56px 32px 32px;
+    margin-top: 40px;
+  }
+  .footer-inner { max-width: 1280px; margin: 0 auto; }
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 32px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 720px) {
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .footer-main { grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  }
+  @media (max-width: 1100px) {
+    .footer-about-col { grid-column: 1 / -1; }
+  }
+  .footer-about-col .brand { margin-bottom: 14px; }
+  .footer-col h4 {
+    font-size: 11.5px; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .footer-col ul {
+    list-style: none; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  .footer-col li { font-size: 13px; color: var(--text); }
+  .footer-col a {
+    font-size: 13px; color: var(--text);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+  .footer-about {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.7; max-width: 340px;
+  }
+  .footer-bottom {
+    display: flex; justify-content: space-between;
+    align-items: center; font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .footer-bottom a {
+    color: inherit; text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+  .footer-bottom a:hover { color: var(--brand); }
+
+  /* 工具内部的小footer */
+  .invalid { border-color: #ef4444 !important; background: #fef2f2 !important; }
+
+  .tool-inner-footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  header.tool-header {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: #fff;
+    padding: 24px 24px 20px;
+  }
+  header.tool-header h1 { font-size: 22px; margin-bottom: 6px; }
+  header.tool-header p { font-size: 13px; opacity: 0.9; }
+  .body { padding: 24px; }
+
+  /* 堰型切换 */
+  .weir-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    flex-wrap: wrap;
+  }
+  @media (max-width: 560px) {
+    .weir-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+    .weir-tabs .weir-tab { min-width: 0; white-space: normal; }
+  }
+  .weir-tab {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 10px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.15s;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .weir-tab.active {
+    background: #fff;
+    color: #0891b2;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  /* 模式切换 */
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    padding: 4px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 10px 6px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .mode-tab.active {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0e7490;
+    margin: 18px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e0f2fe;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field .unit { color: #9ca3af; font-size: 12px; font-weight: normal; }
+  .field input, .field select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  }
+  .field input:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+  .field.solve-for input {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    font-weight: 600;
+    color: #92400e;
+  }
+  .field .helper {
+    font-size: 11.5px;
+    color: #059669;
+    margin-top: 4px;
+  }
+
+  /* 堰型示意图 */
+  .weir-viz {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .weir-viz svg { max-width: 100%; height: auto; }
+
+  /* 淹没开关 */
+  .toggle-section {
+    background: #fefce8;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    border-left: 3px solid #eab308;
+  }
+  .toggle-section label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: #854d0e;
+    font-weight: 500;
+  }
+
+  /* 结果 */
+  .results {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #0891b2;
+  }
+  .results h2 { font-size: 16px; color: #0e7490; margin-bottom: 14px; }
+  .result-group { margin-bottom: 16px; }
+  .result-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0e7490;
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    background: #cffafe;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px dashed #bae6fd;
+    gap: 10px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4b5563; font-size: 13.5px; }
+  .result-value {
+    font-size: 19px;
+    font-weight: 600;
+    color: #0891b2;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-value.big { font-size: 23px; color: #0e7490; }
+  .result-unit { color: #6b7280; font-size: 13px; margin-left: 4px; font-weight: normal; }
+  .highlight-row {
+    background: #ecfeff;
+    padding: 10px 12px !important;
+    border-radius: 6px;
+    border: 1px solid #67e8f9;
+    border-bottom: 1px solid #67e8f9 !important;
+  }
+
+  /* 校核提示 */
+  .check-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .check-ok { background: #dcfce7; color: #166534; border-left: 3px solid #22c55e; }
+  .check-warn { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+  .check-bad { background: #fee2e2; color: #991b1b; border-left: 3px solid #ef4444; }
+  .check-info { background: #dbeafe; color: #1e40af; border-left: 3px solid #3b82f6; }
+
+  /* 公式 */
+  .formula-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+  .formula-box h3 { font-size: 14px; color: #374151; margin: 14px 0 8px; }
+  .formula-box h3:first-child { margin-top: 0; }
+  .formula-box code {
+    display: block;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: #0e7490;
+    overflow-x: auto;
+  }
+  .formula-box p { margin: 6px 0; font-size: 12.5px; }
+  .formula-box table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .formula-box th, .formula-box td {
+    padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb;
+  }
+  .formula-box th { background: #f1f5f9; color: #374151; }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-primary { background: #0891b2; color: #fff; }
+  .btn-primary:hover { background: #0e7490; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  .note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #92400e;
+    border-left: 3px solid #f59e0b;
+  }
+  @media (max-width: 480px) {
+    .main-wrap { padding: 8px; }
+    header.tool-header { padding: 18px; }
+    header.tool-header h1 { font-size: 19px; }
+    .result-value { font-size: 17px; }
+    .result-value.big { font-size: 20px; }
+    .weir-tab, .mode-tab { font-size: 11.5px; }
+  }
+  /* 移动端输入框字号 ≥ 16px：避免 iOS Safari / 微信聚焦输入框时页面自动放大 */
+  @media (max-width: 768px) { input, select, textarea { font-size: 16px !important; } }
+</style>
+</head>
+<body>
+
+
+<!-- 统一顶部导航 -->
+<header class="ras-waterkit-nav no-print"><nav aria-label="Điều hướng chính"><a href="../">Trang chủ</a><a href="../quy-trinh">Quy trình</a><a href="../thiet-ke">Thiết kế</a><a href="../thiet-bi">Thiết bị</a><a href="../xu-ly-nuoc">Xử lý nước</a><a href="../gioi-thieu">Giới thiệu</a></nav></header><style>.ras-waterkit-nav{background:#101b23;color:#e8f1f3;font-family:"IBM Plex Sans",system-ui,sans-serif}.ras-waterkit-nav nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;max-width:1200px;margin:auto;padding:16px 20px}.ras-waterkit-nav a{color:#e8f1f3;text-decoration:none;white-space:normal}.ras-waterkit-nav a:hover,.ras-waterkit-nav a:focus{text-decoration:underline}</style>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+  <a href="../xu-ly-nuoc">Trang chủ</a>
+  <span class="sep">/</span>
+  <a href="../xu-ly-nuoc">Tính toán thủy lực</a>
+  <span class="sep">/</span>
+  <span class="current">Tính lưu lượng qua đập tràn</span>
+</div>
+
+<main class="main-wrap">
+
+<div class="container">
+  <header class="tool-header">
+    <h1>🌊 Công cụ tính lưu lượng qua đập tràn</h1>
+    <p>Bốn loại đập: chữ nhật / tam giác / hình thang (Cipoletti) / đỉnh rộng · Dòng chảy tự do và chảy ngập · Đo lưu lượng</p>
+  </header>
+
+  <div class="body">
+
+    <!-- 堰型选择 -->
+    <div class="section-title">① Chọn loại đập</div>
+    <div class="weir-tabs">
+      <button class="weir-tab active" data-type="rect" onclick="setWeir('rect')">Đập thành mỏng chữ nhật</button>
+      <button class="weir-tab" data-type="tri" onclick="setWeir('tri')">Đập tam giác (chữ V)</button>
+      <button class="weir-tab" data-type="trap" onclick="setWeir('trap')">Đập hình thang (Cipoletti)</button>
+      <button class="weir-tab" data-type="broad" onclick="setWeir('broad')">Đập đỉnh rộng</button>
+    </div>
+
+    <!-- 示意图 -->
+    <div class="weir-viz">
+      <svg id="vizSvg" width="340" height="180" viewBox="0 0 340 180" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <!-- 求解模式 -->
+    <div class="section-title">② Mục tiêu tính toán</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="Q" onclick="setMode('Q')">Biết H, tìm Q</button>
+      <button class="mode-tab" data-mode="H" onclick="setMode('H')">Biết Q, tìm H</button>
+    </div>
+
+    <!-- 参数 -->
+    <div class="section-title">③ Thông số đập</div>
+    <div class="grid">
+
+      <!-- 矩形堰参数 -->
+      <div class="field weir-rect weir-trap weir-broad">
+        <label for="b">Chiều rộng đập b <span class="unit">m</span></label>
+        <input type="number" id="b" value="1.0" step="0.1">
+      </div>
+
+      <!-- 三角堰参数 -->
+      <div class="field weir-tri" style="display:none;">
+        <label for="theta">Góc đỉnh θ <span class="unit">°</span></label>
+        <select id="theta" onchange="calc()">
+          <option value="90" selected>90° (tiêu chuẩn)</option>
+          <option value="60">60°</option>
+          <option value="45">45°</option>
+          <option value="30">30°</option>
+          <option value="120">120°</option>
+        </select>
+      </div>
+
+      <!-- 梯形堰说明（Cipoletti 固定1:4边坡） -->
+      <div class="field weir-trap" style="display:none;">
+        <label for="trap_slope">Độ dốc cạnh <span class="unit">1:4 (Cipoletti)</span></label>
+        <input type="text" id="trap_slope" value="1:4 (cố định)" disabled>
+      </div>
+
+      <!-- 宽顶堰宽度（堰顶长度 δ） -->
+      <div class="field weir-broad" style="display:none;">
+        <label for="delta">Chiều dài đỉnh đập δ <span class="unit">m</span></label>
+        <input type="number" id="delta" value="1.5" step="0.1">
+      </div>
+
+      <!-- 宽顶堰进口形式 -->
+      <div class="field weir-broad" style="display:none;">
+        <label for="broad_inlet">Kiểu cửa vào đỉnh đập</label>
+        <select id="broad_inlet">
+          <option value="square" selected>Cửa vào góc vuông</option>
+          <option value="round">Cửa vào góc tròn</option>
+        </select>
+        <div class="helper">m được xác định liên tục theo P/H bằng công thức Berezinsky (góc vuông 0.32–0.385, góc tròn 0.36–0.385)</div>
+      </div>
+
+      <!-- 共用:水头H -->
+      <div class="field" id="f_H">
+        <label for="H">Cột nước trên đỉnh đập H <span class="unit">m</span></label>
+        <input type="number" id="H" value="0.3" step="0.01">
+        <div class="helper">Độ cao mặt nước thượng lưu so với đỉnh đập</div>
+      </div>
+
+      <!-- 共用:流量Q -->
+      <div class="field" id="f_Q">
+        <label for="Q">Lưu lượng Q <span class="unit">m³/s</span></label>
+        <input type="number" id="Q" value="0.4" step="0.05">
+      </div>
+
+      <!-- 堰高P -->
+      <div class="field">
+        <label for="P">Chiều cao đập P <span class="unit">m</span></label>
+        <input type="number" id="P" value="0.5" step="0.1">
+        <div class="helper">Độ cao từ đáy kênh thượng lưu đến đỉnh đập</div>
+      </div>
+
+      <!-- 上游渠宽 -->
+      <div class="field weir-rect weir-tri weir-trap weir-broad">
+        <label for="B">Chiều rộng kênh thượng lưu B <span class="unit">m</span></label>
+        <input type="number" id="B" value="2.0" step="0.1">
+        <div class="helper">B ≥ b; khi B = b không có co hẹp bên; đập tam giác yêu cầu B ≥ 3H
+      </div>
+    </div>
+
+    <!-- 淹没出流 -->
+    <div class="toggle-section">
+      <label>
+        <input type="checkbox" id="submerged" onchange="toggleSubmerged()">
+        <span>Bật hiệu chỉnh dòng chảy ngập (mực nước hạ lưu cao hơn đỉnh đập)</span>
+      </label>
+      <div class="grid" id="submerged_params" style="display:none; margin-top:10px;">
+        <div class="field">
+          <label for="hs">Chiều sâu nước hạ lưu h_s <span class="unit">m</span></label>
+          <input type="number" id="hs" value="0.1" step="0.05">
+          <div class="helper">Độ cao mặt nước hạ lưu so với đỉnh đập</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 结果 -->
+    <div class="results">
+      <h2>Kết quả tính toán</h2>
+
+      <div class="result-group">
+        <div class="result-group-title">Kết quả chính</div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Lưu lượng Q</b></span>
+          <span><span class="result-value big" id="r_Q">—</span><span class="result-unit">m³/s</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Lưu lượng Q (đơn vị thông dụng)</span>
+          <span><span class="result-value" id="r_Q_h">—</span><span class="result-unit">m³/h</span></span>
+        </div>
+        <div class="result-row highlight-row">
+          <span class="result-label"><b>Cột nước trên đỉnh đập H</b></span>
+          <span><span class="result-value big" id="r_H">—</span><span class="result-unit">m</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Cột nước trên đỉnh đập H</span>
+          <span><span class="result-value" id="r_H2">—</span><span class="result-unit">mm</span></span>
+        </div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title">Thông số thủy lực</div>
+        <div class="result-row">
+          <span class="result-label">Hệ số lưu lượng m₀ / C_d</span>
+          <span><span class="result-value" id="r_m0">—</span><span class="result-unit">—</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Hệ số co hẹp bên ε</span>
+          <span><span class="result-value" id="r_eps">—</span><span class="result-unit">—</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Hệ số ngập σ</span>
+          <span><span class="result-value" id="r_sigma">—</span><span class="result-unit">—</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label" id="r_v_l">Vận tốc trung bình qua cửa đập Q/(b·H)</span>
+          <span><span class="result-value" id="r_v">—</span><span class="result-unit">m/s</span></span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Vận tốc tới gần thượng lưu v₀</span>
+          <span><span class="result-value" id="r_v0">—</span><span class="result-unit">m/s</span></span>
+        </div>
+      </div>
+
+      <div class="result-group">
+        <div class="result-group-title">Kiểm tra điều kiện áp dụng</div>
+        <div class="check-box" id="check_H">Đang kiểm tra...</div>
+        <div class="check-box" id="check_sub">Đang kiểm tra...</div>
+        <div class="check-box" id="check_delta" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="copyResults()">📋 Sao chép kết quả</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">🔄 Khôi phục mặc định</button>
+      <button class="btn btn-secondary" onclick="toggleFormula()">📖 Xem công thức</button>
+    </div>
+
+    <div class="formula-box" id="formulaBox" style="display:none;">
+      <h3>① Đập thành mỏng chữ nhật（Công thức Rehbock）</h3>
+      <p><strong>Công thức cơ bản cho dòng chảy tự do</strong>：</p>
+      <code>Q = m₀ · ε · σ · b · √(2g) · H^(3/2)</code>
+      <p>Trong đó m₀ là hệ số lưu lượng, ε là hệ số co hẹp bên, σ là hệ số ngập (bằng 1 khi chảy tự do).</p>
+      <p><strong>Hệ số lưu lượng Rehbock</strong> (không co hẹp bên, B=b)：</p>
+      <code>m₀ = 0.403 + 0.053 · H/P + 0.0007/H</code>
+      <p>Điều kiện áp dụng: 0.03 ≤ H ≤ 0.75 m; H/P ≤ 1 (ISO 1438); P ≥ 0.1 m. Khi H/P &gt; 1, công cụ cảnh báo "Ngoài phạm vi áp dụng của Rehbock".</p>
+      <p><strong>Có co hẹp bên (B &gt; b)</strong>：Dùng hiệu chỉnh Francis hoặc hệ số ε; công cụ lấy:</p>
+      <code>ε = 1 − 0.1·n·H/b (n là số bên co hẹp, lấy n = 2 khi co hẹp hai bên; công cụ lấy giới hạn dưới của ε là 0.5)</code>
+      <p>Lưu ý: Giới hạn dưới 0.5 của ε là giá trị kinh nghiệm; cần đối chiếu nguyên văn tiêu chuẩn / sổ tay.</p>
+      <p>Chiều rộng kênh thượng lưu B không được nhỏ hơn chiều rộng đập b; khi B = b thì ε = 1. Khi khoảng cách mỗi bên (B − b)/2 &lt; H, co hẹp không đầy đủ; công cụ giảm tuyến tính mức co hẹp theo (B − b)/(2H) (ε tiến liên tục về 1 khi B → b) và cảnh báo; kết quả chỉ để tham khảo.</p>
+
+      <h3>② Đập tam giác (đập chữ V, công thức Kindsvater-Shen)</h3>
+      <code>Q = (8/15) · C_e · tan(θ/2) · √(2g) · (H + k_h)^(5/2)   (đơn vị SI)</code>
+      <p>C_e là hệ số lưu lượng hiệu dụng, k_h là giá trị hiệu chỉnh cột nước; cả hai thay đổi theo góc đỉnh θ (°) (khớp đa thức với đường cong trong Water Measurement Manual của USBR / ISO 1438 cho đập chữ V co hẹp hoàn toàn):</p>
+      <code>C_e = 0.607165052 − 0.000874466963·θ + 6.10393334×10⁻⁶·θ²</code>
+      <code>k_h [ft] = 0.0144902648 − 0.00033955535·θ + 3.29819003×10⁻⁶·θ² − 1.06215442×10⁻⁸·θ³;k_h [m] = k_h [ft] × 0.3048</code>
+      <p>Ở 90°, C_e ≈ 0.578, k_h ≈ 0.89 mm, Q ≈ 1.365 · (H + 0.00089)^(5/2). Công thức khớp áp dụng cho 20° ≤ θ ≤ 100°; ngoài phạm vi này công cụ sẽ cảnh báo (120° là giá trị ngoại suy, chỉ để tham khảo).</p>
+      <p>Phạm vi áp dụng: 0.05 ≤ H ≤ 0.38 m; P ≥ 2H; chiều rộng kênh thượng lưu ≥ 3H.</p>
+
+      <h3>③ Đập hình thang Cipoletti (độ dốc cạnh 1:4)</h3>
+      <p>Đặc điểm: Hai cạnh nghiêng ra ngoài để bù tổn thất do co hẹp bên; hệ số lưu lượng gần như không đổi.</p>
+      <code>Q = 1.86 · b · H^(3/2)   (Công thức Cipoletti)</code>
+      <p>Trong đó m₀ ≈ 0.42, ε ≈ 1.0 (tự bù). Phạm vi áp dụng: 0.06 ≤ H ≤ 0.60 m; b ≥ 3H; P ≥ 2H.</p>
+
+      <h3>④ Đập đỉnh rộng</h3>
+      <code>Q = m · ε · b · √(2g) · H₀^(3/2)</code>
+      <p>Trong đó H₀ = H + v₀²/(2g) là tổng cột nước kể đến cột nước vận tốc tới gần (v₀ = Q/[B·(P+H)]; trong phép lặp, Q cũng tính đến m·ε; giải qua 10 lần lặp để H₀ nhất quán với Q cuối cùng); ε là hệ số co hẹp bên (ε = 1 − 0.2·H/b, giới hạn dưới 0.7, chỉ tính khi B &gt; b; khi khoảng cách mỗi bên (B − b)/2 &lt; H, mức co hẹp giảm tuyến tính theo (B − b)/(2H); giá trị kinh nghiệm, cần đối chiếu nguyên văn tiêu chuẩn / sổ tay); m là hệ số lưu lượng, lấy theo "kiểu cửa vào đỉnh đập":</p>
+      <p><strong>Công thức kinh nghiệm Berezinsky (Березинский)</strong> (P là chiều cao đập phía thượng lưu, m biến thiên liên tục theo P/H):</p>
+      <code>Cửa vào góc vuông:m = 0.32 + 0.01 · (3 − P/H) / (0.46 + 0.75 · P/H)   (khi P/H ≥ 3 thì m = 0.32)</code>
+      <code>Cửa vào góc tròn（r/H ≥ 0.2）:m = 0.36 + 0.01 · (3 − P/H) / (1.2 + 1.5 · P/H)   (khi P/H ≥ 3 thì m = 0.36)</code>
+      <p>Khi P/H → 0, cả hai công thức đều tiến tới giới hạn trên lý thuyết 0.385; m nằm trong khoảng 0.32–0.385 với cửa vào góc vuông và 0.36–0.385 với cửa vào góc tròn. m biến thiên liên tục theo H; kết quả của hai phép tính "biết H tìm Q" và "biết Q tìm H" nhất quán khi tính ngược. Mặc định tính với cửa vào góc vuông. Nguồn: công thức kinh nghiệm về hệ số lưu lượng đập đỉnh rộng trong giáo trình thủy lực (ví dụ Thủy lực học của Ngô Trì Cung); cần đối chiếu nguyên văn tiêu chuẩn / sổ tay.</p>
+      <p>Phạm vi áp dụng của đập đỉnh rộng: 2.5 ≤ δ/H ≤ 10. Khi δ/H &lt; 2.5, đây không phải đập đỉnh rộng, nên tính theo đập mặt cắt thực dụng / đập thành mỏng; khi δ/H &gt; 10, đây là đập dài, cần tính tổn thất cột áp dọc đỉnh đập; công thức này sẽ ước tính lưu lượng quá cao.</p>
+
+      <h3>⑤ Hiệu chỉnh dòng chảy ngập</h3>
+      <p>Khi mực nước hạ lưu h_s &gt; 0 (mặt nước hạ lưu cao hơn đỉnh đập):</p>
+      <code>Đập đỉnh rộng: h_s / H₀ &gt; 0.8 là trạng thái ngập; đập thành mỏng: hiệu chỉnh theo công thức Villemonte ngay khi h_s &gt; 0</code>
+      <p>Lưu ý: Để đập thành mỏng thực sự chảy ngập, mực nước hạ lưu còn phải cao hơn đỉnh đập và z/P &lt; 0.7 (z là chênh lệch mực nước thượng và hạ lưu); công cụ hiệu chỉnh ngập ngay khi h_s &gt; 0, theo hướng thận trọng.</p>
+      <p><strong>Đập thành mỏng (chữ nhật / tam giác / hình thang)</strong> dùng công thức Villemonte:</p>
+      <code>σ = [1 − (h_s/H)ⁿ]^0.385    (đập chữ nhật, hình thang n = 1.5; đập tam giác n = 2.5)</code>
+      <p><strong>Đập đỉnh rộng</strong> tra bảng theo h_s/H₀ (nội suy tuyến tính); khi h_s/H₀ ≤ 0.8 thì σ = 1 (giá trị bảng là giá trị kinh nghiệm, cần đối chiếu nguyên văn tiêu chuẩn / sổ tay):</p>
+      <table>
+        <tr><th>h_s/H₀</th><td>0.80</td><td>0.82</td><td>0.84</td><td>0.86</td><td>0.88</td><td>0.90</td></tr>
+        <tr><th>σ</th><td>1.00</td><td>0.99</td><td>0.97</td><td>0.95</td><td>0.90</td><td>0.84</td></tr>
+        <tr><th>h_s/H₀</th><td>0.92</td><td>0.94</td><td>0.95</td><td>0.96</td><td>0.97</td><td>0.98</td></tr>
+        <tr><th>σ</th><td>0.78</td><td>0.70</td><td>0.65</td><td>0.59</td><td>0.50</td><td>0.40</td></tr>
+      </table>
+      <p>Công cụ nội suy các giá trị bảng cách nhau 0.01 (bảng hệ số ngập của đập đỉnh rộng trong Thủy lực học của Ngô Trì Cung, dẫn theo bài giảng thủy lực của Đại học Nông nghiệp Hoa Nam); khi h_s/H₀ &gt; 0.98, hệ số giảm tuyến tính về 0 trong khoảng 0.98→1.0.</p>
+
+      <h3>⑥ Các ứng dụng thường gặp</h3>
+      <table>
+        <tr><th>Ứng dụng</th><th>Loại đập khuyến nghị</th><th>Lý do</th></tr>
+        <tr><td>Đo lưu lượng nước vào nhà máy nước</td><td>Đập chữ nhật / Đập đỉnh rộng</td><td>Lưu lượng lớn, phạm vi biến thiên H vừa phải</td></tr>
+        <tr><td>Đo lưu lượng nhỏ trong phòng thí nghiệm</td><td>Đập tam giác 90°</td><td>Q ∝ H^2.5, độ nhạy rất cao với lưu lượng nhỏ</td></tr>
+        <tr><td>Đo lưu lượng kênh hở</td><td>Đập hình thang Cipoletti</td><td>Công thức lưu lượng đơn giản, không cần hiệu chỉnh co hẹp bên</td></tr>
+        <tr><td>Đập tràn / đường tràn xả lũ</td><td>Đập đỉnh rộng / Đập mặt cắt thực dụng</td><td>Khả năng tháo nước lớn, kết cấu ổn định</td></tr>
+        <tr><td>Đo lưu lượng nước ra của nhà máy xử lý nước thải</td><td>Đập chữ nhật + Thiết bị đo mức siêu âm</td><td>Công nghệ ứng dụng rộng rãi, độ chính xác ±3%</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      ⚠️ Công cụ dùng để ước tính kỹ thuật và chọn đập đo lưu lượng. Độ chính xác đo thực tế phụ thuộc vào chế tạo tấm đập, chiều dài đoạn thẳng thượng lưu, dao động mặt nước và độ chính xác của thiết bị đo mức. Lắp đặt tại hiện trường phải đáp ứng điều kiện áp dụng của từng loại đập (phạm vi H, giá trị P, tỷ số B/b, v.v.).
+    </div>
+
+  </div>
+
+  <footer class="tool-inner-footer">Bộ công cụ xử lý nước · Chỉ dùng tham khảo cho ước tính kỹ thuật</footer>
+</div>
+</main>
+
+<!-- 统一页脚 -->
+<footer class="site-footer"><div style="max-width:1200px;margin:auto;padding:24px 20px;overflow-wrap:anywhere;word-break:break-word">Nội dung gốc: WaterKit © Cheng Sun / Dengdeng Technology (<a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/chengsunmail/waterkit">https://github.com/chengsunmail/waterkit</a>), giấy phép AGPL-3.0. Bản Việt hoá và chỉnh sửa giao diện để tích hợp vào RAS Digital Twin. <a style="overflow-wrap:anywhere;word-break:break-word" href="https://github.com/phuonglhk/ras-digital-twin">Mã nguồn</a></div></footer>
+
+
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = id => parseFloat($(id).value) || 0;
+  const g = 9.81;
+  // 流量 Q 按 4 位有效数字显示;回写输入框时另存精确值,输入框未被改动时切换模式沿用精确值,避免舍入漂移
+  const fmtQ = v => Math.abs(v) >= 1e4 ? v.toFixed(0) : v.toPrecision(4);
+  let qExact = null;
+  const numQ = () => (qExact && $('Q').value === qExact.s) ? qExact.v : num('Q');
+
+  let weir = 'rect';
+  let mode = 'Q';
+
+  function setWeir(w) {
+    weir = w;
+    document.querySelectorAll('.weir-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-type="${w}"]`).classList.add('active');
+
+    // 控制字段显示
+    // 一次遍历所有带 weir-* 类的字段:任一类匹配当前堰型即显示
+    // （b、B 同属 rect/trap/broad;三角堰仅需顶角 θ 与堰高 P）
+    document.querySelectorAll('.field.weir-rect, .field.weir-tri, .field.weir-trap, .field.weir-broad')
+      .forEach(el => el.style.display = el.classList.contains('weir-' + w) ? '' : 'none');
+    $('r_v_l').textContent = V_LABEL[w];
+
+    drawWeir();
+    calc();
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-mode="${m}"]`).classList.add('active');
+    ['Q','H'].forEach(f => {
+      $(f).disabled = false;
+      $('f_'+f).classList.remove('solve-for');
+    });
+    $(mode).disabled = true;
+    $('f_'+mode).classList.add('solve-for');
+    calc();
+  }
+
+  function toggleSubmerged() {
+    const en = $('submerged').checked;
+    $('submerged_params').style.display = en ? 'grid' : 'none';
+    calc();
+  }
+
+  // 宽顶堰流量系数（别列津斯基公式）:直角进口 0.32–0.385,圆角进口 0.36–0.385
+  function broadM(PH, round) {
+    const r = Math.max(0, Math.min(3, PH));
+    return round ? 0.36 + 0.01 * (3 - r) / (1.2 + 1.5 * r)
+                 : 0.32 + 0.01 * (3 - r) / (0.46 + 0.75 * r);
+  }
+
+  // 堰口平均流速所用过水面积（随堰型而异）
+  const V_LABEL = {
+    rect:  'Vận tốc trung bình qua cửa đập Q/(b·H)',
+    tri:   'Vận tốc trung bình qua cửa đập Q/[H²·tan(θ/2)]',
+    trap:  'Vận tốc trung bình qua cửa đập Q/[(b + H/4)·H]',
+    broad: 'Vận tốc trung bình qua cửa đập Q/(b·H)'
+  };
+
+  // ============ 流量计算（自由出流） ============
+  function Q_free(H) {
+    if (H <= 0) return {Q:0, m0:0, eps:1, v:0};
+
+    if (weir === 'rect') {
+      const b = num('b'), B = num('B'), P = num('P');
+      // Rehbock 流量系数
+      const m0 = 0.403 + 0.053 * H / P + 0.0007 / Math.max(H, 0.001);
+      // 侧收缩
+      let eps = 1;
+      if (B > b) {
+        // Francis 经验:ε = 1 - 0.1·n·H/b, n=2(两侧收缩)
+        // 单侧间距 (B−b)/2 < H 时收缩不充分,收缩量按 (B−b)/(2H) 线性过渡,使 B→b 时 ε 连续趋于 1
+        const kc = Math.min(1, (B - b) / (2 * H));
+        eps = Math.max(0.5, 1 - 0.1 * 2 * H / Math.max(b, 0.001) * kc);
+      }
+      const Q = m0 * eps * b * Math.sqrt(2*g) * Math.pow(H, 1.5);
+      const v = b > 0 ? Q / (b * H) : 0;
+      return {Q, m0, eps, v};
+    }
+
+    if (weir === 'tri') {
+      // Kindsvater-Shen（USBR / ISO 1438）:Ce、kh 随顶角 θ（°）的多项式拟合,适用 20°–100°
+      const thDeg = num('theta');
+      const theta = thDeg * Math.PI / 180;
+      const Cd = 0.607165052 - 0.000874466963 * thDeg + 6.10393334e-6 * thDeg * thDeg;
+      const kh = (0.0144902648 - 0.00033955535 * thDeg + 3.29819003e-6 * thDeg * thDeg - 1.06215442e-8 * Math.pow(thDeg, 3)) * 0.3048; // ft → m
+      const Q = (8/15) * Cd * Math.tan(theta/2) * Math.sqrt(2*g) * Math.pow(H + kh, 2.5);
+      // 流速按等效矩形估算
+      const area_eq = Math.tan(theta/2) * H * H;
+      const v = area_eq > 0 ? Q / area_eq : 0;
+      return {Q, m0: Cd, eps: 1, v, kh};
+    }
+
+    if (weir === 'trap') {
+      // Cipoletti
+      const b = num('b');
+      const Q = 1.86 * b * Math.pow(H, 1.5);
+      const m0 = 0.42;
+      const eps = 1;
+      // 水面宽 = b + 2·(1/4)·H = b + H/2
+      const area = (b + H/4) * H;
+      const v = area > 0 ? Q / area : 0;
+      return {Q, m0, eps, v};
+    }
+
+    if (weir === 'broad') {
+      const b = num('b'), delta = num('delta'), B = num('B'), P = num('P');
+      // 流量系数:别列津斯基公式,随 P/H 连续变化（P/H ≥ 3 取下限）
+      const m0 = broadM(P / H, $('broad_inlet').value === 'round');
+
+      // 侧收缩（经验式,先算出供行近流速迭代使用）
+      let eps = 1;
+      // 单侧间距 (B−b)/2 < H 时收缩量按 (B−b)/(2H) 线性过渡,使 B→b 时 ε 连续趋于 1（同矩形堰）
+      if (B > b) eps = Math.max(0.7, 1 - 0.1 * 2 * H / Math.max(b, 0.001) * Math.min(1, (B - b) / (2 * H)));
+
+      // 考虑行近流速:迭代求解（Q_tmp 计入 ε,使 H₀ 与最终 Q 自洽）
+      let H0 = H, v0 = 0;
+      for (let k = 0; k < 10; k++) {
+        const Q_tmp = m0 * eps * b * Math.sqrt(2*g) * Math.pow(H0, 1.5);
+        v0 = B > 0 && (P+H) > 0 ? Q_tmp / (B * (P + H)) : 0;
+        H0 = H + v0*v0/(2*g);
+      }
+
+      const Q = m0 * eps * b * Math.sqrt(2*g) * Math.pow(H0, 1.5);
+      const v = b > 0 ? Q / (b * H) : 0;
+      return {Q, m0, eps, v, v0, H0};
+    }
+
+    return {Q:0, m0:0, eps:1, v:0};
+  }
+
+  // 淹没系数（w 为堰型;宽顶堰可传入全水头 H0,缺省时自动计算）
+  function submergenceSigma(H, w, H0) {
+    if (!$('submerged').checked) return 1;
+    w = w || weir;
+    const hs = num('hs');
+    if (hs <= 0) return 1;
+
+    if (w === 'broad') {
+      // 宽顶堰:按 hs/H0 查表,≤0.8 不淹没;>0.8 线性插值
+      if (H0 === undefined) H0 = (Q_free(H).H0) || H;
+      const ratio = hs / Math.max(H0, 1e-9);
+      if (ratio <= 0.8) return 1;
+      if (ratio >= 1) return 0;
+      const tbl = [[0.80,1.00],[0.81,0.995],[0.82,0.99],[0.83,0.98],[0.84,0.97],[0.85,0.96],[0.86,0.95],[0.87,0.93],[0.88,0.90],[0.89,0.87],
+                   [0.90,0.84],[0.91,0.82],[0.92,0.78],[0.93,0.74],[0.94,0.70],[0.95,0.65],[0.96,0.59],[0.97,0.50],[0.98,0.40],[1.0,0]];
+      for (let i = 0; i < tbl.length - 1; i++) {
+        const [x1,y1] = tbl[i], [x2,y2] = tbl[i+1];
+        if (ratio >= x1 && ratio <= x2) return y1 + (y2 - y1) * (ratio - x1) / (x2 - x1);
+      }
+      return 0;
+    }
+
+    // 薄壁堰:Villemonte 公式 σ = [1 − (hs/H)^n]^0.385,矩形/梯形 n=1.5,三角 n=2.5
+    if (hs >= H) return 0;
+    const n = (w === 'tri') ? 2.5 : 1.5;
+    const ratio = hs / H;
+    return Math.pow(1 - Math.pow(ratio, n), 0.385);
+  }
+
+  // 已知 Q 求 H（二分法）
+  function H_from_Q(Q_target) {
+    let lo = 0.001, hi = H_SEARCH_MAX;
+    for (let k = 0; k < 80; k++) {
+      const mid = (lo + hi) / 2;
+      const r = Q_free(mid);
+      const sigma = submergenceSigma(mid, weir, r.H0);
+      const q = r.Q * sigma;
+      if (q < Q_target) lo = mid; else hi = mid;
+      if (hi - lo < 1e-6) break;
+    }
+    return (lo + hi) / 2;
+  }
+  const H_SEARCH_MAX = 3.0;
+
+  function clearResults(msg) {
+    ['r_Q','r_Q_h','r_H','r_H2','r_m0','r_eps','r_sigma','r_v','r_v0'].forEach(id => $(id).textContent = '—');
+    const ck1 = $('check_H');
+    ck1.className = 'check-box check-bad';
+    ck1.innerHTML = `✗ <b>Dữ liệu không hợp lệ</b> · ${msg}`;
+    const ck2 = $('check_sub');
+    ck2.className = 'check-box check-info';
+    ck2.innerHTML = 'ℹ Vui lòng sửa thông số đầu vào trước.';
+    $('check_delta').style.display = 'none';
+  }
+
+  // ============ 绘制示意图 ============
+  function drawWeir() {
+    const svg = $('vizSvg');
+    const W = 340, H = 180;
+    const blue = '#0e7490', water = '#7dd3fc', dark = '#333';
+    let content = `
+      <defs>
+        <pattern id="wavesB" patternUnits="userSpaceOnUse" width="8" height="8">
+          <path d="M0,4 Q2,2 4,4 T8,4" fill="none" stroke="#0891b2" stroke-width="0.5" opacity="0.3"/>
+        </pattern>
+      </defs>
+    `;
+
+    // 通用尺寸
+    const cx = 170, cy = 150; // 堰顶位置参考点
+    const Ps = 50, Hs = 32;   // 堰高和水头的像素高度
+    const beforeX = 20, afterX = 320;
+
+    if (weir === 'rect' || weir === 'trap' || weir === 'broad') {
+      // 侧视图:上游水流→堰板→下游
+      const weirTop = cy - Ps;
+      const upWater = weirTop - Hs;
+
+      // 渠底
+      content += `<line x1="${beforeX}" y1="${cy}" x2="${afterX}" y2="${cy}" stroke="${dark}" stroke-width="1.5"/>`;
+
+      // 堰板
+      let weirWidth = 6;
+      if (weir === 'broad') weirWidth = 40;
+      content += `<rect x="${cx - weirWidth/2}" y="${weirTop}" width="${weirWidth}" height="${Ps}" fill="#d4d4d4" stroke="${dark}" stroke-width="1.5"/>`;
+
+      // 上游水面
+      content += `<path d="M ${beforeX} ${upWater} L ${cx - weirWidth/2} ${upWater} L ${cx - weirWidth/2} ${cy} L ${beforeX} ${cy} Z" fill="url(#wavesB)" stroke="${blue}" stroke-width="1"/>`;
+
+      // 水流从堰顶落下（曲线）
+      content += `<path d="M ${cx + weirWidth/2} ${weirTop} Q ${cx + weirWidth/2 + 25} ${weirTop + 10} ${cx + weirWidth/2 + 60} ${cy}" stroke="${blue}" stroke-width="1.5" fill="none"/>`;
+      content += `<path d="M ${cx + weirWidth/2} ${weirTop + 5} Q ${cx + weirWidth/2 + 20} ${weirTop + 15} ${cx + weirWidth/2 + 50} ${cy}" stroke="${blue}" stroke-width="1" fill="none" opacity="0.5"/>`;
+
+      // 淹没水位
+      if ($('submerged').checked) {
+        const hs_val = num('hs');
+        const H_val = num('H');
+        const hs_px = Math.min(Hs * hs_val / Math.max(H_val, 0.01), Hs - 3);
+        const downWater = weirTop + hs_px > weirTop ? weirTop - hs_px : cy;
+        content += `<line x1="${cx+weirWidth/2}" y1="${weirTop-hs_px}" x2="${afterX}" y2="${weirTop-hs_px}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+        content += `<text x="${afterX-50}" y="${weirTop-hs_px - 5}" font-size="10" fill="#ef4444">h_s</text>`;
+      }
+
+      // 标注
+      content += `<text x="${cx - weirWidth/2 - 30}" y="${(upWater+weirTop)/2+4}" font-size="11" fill="${blue}">H</text>`;
+      content += `<line x1="${cx - weirWidth/2 - 8}" y1="${upWater}" x2="${cx - weirWidth/2 - 8}" y2="${weirTop}" stroke="${blue}" stroke-width="0.8"/>`;
+      content += `<text x="${cx - weirWidth/2 - 25}" y="${(weirTop+cy)/2+4}" font-size="11" fill="${dark}">P</text>`;
+      content += `<line x1="${cx - weirWidth/2 - 8}" y1="${weirTop}" x2="${cx - weirWidth/2 - 8}" y2="${cy}" stroke="${dark}" stroke-width="0.8"/>`;
+
+      // 堰型标注
+      if (weir === 'rect') content += `<text x="${cx - weirWidth/2 + 2}" y="${weirTop - 8}" font-size="10" fill="${dark}">Đập thành mỏng chữ nhật</text>`;
+      if (weir === 'trap') content += `<text x="${cx - weirWidth/2 - 5}" y="${weirTop - 8}" font-size="10" fill="${dark}">Cipoletti</text>`;
+      if (weir === 'broad') content += `<text x="${cx - 15}" y="${weirTop - 4}" font-size="10" fill="${dark}">δ</text>`;
+
+      // 来流箭头
+      content += `<path d="M ${beforeX + 10} ${(upWater+cy)/2} L ${beforeX + 30} ${(upWater+cy)/2}" stroke="${blue}" stroke-width="1.5" marker-end="url(#arrBlue)"/>`;
+
+      // 定义箭头
+      content += `<defs><marker id="arrBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="${blue}"/></marker></defs>`;
+    }
+
+    if (weir === 'tri') {
+      // 三角堰是正视图
+      const triTop = 50, triBottom = 130;
+      const triCenter = 170;
+      const theta = num('theta') * Math.PI / 180;
+      const halfW = (triBottom - triTop) * Math.tan(theta/2);
+
+      // 背景渠道
+      content += `<rect x="${triCenter - 110}" y="${triTop - 20}" width="220" height="${triBottom - triTop + 50}" fill="none" stroke="#999" stroke-width="1"/>`;
+
+      // 渠底
+      content += `<line x1="${triCenter - 110}" y1="${triBottom + 30}" x2="${triCenter + 110}" y2="${triBottom + 30}" stroke="${dark}" stroke-width="1.5"/>`;
+
+      // 堰板整体
+      content += `<rect x="${triCenter - 110}" y="${triTop - 20}" width="220" height="${triBottom - triTop + 50}" fill="#e5e5e5" stroke="${dark}" stroke-width="1.5"/>`;
+
+      // 水面
+      const waterY = triTop + 10;
+      content += `<line x1="${triCenter - 100}" y1="${waterY}" x2="${triCenter + 100}" y2="${waterY}" stroke="${blue}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+
+      // V形缺口
+      const notchPath = `M ${triCenter - halfW} ${triTop} L ${triCenter} ${triBottom} L ${triCenter + halfW} ${triTop} L ${triCenter + halfW + 10} ${triTop} L ${triCenter + halfW + 10} ${triTop - 30} L ${triCenter - halfW - 10} ${triTop - 30} L ${triCenter - halfW - 10} ${triTop} Z`;
+      content += `<path d="${notchPath}" fill="#e5e5e5" stroke="${dark}" stroke-width="1.5"/>`;
+
+      // 水面和V形之间的水
+      const fillH_px = triTop + 20;  // 示意水面在V形上方
+      content += `<path d="M ${triCenter - halfW*0.4} ${triTop + 30} L ${triCenter} ${triBottom} L ${triCenter + halfW*0.4} ${triTop + 30} Z" fill="url(#wavesB)"/>`;
+
+      // 标注
+      content += `<text x="${triCenter - 5}" y="${triBottom + 15}" font-size="12" fill="${blue}">V</text>`;
+      content += `<text x="${triCenter + halfW + 20}" y="${triTop + 5}" font-size="11" fill="${dark}">θ = ${num('theta')}°</text>`;
+
+      // H 标注
+      content += `<text x="${triCenter - halfW - 25}" y="${(waterY+triBottom)/2}" font-size="11" fill="${blue}">H</text>`;
+      content += `<line x1="${triCenter - halfW - 18}" y1="${waterY}" x2="${triCenter - halfW - 18}" y2="${triBottom - 5}" stroke="${blue}" stroke-width="0.6" stroke-dasharray="2,2"/>`;
+    }
+
+    svg.innerHTML = content;
+  }
+
+  function calc() {
+    let H_val, Q_val;
+
+    // ============ 输入校验 ============
+    document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+    const bad = [];
+    const need = (id, name) => { if (!(num(id) > 0)) { $(id).classList.add('invalid'); bad.push(`Vui lòng nhập giá trị lớn hơn 0 cho ${name}`); } };
+    if (mode === 'Q') need('H', 'Cột nước trên đỉnh đập H'); else need('Q', 'Lưu lượng Q');
+    need('P', 'Chiều cao đập P');
+    need('B', 'Chiều rộng kênh thượng lưu B');
+    if (weir !== 'tri') {
+      need('b', 'Chiều rộng đập b');
+      if (num('b') > 0 && num('B') > 0 && num('B') < num('b')) {
+        $('B').classList.add('invalid');
+        bad.push('Chiều rộng kênh thượng lưu B không được nhỏ hơn chiều rộng đập b (B = b là không co hẹp bên)');
+      }
+    }
+    if (weir === 'broad') need('delta', 'Chiều dài đỉnh đập δ');
+    if (bad.length) {
+      clearResults(bad.join(';') + '。');
+      drawWeir();
+      return;
+    }
+
+    if (mode === 'Q') {
+      H_val = num('H');
+      const r = Q_free(H_val);
+      const sigma = submergenceSigma(H_val, weir, r.H0);
+      Q_val = r.Q * sigma;
+      $('Q').value = fmtQ(Q_val);
+      qExact = {s: $('Q').value, v: Q_val};
+
+      // 显示详细
+      $('r_m0').textContent = r.m0.toFixed(3);
+      $('r_eps').textContent = r.eps.toFixed(3);
+      $('r_sigma').textContent = sigma.toFixed(3);
+      $('r_v').textContent = r.v.toFixed(3);
+      $('r_v0').textContent = (r.v0 || 0).toFixed(3);
+    } else {
+      Q_val = numQ();
+      H_val = H_from_Q(Q_val);
+      $('H').value = +H_val.toPrecision(4);
+
+      const r = Q_free(H_val);
+      const sigma = submergenceSigma(H_val, weir, r.H0);
+      $('r_m0').textContent = r.m0.toFixed(3);
+      $('r_eps').textContent = r.eps.toFixed(3);
+      $('r_sigma').textContent = sigma.toFixed(3);
+      $('r_v').textContent = r.v.toFixed(3);
+      $('r_v0').textContent = (r.v0 || 0).toFixed(3);
+    }
+
+    // 行近流速
+    const B = num('B'), P = num('P');
+    if (weir === 'rect' || weir === 'trap' || weir === 'broad' || weir === 'tri') {
+      const area0 = B * (P + H_val);
+      const v0 = area0 > 0 ? Q_val / area0 : 0;
+      $('r_v0').textContent = v0.toFixed(3);
+    }
+
+    $('r_Q').textContent = fmtQ(Q_val);
+    $('r_Q_h').textContent = (Q_val * 3600).toFixed(1);
+    $('r_H').textContent = H_val.toFixed(4);
+    $('r_H2').textContent = (H_val * 1000).toFixed(0);
+
+    // ============ 校核 ============
+    const ck1 = $('check_H');
+    const conditions = {
+      rect:   {min: 0.03, max: 0.75, name: 'Đập thành mỏng chữ nhật'},
+      tri:    {min: 0.05, max: 0.38, name: 'Đập tam giác'},
+      trap:   {min: 0.06, max: 0.60, name: 'Đập hình thang (Cipoletti)'},
+      broad:  {min: 0.10, max: 2.00, name: 'Đập đỉnh rộng'}
+    };
+    const c = conditions[weir];
+    if (H_val >= c.min && H_val <= c.max) {
+      ck1.className = 'check-box check-ok';
+      ck1.innerHTML = `✓ <b>Cột nước trên đỉnh đập phù hợp</b> · H = ${H_val.toFixed(3)} m, nằm trong phạm vi khuyến nghị ${c.min}-${c.max} m của ${c.name}.`;
+    } else if (H_val < c.min) {
+      ck1.className = 'check-box check-warn';
+      ck1.innerHTML = `⚠ <b>Cột nước quá thấp</b> · H = ${H_val.toFixed(3)} m &lt; ${c.min} m, độ chính xác công thức giảm; nên chọn đập nhỏ hơn hoặc đập tam giác.`;
+    } else {
+      ck1.className = 'check-box check-warn';
+      ck1.innerHTML = `⚠ <b>Cột nước quá cao</b> · H = ${H_val.toFixed(3)} m &gt; ${c.max} m, vượt phạm vi khuyến nghị của loại đập này; nên chọn đập đỉnh rộng hoặc tăng chiều rộng đập.`;
+    }
+    if (mode === 'H' && H_val >= H_SEARCH_MAX - 1e-3) {
+      ck1.className = 'check-box check-bad';
+      ck1.innerHTML = `✗ <b>Vượt phạm vi giải</b> · Cột nước trên đỉnh đập cần thiết vượt giới hạn giải ${H_SEARCH_MAX} m; H bị giới hạn ở ${H_SEARCH_MAX} m, kết quả không đáng tin cậy. Hãy tăng chiều rộng đập b hoặc chọn loại đập khác.`;
+    }
+
+    // 矩形薄壁堰 Rehbock 适用范围 H/P ≤ 1（ISO 1438）
+    if (weir === 'broad') {
+      const side = (num('B') - num('b')) / 2;
+      if (side > 0 && side < H_val) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Co hẹp bên không đầy đủ</b> · Khoảng cách mỗi bên (B − b)/2 = ${+side.toFixed(4)} m &lt; H = ${H_val.toFixed(3)} m, ε được giảm tuyến tính theo khoảng cách, khả năng áp dụng công thức kinh nghiệm giảm; kết quả chỉ để tham khảo.`;
+      }
+    }
+    if (weir === 'rect') {
+      const hp = H_val / num('P');
+      if (hp > 1) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Ngoài phạm vi áp dụng của Rehbock</b> · H/P = ${hp.toFixed(2)} &gt; 1 (ISO 1438 yêu cầu H/P ≤ 1); hệ số lưu lượng m₀ được ngoại suy, kết quả chỉ để tham khảo; nên tăng chiều cao tấm đập P.`;
+      }
+      if (num('P') < 0.1) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Chiều cao đập quá thấp</b> · P = ${num('P')} m &lt; 0.1 m, không đáp ứng điều kiện áp dụng công thức Rehbock, ảnh hưởng của vận tốc tới gần tăng; kết quả chỉ để tham khảo, nên tăng chiều cao tấm đập.`;
+      }
+      const side = (num('B') - num('b')) / 2;
+      if (side > 0 && side < H_val) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Co hẹp bên không đầy đủ</b> · Khoảng cách mỗi bên (B − b)/2 = ${+side.toFixed(4)} m &lt; H = ${H_val.toFixed(3)} m, ε được giảm tuyến tính theo khoảng cách, khả năng áp dụng công thức kinh nghiệm giảm; kết quả chỉ để tham khảo.`;
+      }
+    }
+    // Cipoletti 堰适用条件:b ≥ 3H、P ≥ 2H
+    if (weir === 'trap') {
+      const geo = [];
+      if (num('b') < 3 * H_val) geo.push(`b = ${num('b')} m &lt; 3H = ${(3 * H_val).toFixed(3)} m`);
+      if (num('P') < 2 * H_val) geo.push(`P = ${num('P')} m &lt; 2H = ${(2 * H_val).toFixed(3)} m`);
+      if (geo.length) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Không đáp ứng điều kiện áp dụng Cipoletti</b> · ${geo.join('; ')}, khả năng áp dụng hệ số 1.86 của công thức giảm; kết quả chỉ để tham khảo, nên mở rộng cửa đập hoặc tăng chiều cao tấm đập.`;
+      }
+    }
+    // 三角堰 Kindsvater-Shen 拟合式适用 20°–100°
+    if (weir === 'tri') {
+      const th = num('theta');
+      if (th < 20 || th > 100) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Góc đỉnh ngoài phạm vi áp dụng</b> · θ = ${th}° nằm ngoài phạm vi áp dụng 20°–100° của công thức khớp Kindsvater-Shen; C_e, k_h là giá trị ngoại suy, kết quả chỉ để tham khảo.`;
+      }
+      // 完全收缩三角堰的几何条件（ISO 1438 / 公式说明）: P ≥ 2H、上游渠宽 B ≥ 3H
+      const geo = [];
+      if (num('P') < 2 * H_val) geo.push(`P = ${num('P')} m &lt; 2H = ${(2 * H_val).toFixed(3)} m`);
+      if (num('B') < 3 * H_val) geo.push(`B = ${num('B')} m &lt; 3H = ${(3 * H_val).toFixed(3)} m`);
+      if (geo.length) {
+        if (ck1.className.indexOf('check-ok') >= 0) ck1.className = 'check-box check-warn';
+        ck1.innerHTML += `<br>⚠ <b>Không đáp ứng điều kiện co hẹp hoàn toàn</b> · ${geo.join('; ')}, không thể bỏ qua ảnh hưởng của vận tốc tới gần,${mode === 'Q' ? 'lưu lượng tính từ cột nước thấp hơn thực tế' : 'cột nước tính ngược từ lưu lượng cao hơn thực tế'}, nên tăng chiều cao tấm đập hoặc mở rộng máng đập.`;
+      }
+    }
+
+    // 宽顶堰 δ/H 适用性
+    const ckd = $('check_delta');
+    if (weir === 'broad') {
+      const dr = num('delta') / H_val;
+      ckd.style.display = '';
+      if (dr < 2.5) {
+        ckd.className = 'check-box check-warn';
+        ckd.innerHTML = `⚠ <b>δ/H = ${dr.toFixed(2)} &lt; 2.5</b> · không phải đập đỉnh rộng; nên tính theo đập mặt cắt thực dụng / đập thành mỏng, kết quả hiện tại chỉ để tham khảo.`;
+      } else if (dr > 10) {
+        ckd.className = 'check-box check-warn';
+        ckd.innerHTML = `⚠ <b>δ/H = ${dr.toFixed(2)} &gt; 10</b> · là đập dài; cần tính tổn thất cột áp dọc đỉnh đập, công thức này sẽ ước tính lưu lượng quá cao.`;
+      } else {
+        ckd.className = 'check-box check-ok';
+        ckd.innerHTML = `✓ <b>δ/H = ${dr.toFixed(2)}</b> · nằm trong phạm vi 2.5-10 của đập đỉnh rộng, ${$('broad_inlet').value === 'round' ? 'Cửa vào góc tròn' : 'Cửa vào góc vuông'} m được xác định theo công thức Berezinsky (P/H = ${(num('P') / H_val).toFixed(2)}).`;
+      }
+    } else {
+      ckd.style.display = 'none';
+    }
+
+    // 淹没校核
+    const ck2 = $('check_sub');
+    if (!$('submerged').checked) {
+      ck2.className = 'check-box check-info';
+      ck2.innerHTML = `ℹ <b>Trạng thái chảy tự do</b> · Mực nước hạ lưu thấp hơn đỉnh đập, lưu lượng không chịu ảnh hưởng của hạ lưu. Nếu mực nước hạ lưu tăng, cần bật hiệu chỉnh ngập.`;
+    } else {
+      const hs_val = num('hs');
+      if (weir === 'broad') {
+        // 宽顶堰:以 hs/H0 判别,阈值 0.8
+        const H0b = (Q_free(H_val).H0) || H_val;
+        const ratio = H0b > 0 ? hs_val / H0b : 0;
+        const sig = submergenceSigma(H_val, weir, H0b);
+        if (ratio <= 0.8) {
+          ck2.className = 'check-box check-ok';
+          ck2.innerHTML = `✓ <b>Chưa ngập</b> · h_s/H₀ = ${ratio.toFixed(3)} ≤ 0.8, đập đỉnh rộng vẫn chảy tự do, σ = 1.`;
+        } else if (ratio < 0.95) {
+          ck2.className = 'check-box check-warn';
+          ck2.innerHTML = `⚠ <b>Dòng chảy ngập</b> · h_s/H₀ = ${ratio.toFixed(3)} &gt; 0.8, lưu lượng đã chịu ảnh hưởng của hạ lưu, hệ số ngập σ = ${sig.toFixed(3)} (nội suy từ bảng).`;
+        } else {
+          ck2.className = 'check-box check-bad';
+          ck2.innerHTML = `✗ <b>Ngập sâu</b> · h_s/H₀ = ${ratio.toFixed(3)} ≥ 0.95, σ = ${sig.toFixed(3)}, đập mất chức năng đo lưu lượng; không khuyến nghị điều kiện vận hành này trong thực tế.`;
+        }
+      } else {
+      const ratio = H_val > 0 ? hs_val / H_val : 0;
+      const zNote = ' Lưu ý: Đập thành mỏng chảy ngập còn cần mực nước hạ lưu cao hơn đỉnh đập và z/P&lt;0.7 (z là chênh lệch mực nước thượng và hạ lưu).';
+      if (ratio < 0.15) {
+        ck2.className = 'check-box check-ok';
+        ck2.innerHTML = `✓ <b>Ngập nhẹ</b> · h_s/H = ${ratio.toFixed(3)} &lt; 0.15, ảnh hưởng ngập rất nhỏ (σ = ${submergenceSigma(H_val, weir).toFixed(3)}).` + zNote;
+      } else if (ratio < 0.7) {
+        ck2.className = 'check-box check-warn';
+        ck2.innerHTML = `⚠ <b>Ngập đáng kể</b> · h_s/H = ${ratio.toFixed(3)}, lưu lượng đã chịu ảnh hưởng của hạ lưu, hệ số ngập σ = ${submergenceSigma(H_val, weir).toFixed(3)}.` + zNote;
+      } else {
+        ck2.className = 'check-box check-bad';
+        ck2.innerHTML = `✗ <b>Ngập sâu</b> · h_s/H = ${ratio.toFixed(3)} &gt; 0.7, đập mất chức năng đo lưu lượng; không khuyến nghị điều kiện vận hành này trong thực tế.` + zNote;
+      }
+      }
+    }
+
+    drawWeir();
+  }
+
+  function copyResults() {
+    const names = {rect:'Đập thành mỏng chữ nhật', tri:`${num('theta')}° đập tam giác`, trap:'Đập hình thang Cipoletti', broad:'Đập đỉnh rộng'};
+    let params = '';
+    const triNote = weir === 'tri' ? ` (Kindsvater-Shen, k_h = ${((Q_free(num('H')).kh || 0) * 1000).toFixed(2)} mm)` : '';
+    if (weir === 'rect') params = `Chiều rộng đập b = ${num('b')} m, Chiều rộng kênh thượng lưu B = ${num('B')} m`;
+    else if (weir === 'tri') params = `Góc đỉnh θ = ${num('theta')}°`;
+    else if (weir === 'trap') params = `Chiều rộng đập b = ${num('b')} m, Độ dốc cạnh 1:4, Chiều rộng kênh thượng lưu B = ${num('B')} m`;
+    else if (weir === 'broad') params = `Chiều rộng đập b = ${num('b')} m,Đỉnh đập δ = ${num('delta')} m, ${$('broad_inlet').value === 'round' ? 'Cửa vào góc tròn' : 'Cửa vào góc vuông'}, Chiều rộng kênh thượng lưu B = ${num('B')} m`;
+    if ($('submerged').checked) params += `\nChiều sâu nước hạ lưu h_s = ${num('hs')} m`;
+
+    const txt = `Kết quả tính lưu lượng qua đập tràn · ${names[weir]}
+————————————————
+${params}
+Chiều cao đập P = ${num('P')} m
+
+Lưu lượng Q = ${$('r_Q').textContent} m³/s (${$('r_Q_h').textContent} m³/h)
+Cột nước trên đỉnh đập H = ${$('r_H').textContent} m (${$('r_H2').textContent} mm)
+
+Hệ số lưu lượng = ${$('r_m0').textContent}${triNote}
+Hệ số co hẹp bên ε = ${$('r_eps').textContent}
+Hệ số ngập σ = ${$('r_sigma').textContent}
+${V_LABEL[weir]} = ${$('r_v').textContent} m/s
+Vận tốc tới gần thượng lưu v₀ = ${$('r_v0').textContent} m/s
+
+Kiểm tra điều kiện áp dụng:${$('check_H').innerText}`;
+    navigator.clipboard.writeText(txt).then(() => {
+      alert('Đã sao chép kết quả');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Đã sao chép kết quả');
+    });
+  }
+
+  function resetDefaults() { location.reload(); }
+
+  function toggleFormula() {
+    const box = $('formulaBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+
+  // 初始化
+  setWeir('rect');
+  setMode('Q');
+</script>
+
+</body>
+</html>

@@ -9,6 +9,7 @@
 - `/thiet-bi`: thư viện thiết bị và công cụ.
 - `/thiet-bi/:id`: thông tin, vận hành và nguồn tham khảo của thiết bị được chọn.
 - `/cong-cu/:id`: công cụ tính cho thiết bị hoặc thông số tương ứng.
+- `/xu-ly-nuoc`: danh mục các trang WaterKit tích hợp.
 - `/gioi-thieu`: thông tin về dự án, nguồn và giới hạn mô hình.
 - `/quy-trinh?selftest=1`: mở quy trình kèm bảng tự kiểm, đối chiếu 48 chỉ số với bảng chuẩn.
 
@@ -73,8 +74,16 @@ Các nguồn sau được dẫn trong chú thích mã hoặc thông số thiết
 - SEAFDEC/AQD, *Farming Mangrove Crab*: khoảng pH nuôi cua Scylla.
 - iRAS: tham khảo bố cục hệ thống, ngưỡng chất lượng nước và một số hệ số mô hình.
 
-## Giới hạn và giấy phép tham khảo
+## Giới hạn và giấy phép
 
 Đây là mô hình minh họa với giả định khối trộn đều; thông số mẫu và kết quả không thay thế đo đạc, thiết kế kỹ thuật hay tư vấn chuyên gia. Một số phép tính xấp xỉ mol/kg ≈ mol/L. Các hệ số dị dưỡng, ozone và tổng áp suất khí (TGP) là các giá trị gần đúng cần được hiệu chỉnh theo điều kiện từng trại.
 
-iRAS và waterkit là các dự án tham khảo mang giấy phép AGPL-3.0. Dự án này không sao chép mã nguồn của chúng; các công thức và phần triển khai được xây dựng độc lập từ tài liệu được dẫn nguồn.
+Dự án phát hành theo [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). Các trang WaterKit tích hợp có nội dung gốc © Cheng Sun / Dengdeng Technology, được Việt hóa và chỉnh sửa giao diện; mã nguồn gốc tại [WaterKit](https://github.com/chengsunmail/waterkit). iRAS vẫn chỉ là nguồn tham khảo; dự án không sao chép mã nguồn iRAS.
+
+Các trang WaterKit đã tích hợp:
+
+- Thủy lực: `pipe-hydraulic-calculator`, `pipe-hydraulic-pro`, `open-channel-calculator`, `weir-flow-calculator`, `orifice-nozzle-calculator`.
+- Công nghệ: `aeration-calculator`, `sludge-production-calculator`, `dosing-calculator`, `activated-sludge-process-calculator`, `mbbr-design`, `ifas-design`, `mbr-design`, `ro-design`.
+- Thiết bị: `pump-selection-calculator`, `blower-selection-calculator`.
+- Chuyển đổi: `water-quality-unit-converter`.
+- Thủy sản: `tailwater`, `aquanor-2027-guide-cn`.

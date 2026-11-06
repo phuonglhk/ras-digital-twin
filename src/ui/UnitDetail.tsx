@@ -180,6 +180,13 @@ export default function UnitDetail({ unit, params: p, report: r, points, tank }:
     <section className="detail" aria-live="polite">
       <h2>{UNIT_LABEL[unit]}</h2>
       <p className="detail-desc">{DESC[unit]}</p>
+      {unit === "biofilter" && (
+        <p>
+          <a href={`${import.meta.env.BASE_URL}waterkit/mbbr-design.html`}>
+            Tính chi tiết MBBR trong bộ công cụ xử lý nước →
+          </a>
+        </p>
+      )}
       <div className="kvs">{body}</div>
       {out && (
         <p className="detail-foot">

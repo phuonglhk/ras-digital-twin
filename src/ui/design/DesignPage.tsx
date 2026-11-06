@@ -616,6 +616,10 @@ export default function DesignPage() {
             Ống chính cấp DN{h.mainDn} · ống đứng cấp DN{h.riserDn} · thoát DN{h.gravityDn}
           </p>
           <p>
+            <a href={`${import.meta.env.BASE_URL}waterkit/pipe-hydraulic-pro.html`}>Tính chi tiết thủy lực ống góp →</a>{" "}
+            · <a href={`${import.meta.env.BASE_URL}waterkit/open-channel-calculator.html`}>Tính mương theo Manning →</a>
+          </p>
+          <p>
             Ống góp tràn kiêm xả cặn DN{h.headerDn}, sức tải chảy đầy ước tính {displayQuantity(h.headerCapacity)}{" "}
             L/phút; tổn thất khi xả {displayQuantity(h.flushHead * 100)} cm, chênh cao khả dụng{" "}
             {displayQuantity(d.availableHead * 100)} cm;{" "}
@@ -638,6 +642,11 @@ export default function DesignPage() {
             </p>
           ))}
           <h2>Phòng lọc đề xuất</h2>
+          <p>
+            <a href={`${import.meta.env.BASE_URL}waterkit/pump-selection-calculator.html`}>
+              Tính chi tiết lựa chọn bơm →
+            </a>
+          </p>
           <p>
             {d.mechanical === "lang-cat"
               ? `Bể lắng ${displayQuantity(room.settling)} m³ (thời gian lưu giả định ${d.settlingMinutes} phút); bình lọc cát đường kính ${displayQuantity(room.sandDiameter)} m, tải ${displayQuantity(d.sandRate)} m³/m²·giờ.`
