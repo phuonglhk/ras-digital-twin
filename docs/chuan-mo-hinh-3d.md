@@ -1,6 +1,6 @@
 # Chuẩn mô hình 3D thiết bị RAS
 
-Áp dụng cho mọi thiết bị dựng trong `src/twin/devices.ts` và `src/twin/devicesProcess.ts`. Mục tiêu: thiết bị nhìn ra được là thiết bị công nghiệp thật ở mức sơ đồ kỹ thuật, và mọi mô hình theo cùng một bộ quy tắc.
+Áp dụng cho mọi thiết bị dựng trong `src/twin/devices.ts`, `src/twin/devicesProcess.ts` và `src/twin/devicesCulture.ts`. Mục tiêu: thiết bị nhìn ra được là thiết bị công nghiệp thật ở mức sơ đồ kỹ thuật, và mọi mô hình theo cùng một bộ quy tắc.
 
 Mô hình dựng bằng code three.js, có tham số. Không tải mô hình hay ảnh texture từ bên ngoài, không sao chép mô hình của hãng nào. Kích thước lấy theo cỡ điển hình cho hệ 10–30 m³/giờ và chỉ để minh hoạ.
 
@@ -30,7 +30,7 @@ Mọi chi tiết dựng dọc trục +Y cục bộ, đặt vào thiết bị b�
 - Đường ống: `flange`, `nozzle`, `unionStub`, `ballValve`, `gateValve`.
 - Đo và điều khiển: `gauge`, `rotameter`, `cabinet`.
 - Máy và kết cấu: `motor`, `leg`, `skid`.
-- Tiện ích: `bubbles`, `attach`, `measure`, `pipeRadius(DN)`.
+- Tiện ích: `bubbles`, `attach`, `measure`, `pipeRadius(DN)`, `Kit.merged()` (hình học gộp theo vật liệu để dựng `InstancedMesh`).
 
 ## Thêm một thiết bị
 
@@ -44,4 +44,8 @@ Mọi chi tiết dựng dọc trục +Y cục bộ, đặt vào thiết bị b�
 |---|---|
 | Bơm tuần hoàn, tách đạm, đèn UV, côn ôxy (`devices.ts`) | Đã chuẩn hoá (đợt 1) |
 | Lọc trống, MBBR, tháp khử CO₂, máy thổi khí, khử nitrat, bể tròn (`devicesProcess.ts`) | Đã chuẩn hoá (đợt 2) |
-| Hộp nuôi cua và kệ, cảnh `/thiet-ke` | Đợt 3 |
+| Hộp nuôi cua và kệ xếp chồng (`devicesCulture.ts`) | Đã chuẩn hoá (đợt 3) |
+| Cảnh `/thiet-ke` | Dùng chung kết xuất, môi trường phản xạ, van bi và rắc co từ thư viện; hộp và ống vẫn dựng theo dữ liệu bóc tách vật tư |
+| Cảnh `/quy-trinh` | Mọi thiết bị ở mức `low`; ống bo cong, tô mã màu cấp (xanh lam) và hồi (xanh lục) |
+
+Tài nguyên Blockbench cũ đã gỡ khỏi ứng dụng; các tệp nguồn còn trong `assets-src/` làm tư liệu.

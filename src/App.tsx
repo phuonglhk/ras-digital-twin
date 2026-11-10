@@ -14,7 +14,6 @@ import {
   type Water,
 } from "./model/process";
 import { clockLabel, Simulation, type Sample } from "./model/simulation";
-import type { BbLibrary } from "./twin/bbmodel";
 import type { SceneUnit, SceneView } from "./twin/scene";
 import ChainStrip from "./ui/ChainStrip";
 import { fmt, worst } from "./ui/format";
@@ -41,8 +40,6 @@ interface Snapshot {
 type TrendTab = "ammonia" | "nh3" | "gas" | "ph";
 
 export default function App() {
-  const [library, setLibrary] = useState<BbLibrary | null>(null);
-  const [loadError, setLoadError] = useState("");
   const [params, setParams] = useState<Params>(() => {
     const p = defaultParams();
     const query = new URLSearchParams(location.search);
@@ -71,15 +68,6 @@ export default function App() {
   const [trend, setTrend] = useState<TrendTab>("ammonia");
   const [viewMode, setViewMode] = useState<"3d" | "pid">("3d");
   const [event, setEvent] = useState<{ label: string; until: number; restore: Partial<Params> } | null>(null);
-
-  useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}models.json`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then(setLibrary)
-      .catch((e) =>
-        setLoadError(`Không tải được model 3D (${e.message}). Chạy "npm run assets" để tạo public/models.json.`),
-      );
-  }, []);
 
   const changeParams = useCallback(
     (next: Params) => {
@@ -292,10 +280,8 @@ export default function App() {
           </div>
           {viewMode === "pid" ? (
             <Pid view={sceneView} onPick={setSelected} />
-          ) : library ? (
-            <TwinView library={library} view={sceneView} onPick={setSelected} />
           ) : (
-            <div className="twin twin-loading">{loadError || "Đang tải mô hình 3D…"}</div>
+            <TwinView view={sceneView} onPick={setSelected} />
           )}
           <div className="scenarios">
             <span>Kịch bản</span>

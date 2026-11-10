@@ -7,11 +7,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { Level, Params, Point, UnitId } from "../model/process";
-import type { BbLibrary } from "./bbmodel";
 import { PBR } from "./materials";
+import { Kit } from "./parts";
 import { configureRenderer, createEnvironment } from "./stage";
 import {
-  AssetKit,
+  CRAB_BOX,
   denitrification,
   crabBoxes,
   degasser,
@@ -19,7 +19,6 @@ import {
   mbbr,
   oxygenCone,
   pump,
-  rackFrame,
   roundTank,
   skimmer,
   uvReactor,
@@ -115,7 +114,6 @@ export class TwinScene {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 0.1, 300);
   private controls: OrbitControls;
-  private kit: AssetKit;
   private world = new THREE.Group();
   private units = new Map<SceneUnit, Placed>();
   private flows: Flow[] = [];
@@ -133,11 +131,7 @@ export class TwinScene {
   onPick?: (id: SceneUnit | null) => void;
   onHover?: (id: SceneUnit | null, x: number, y: number) => void;
 
-  constructor(
-    private canvas: HTMLCanvasElement,
-    lib: BbLibrary,
-  ) {
-    this.kit = new AssetKit(lib);
+  constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     configureRenderer(this.renderer);
@@ -263,40 +257,38 @@ export class TwinScene {
       const tiers = 4;
       const perRack = cols * tiers;
       const racks = Math.max(1, Math.ceil(p.units / perRack));
-      const boxSize = new THREE.Vector3(0.44, 0.24, 0.4);
-      const pitch = 0.5;
-      const tierH = 0.34;
+      // Hộp xếp chồng trực tiếp kiểu căn hộ trên đế bê tông: không khung kệ, không khe giữa tầng.
+      const pitch = CRAB_BOX.w + 0.01;
+      const tierH = CRAB_BOX.pitch;
+      const base = 0.12;
       const rowGap = 1.35;
       const length = cols * pitch;
       const x0 = endX - length / 2;
       const zs = Array.from({ length: racks }, (_, r) => (r - (racks - 1) / 2) * rowGap);
       const positions: THREE.Vector3[] = [];
-      zs.forEach((z) => {
-        const frame = rackFrame(length + 0.1, tiers, 0.5, tierH);
-        frame.position.set(x0, 0, z);
-        group.add(frame);
-      });
+      const plinths = new Kit("low");
+      for (const z of zs)
+        plinths.box(length + 0.1, base, CRAB_BOX.d + 0.1, PBR.plinth, new THREE.Matrix4().makeTranslation(x0, 0, z));
+      group.add(plinths.build());
       for (let i = 0; i < p.units; i++) {
         const r = Math.floor(i / perRack);
         const k = i % perRack;
         const t = Math.floor(k / cols);
         const c = k % cols;
-        positions.push(new THREE.Vector3(x0 - length / 2 + pitch / 2 + c * pitch, 0.1 + t * tierH, zs[r]));
+        positions.push(new THREE.Vector3(x0 - length / 2 + pitch / 2 + c * pitch, base + t * tierH, zs[r]));
       }
-      const boxes = crabBoxes(this.kit, positions, boxSize);
+      const boxes = crabBoxes(positions, "low");
       group.add(boxes.group);
       this.crabLamps = boxes.lamps;
+      water = boxes.water;
       minX = x0 - length / 2;
-      height = tiers * tierH + 0.2;
+      height = base + tiers * tierH + 0.05;
       inlet = new THREE.Vector3(x0, height + 0.5, 0);
       outlet = new THREE.Vector3(endX + 0.2, 0.1, 0);
       center = new THREE.Vector3(x0, 0, 0);
       // Ống cấp chạy dọc nóc từng kệ.
       for (const z of zs) {
-        const f = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.03, 0.03, length, 8),
-          new THREE.MeshLambertMaterial({ color: 0xd9ded9 }),
-        );
+        const f = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, length, 12), PBR.pipeSupply);
         f.rotation.z = Math.PI / 2;
         f.position.set(x0, height + 0.05, z - 0.2);
         group.add(f);
@@ -353,7 +345,9 @@ export class TwinScene {
       u.eq.group.updateMatrixWorld(true);
       return u.eq.group.localToWorld(u.eq[which].clone());
     };
-    const main = (pts: THREE.Vector3[], radius = 0.055) => this.addPipe(pts, radius, true);
+    // Mã màu ống: nước hồi/tràn xanh lục, nước cấp về khu nuôi xanh lam, nhánh phụ xám.
+    const main = (pts: THREE.Vector3[], supply = false) =>
+      this.addPipe(pts, 0.055, true, supply ? PBR.pipeSupply : PBR.pipeReturn);
 
     // Khu nuôi → lọc trống: ống tràn chung sát sàn.
     const rdfIn = world("rdf", "inlet");
@@ -375,15 +369,18 @@ export class TwinScene {
     // Hồi về khu nuôi trên cao.
     const o2 = world("uv", "outlet");
     const top = 3.4;
-    main([
-      o2,
-      new THREE.Vector3(o2.x + 0.5, o2.y, 0),
-      new THREE.Vector3(o2.x + 0.5, top, 0),
-      new THREE.Vector3(o2.x + 0.5, top, 1.4),
-      new THREE.Vector3(culture.inlet.x, top, 1.4),
-      new THREE.Vector3(culture.inlet.x, top, culture.inlet.z),
-      culture.inlet,
-    ]);
+    main(
+      [
+        o2,
+        new THREE.Vector3(o2.x + 0.5, o2.y, 0),
+        new THREE.Vector3(o2.x + 0.5, top, 0),
+        new THREE.Vector3(o2.x + 0.5, top, 1.4),
+        new THREE.Vector3(culture.inlet.x, top, 1.4),
+        new THREE.Vector3(culture.inlet.x, top, culture.inlet.z),
+        culture.inlet,
+      ],
+      true,
+    );
 
     // Nhánh khử nitrat: lấy từ ống tràn, trả về ống tràn phía sau.
     const dIn = world("denit", "inlet");
@@ -413,15 +410,17 @@ export class TwinScene {
     );
   }
 
-  private addPipe(pts: THREE.Vector3[], radius: number, main: boolean) {
+  private addPipe(pts: THREE.Vector3[], radius: number, main: boolean, material: THREE.Material = PBR.pvc) {
     const curve = polyline(pts);
     const length = curve.getLength();
-    const tube = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, Math.max(16, Math.round(length * 12)), radius, 8, false),
-      main ? PBR.pp : PBR.pvc,
+    // Ống bo cong ở góc (thư viện chi tiết); hạt dòng chảy vẫn đi theo đường gấp khúc gốc.
+    const kit = new Kit("low");
+    kit.pipe(
+      pts.filter((p, i) => i === 0 || p.distanceTo(pts[i - 1]) > 1e-4),
+      radius,
+      material,
     );
-    tube.castShadow = true;
-    this.world.add(tube);
+    this.world.add(kit.build());
     const count = Math.max(6, Math.round(length * 3.5));
     const positions = new Float32Array(count * 3);
     const points = new THREE.Points(

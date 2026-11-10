@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { BbLibrary } from "../twin/bbmodel";
 import { TwinScene, type SceneUnit, type SceneView } from "../twin/scene";
 
 const NAMES: Record<SceneUnit, string> = {
@@ -16,12 +15,11 @@ const NAMES: Record<SceneUnit, string> = {
 };
 
 interface Props {
-  library: BbLibrary;
   view: SceneView;
   onPick: (id: SceneUnit) => void;
 }
 
-export default function TwinView({ library, view, onPick }: Props) {
+export default function TwinView({ view, onPick }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TwinScene | null>(null);
   const pickRef = useRef(onPick);
@@ -32,7 +30,7 @@ export default function TwinView({ library, view, onPick }: Props) {
     const canvas = document.createElement("canvas");
     canvas.setAttribute("aria-label", "Mô hình 3D hệ thống RAS. Bấm vào thiết bị để xem chi tiết.");
     hostRef.current!.appendChild(canvas);
-    const scene = new TwinScene(canvas, library);
+    const scene = new TwinScene(canvas);
     scene.onPick = (id) => id && pickRef.current(id);
     scene.onHover = (id, x, y) => setHover(id ? { id, x, y } : null);
     sceneRef.current = scene;
@@ -41,7 +39,7 @@ export default function TwinView({ library, view, onPick }: Props) {
       canvas.remove();
       sceneRef.current = null;
     };
-  }, [library]);
+  }, []);
 
   useEffect(() => {
     sceneRef.current?.update(view);

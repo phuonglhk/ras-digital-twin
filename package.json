@@ -11,8 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "baseline": "vite-node tools/baseline.ts",
-    "format": "prettier --write src/",
-    "assets": "node tools/import-bbmodel.mjs assets-src public/models.json"
+    "format": "prettier --write src/"
   },
   "dependencies": {
     "react": "19.1.1",

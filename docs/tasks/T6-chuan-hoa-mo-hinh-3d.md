@@ -69,7 +69,7 @@ Blockbench (`bbmodel.ts`, `public/models.json`, `tools/import-bbmodel.mjs`): n�
 ## 4. Ba đợt
 - **Đợt 1 (xong 2026-11-10):** mục 1 (chuẩn + tài liệu), mục 2 (thư viện chi tiết), `taoSanKhau` áp cho trang `/thiet-bi/:id`, và bốn thiết bị: `bom-tuan-hoan`, `tach-dam`, `den-uv`, `con-oxy`. Nhãn theo tên cho bốn thiết bị này; các thiết bị còn lại tạm giữ cách cũ nhưng vẫn phải chạy.
 - **Đợt 2 (xong 2026-11-10; ống nối trong `/quy-trinh` mới đổi vật liệu, chưa bo cong và chưa tô mã màu):** `loc-trong`, `mbbr`, `thap-khu-co2`, `may-thoi-khi`, `khu-nitrat`, `be-tron`, bể nuôi; áp `taoSanKhau` và LOD `thap` cho `/quy-trinh`; ống nối giữa các thiết bị dùng thư viện đường ống và mã màu.
-- **Đợt 3:** `ho-nuoi-cua`; `/thiet-ke` dùng chung vật liệu, sân khấu và chi tiết van/rắc co/co từ thư viện; gỡ Blockbench nếu không còn dùng; cập nhật README.
+- **Đợt 3 (xong 2026-11-10; trong `/thiet-ke`, hộp và ống vẫn dựng theo dữ liệu bóc tách, chỉ van, rắc co và ánh sáng dùng thư viện chung):** `ho-nuoi-cua`; `/thiet-ke` dùng chung vật liệu, sân khấu và chi tiết van/rắc co/co từ thư viện; gỡ Blockbench nếu không còn dùng; cập nhật README.
 
 ## 5. Kiểm tra tự động (vitest, không cần WebGL)
 Với mỗi thiết bị đã chuẩn hoá, ở cả hai mức chi tiết:

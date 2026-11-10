@@ -2,14 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
-  AssetKit,
   blower,
   crabRack,
   degasser,
   denitrification,
   drumFilter,
   labelEquipmentByName,
-  labelEquipmentParts,
   mbbr,
   oxygenCone,
   pump,
@@ -18,11 +16,10 @@ import {
   uvReactor,
   type Equipment,
 } from "../twin/equipment";
-import type { BbLibrary } from "../twin/bbmodel";
 import { addStage, configureRenderer, createEnvironment } from "../twin/stage";
 import type { Entry } from "./catalog";
 
-function build(entry: Entry, kit: AssetKit): Equipment {
+function build(entry: Entry): Equipment {
   switch (entry.id) {
     case "loc-trong":
       return drumFilter("high");
@@ -43,18 +40,15 @@ function build(entry: Entry, kit: AssetKit): Equipment {
     case "may-thoi-khi":
       return blower("high");
     case "ho-nuoi-cua":
-      return crabRack(kit);
+      return crabRack("high");
     case "be-tron":
       return roundTank(4, "high");
     default:
       return pump("high");
   }
 }
-function make(entry: Entry, kit: AssetKit): Equipment {
-  const indexes: Record<string, number[][]> = {
-    "ho-nuoi-cua": [[1], [0], [2]],
-  };
-  // Thiết bị đã chuẩn hoá: nhãn tra theo tên bộ phận (docs/chuan-mo-hinh-3d.md).
+function make(entry: Entry): Equipment {
+  // Nhãn tra theo tên bộ phận (docs/chuan-mo-hinh-3d.md), theo đúng thứ tự `parts` trong catalog.
   const names: Record<string, string[][]> = {
     "loc-trong": [["luoi-loc"], ["phun-rua"], ["mang-can"], ["dong-co"]],
     "tach-dam": [["cot-tiep-xuc", "cua-vao", "cua-ra"], ["coc-bot"], ["cap-khi"]],
@@ -63,17 +57,16 @@ function make(entry: Entry, kit: AssetKit): Equipment {
     "khu-nitrat": [["be-phan-ung", "cua-vao", "cua-ra"], ["may-khuay"], ["cap-cacbon"]],
     "may-thoi-khi": [["dong-co"], ["buong-nen"], ["duong-khi-ra"]],
     "be-tron": [["thanh-be", "cua-vao"], ["ong-dung"], ["nuoc"]],
+    "ho-nuoi-cua": [["hop-cua"], ["de-ke"], ["ong-cap"], ["ong-thu"]],
     "bom-tuan-hoan": [["than-bom", "dong-ho"], ["truc-bom"], ["dong-co"]],
     "den-uv": [["buong-chieu"], ["den-uv"], ["tu-dien", "cam-bien"]],
     "con-oxy": [["con-tiep-xuc", "cua-vao", "dong-ho"], ["binh-oxy", "duong-oxy"], ["duong-ra"]],
   };
-  const eq = build(entry, kit);
-  if (names[entry.id]) return labelEquipmentByName(eq, entry.parts, names[entry.id]);
-  return labelEquipmentParts(eq, entry.parts, indexes[entry.id]);
+  return labelEquipmentByName(build(entry), entry.parts, names[entry.id] ?? []);
 }
-function setup(entry: Entry, library: BbLibrary) {
+function setup(entry: Entry) {
   const scene = new THREE.Scene();
-  const eq = make(entry, new AssetKit(library));
+  const eq = make(entry);
   scene.add(eq.group);
   eq.lamp.removeFromParent();
   const bounds = new THREE.Box3().setFromObject(eq.group),
@@ -119,15 +112,14 @@ export function EquipmentView({ entry }: { entry: Entry }) {
   useEffect(() => {
     let dead = false,
       cleanup = () => {};
-    fetch(`${import.meta.env.BASE_URL}models.json`)
-      .then((r) => r.json())
-      .then((library: BbLibrary) => {
+    Promise.resolve()
+      .then(() => {
         if (dead || !canvas.current) return;
         const host = canvas.current,
           el = document.createElement("canvas");
         host.appendChild(el);
         el.setAttribute("aria-label", `Mô hình 3D ${entry.name}. Kéo để xoay, cuộn để phóng to.`);
-        const { scene, eq, camera, center } = setup(entry, library);
+        const { scene, eq, camera, center } = setup(entry);
         const renderer = new THREE.WebGLRenderer({ canvas: el, antialias: true });
         renderer.localClippingEnabled = true;
         configureRenderer(renderer);
@@ -229,29 +221,15 @@ export function useThumbnails(entries: Entry[]) {
   useEffect(() => {
     let dead = false;
     if (entries.every((e) => thumbnails.has(e.id))) return;
-    fetch(`${import.meta.env.BASE_URL}models.json`)
-      .then((response) => response.json())
-      .then(async (library: BbLibrary) => {
+    Promise.resolve()
+      .then(() => {
         if (dead) return;
         const scenes = entries
           .filter((entry) => !thumbnails.has(entry.id))
           .map((entry) => ({
             entry,
-            ...setup(entry, library),
+            ...setup(entry),
           }));
-        const loading: Promise<void>[] = [];
-        for (const { scene } of scenes) {
-          scene.traverse((object) => {
-            if (!(object instanceof THREE.Mesh)) return;
-            const materials = Array.isArray(object.material) ? object.material : [object.material];
-            for (const material of materials) {
-              if (material instanceof THREE.MeshLambertMaterial && material.map?.userData.ready) {
-                loading.push(material.map.userData.ready as Promise<void>);
-              }
-            }
-          });
-        }
-        await Promise.all(loading);
         if (!dead && scenes.some(({ entry }) => !thumbnails.has(entry.id))) {
           const canvas = document.createElement("canvas");
           const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });

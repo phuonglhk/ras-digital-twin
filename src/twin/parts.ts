@@ -99,6 +99,12 @@ export class Kit {
   /** Ống đi qua các điểm, bo cong ở góc (toạ độ thiết bị, không dùng `at`). */
   pipe(points: THREE.Vector3[], r: number, material: THREE.Material) {
     if (points.length < 2) return;
+    if (points.length === 2) {
+      // Đoạn thẳng: trụ đơn, rẻ hơn ống uốn nhiều lần.
+      const dir = points[1].clone().sub(points[0]);
+      this.cyl(r, dir.length(), material, orient(points[0], dir), r, false, this.high ? 16 : 8);
+      return;
+    }
     const path = new THREE.CurvePath<THREE.Vector3>();
     const bend = r * 2.2;
     let from = points[0].clone();
@@ -300,6 +306,21 @@ export class Kit {
   }
 
   /* ---------------- xuất ---------------- */
+
+  /** Gộp toàn bộ theo vật liệu, trả về hình học thô (dùng để dựng InstancedMesh). */
+  merged() {
+    const byMaterial = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    for (const item of this.items) {
+      if (!byMaterial.has(item.material)) byMaterial.set(item.material, []);
+      byMaterial.get(item.material)!.push(item.geometry);
+    }
+    this.items = [];
+    return [...byMaterial].map(([material, geometries]) => {
+      const geometry = geometries.length === 1 ? geometries[0] : mergeGeometries(geometries, false);
+      if (geometries.length > 1) geometries.forEach((g) => g.dispose());
+      return { material, geometry };
+    });
+  }
 
   /**
    * Gộp hình học. Mức cao: mỗi bộ phận là một Group có tên, mỗi vật liệu một mesh.

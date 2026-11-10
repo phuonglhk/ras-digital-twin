@@ -1,4 +1,6 @@
 ﻿import * as THREE from "three";
+import { Kit } from "../twin/parts";
+import { configureRenderer, createEnvironment } from "../twin/stage";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { halfPipeVelocity, velocity } from "./hydraulics";
 import { rimSlope, type Component, type RackDesign, type System } from "./types";
@@ -18,6 +20,7 @@ const color: Record<System, number> = {
 };
 export class DesignScene {
   private renderer: THREE.WebGLRenderer;
+  private environment: THREE.Texture;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
   private controls: OrbitControls;
@@ -52,7 +55,12 @@ export class DesignScene {
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.scene.background = new THREE.Color(0x0b1418);
+    // Kết xuất và môi trường phản xạ dùng chung với các cảnh khác (docs/chuan-mo-hinh-3d.md).
+    configureRenderer(this.renderer);
+    this.environment = createEnvironment(this.renderer);
+    this.scene.environment = this.environment;
+    this.scene.environmentIntensity = 0.6;
+    this.scene.background = new THREE.Color(0x0f1d24);
     const host = canvas.parentElement!;
     this.overlay = document.createElement("div");
     this.overlay.className = "design-overlay";
@@ -65,8 +73,8 @@ export class DesignScene {
       this.fpsLabel.className = "design-fps";
       host.appendChild(this.fpsLabel);
     }
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x708090, 2));
-    const light = new THREE.DirectionalLight(0xffffff, 2);
+    this.scene.add(new THREE.HemisphereLight(0xdff2f8, 0x54646c, 1.6));
+    const light = new THREE.DirectionalLight(0xffffff, 2.2);
     light.position.set(4, 10, 5);
     this.scene.add(light, this.root);
     this.controls = new OrbitControls(this.camera, canvas);
@@ -711,7 +719,7 @@ export class DesignScene {
           : d.plumbing === "ong-tren-cao" && system === "ống đứng cấp"
             ? 0x8d9699
             : color[system];
-      const pipeMesh = add(new THREE.CylinderGeometry(1, 1, 1, this.lowDetail ? 5 : 8), mat(systemColor), entries);
+      const pipeMesh = add(new THREE.CylinderGeometry(1, 1, 1, this.lowDetail ? 5 : 12), mat(systemColor), entries);
       if (pipeMesh && this.one && this.flush && d.stacking === "xep-chong" && system === "tràn") {
         const moving = pipes.flatMap((c, i) => (c.dn === 21 && (c.source || !c.network) ? [i] : []));
         this.animation.push((t) => {
@@ -777,60 +785,84 @@ export class DesignScene {
           });
       }
       const valves = items.filter((c) => c.system === system && c.type.startsWith("Van"));
-      add(
-        new THREE.BoxGeometry(1, 1, 1),
-        mat(system === "ống chính trên cao" ? 0xd63724 : 0xf39220),
-        valves.map((c) => ({
-          id: c.id,
-          matrix: matrix(
-            c.position[0],
-            c.position[1] + 0.025,
-            c.position[2] +
-              (this.exploded
-                ? system === "cấp"
-                  ? -0.18
-                  : system === "tràn"
-                    ? 0.18
-                    : system === "xả cặn"
-                      ? 0.35
-                      : 0.5
-                : 0),
-            0.07,
-            0.012,
-            0.025,
-          ),
-        })),
-      );
+      const shift = this.exploded
+        ? system === "cấp"
+          ? -0.18
+          : system === "tràn"
+            ? 0.18
+            : system === "xả cặn"
+              ? 0.35
+              : 0.5
+        : 0;
+      // Hướng của ống gần nhất trong cùng hệ, để van và rắc co nằm dọc theo ống.
+      const segments = pipes.map((c) => ({ a: new THREE.Vector3(...c.position), b: new THREE.Vector3(...c.end!) }));
+      const probe = new THREE.Vector3();
+      const closest = new THREE.Vector3();
+      const line = new THREE.Line3();
+      const UP = new THREE.Vector3(0, 1, 0);
+      const alongPipe = (c: (typeof items)[number], radius: number) => {
+        probe.set(c.position[0], c.position[1], c.position[2]);
+        let best = Infinity;
+        const dir = new THREE.Vector3(1, 0, 0);
+        for (const seg of segments) {
+          line.set(seg.a, seg.b).closestPointToPoint(probe, true, closest);
+          const distance = closest.distanceToSquared(probe);
+          if (distance < best) {
+            best = distance;
+            dir.subVectors(seg.b, seg.a);
+          }
+        }
+        if (dir.lengthSq() < 1e-10) dir.set(1, 0, 0);
+        return new THREE.Matrix4().compose(
+          new THREE.Vector3(c.position[0], c.position[1], c.position[2] + shift),
+          new THREE.Quaternion().setFromUnitVectors(UP, dir.normalize()),
+          new THREE.Vector3(radius, radius, radius),
+        );
+      };
+      if (valves.length) {
+        // Van bi tay gạt từ thư viện chi tiết, dựng với bán kính đơn vị rồi co theo DN.
+        const shape = new Kit(this.lowDetail ? "low" : "high");
+        const bodyKey = new THREE.MeshBasicMaterial();
+        shape.ballValve(1, undefined, bodyKey);
+        const valveEntries = valves.map((c) => ({ id: c.id, matrix: alongPipe(c, (c.dn ?? 21) / 2000) }));
+        for (const { material, geometry } of shape.merged())
+          add(
+            geometry,
+            mat(material === bodyKey ? (system === "ống chính trên cao" ? 0xd63724 : 0xf39220) : 0x20272b),
+            valveEntries,
+          );
+        bodyKey.dispose();
+      }
+      const isUnion = (c: (typeof items)[number]) => c.type.startsWith("Rắc co");
       const fittings = items.filter(
         (c) =>
           c.system === system &&
           (["Tê", "Co 90°", "Co 45°", "Nút bịt", "Côn thu", "Lỗ định lượng"].includes(c.type) ||
-            c.type.startsWith("Rắc co") ||
+            isUnion(c) ||
             c.type.startsWith("Tê ")),
       );
+      // Rắc co: đai ốc tám cạnh ôm quanh ống.
       add(
-        new THREE.SphereGeometry(1, 6, 4),
+        new THREE.CylinderGeometry(1.6, 1.6, 1.8, 8),
         mat(color[system]),
-        fittings.map((c) => ({
-          id: c.id,
-          matrix: matrix(
-            c.position[0],
-            c.position[1],
-            c.position[2] +
-              (this.exploded
-                ? system === "cấp"
-                  ? -0.18
-                  : system === "tràn"
-                    ? 0.18
-                    : system === "xả cặn"
-                      ? 0.35
-                      : 0.5
-                : 0),
-            (c.dn ?? 12) / 1500,
-            (c.dn ?? 12) / 1500,
-            (c.dn ?? 12) / 1500,
-          ),
-        })),
+        fittings.filter(isUnion).map((c) => ({ id: c.id, matrix: alongPipe(c, (c.dn ?? 21) / 2000) })),
+      );
+      add(
+        this.lowDetail ? new THREE.SphereGeometry(1, 6, 4) : new THREE.SphereGeometry(1, 12, 8),
+        mat(color[system]),
+        fittings
+          .filter((c) => !isUnion(c))
+          .map((c) => ({
+            id: c.id,
+            matrix: matrix(
+              c.position[0],
+              c.position[1],
+              c.position[2] + shift,
+              (c.dn ?? 12) / 1500,
+              (c.dn ?? 12) / 1500,
+              (c.dn ?? 12) / 1500,
+            ),
+          })),
       );
     }
     if (this.assemblyTier !== null) {
@@ -951,6 +983,7 @@ export class DesignScene {
     this.clear();
     this.overlay.remove();
     this.fpsLabel?.remove();
+    this.environment.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }

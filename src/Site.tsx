@@ -438,9 +438,9 @@ function Site() {
               tại từng kết quả.
             </p>
             <p>
-              Mô hình khối được xây dựng từ tài nguyên Blockbench của dự án. Trang tham khảo cách tổ chức nội dung từ
-              iRAS. Bộ công cụ WaterKit được tích hợp theo giấy phép AGPL-3.0; iRAS chỉ là nguồn tham khảo, không sao
-              chép mã.
+              Mô hình 3D thiết bị được dựng bằng code theo một bộ chuẩn chung của dự án. Trang tham khảo cách tổ chức
+              nội dung từ iRAS. Bộ công cụ WaterKit được tích hợp theo giấy phép AGPL-3.0; iRAS chỉ là nguồn tham khảo,
+              không sao chép mã.
             </p>
           </main>
         ) : (

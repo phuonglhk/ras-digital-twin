@@ -134,7 +134,12 @@ export const equipment: Entry[] = [
     unit: "culture",
     description: "Các hộp riêng giữ cua tách biệt và nhận nước tuần hoàn.",
     fields: [f("count", "Số hộp", 100), f("volume", "Thể tích hữu dụng mỗi hộp (m³)", 0.02)],
-    parts: ["Hộp cua: giữ từng cá thể", "Khung kệ: đỡ các tầng hộp", "Ống thu nước: đưa nước về xử lý"],
+    parts: [
+      "Hộp cua: giữ từng cá thể, xếp chồng trực tiếp",
+      "Đế và đai chằng: đỡ chồng hộp, không cần khung kệ",
+      "Ống cấp nước: đưa nước sạch vào từng hộp, có van mỗi tầng",
+      "Ống thu nước: đưa nước về xử lý",
+    ],
   },
   {
     id: "be-tron",

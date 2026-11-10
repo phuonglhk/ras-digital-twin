@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { oxygenCone, pump, skimmer, uvReactor, type StandardEquipment } from "./devices";
+import { crabRack } from "./devicesCulture";
 import { blower, degasser, denitrification, drumFilter, mbbr, roundTank } from "./devicesProcess";
 import { isShared } from "./materials";
 import { measure, type Detail } from "./parts";
@@ -72,6 +73,12 @@ const DEVICES: {
     build: (detail) => roundTank(4, detail),
     size: [3.33, 1.47, 2.51],
     parts: ["thanh-be", "ong-dung", "cua-vao", "nuoc"],
+  },
+  {
+    id: "ho-nuoi-cua",
+    build: crabRack,
+    size: [1.89, 1.13, 0.553],
+    parts: ["hop-cua", "de-ke", "ong-cap", "ong-thu", "nuoc"],
   },
 ];
 

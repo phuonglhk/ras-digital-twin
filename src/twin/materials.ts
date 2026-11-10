@@ -38,6 +38,16 @@ export const PBR = {
   media: std(0x4f5f50, 0, 0.7, { side: THREE.DoubleSide }),
   /** Lớp đệm tháp khử khí. */
   packing: std(0x2c3b43, 0, 0.9),
+  /** Thân hộp nuôi cua (PP xanh). */
+  boxBlue: std(0x2f6fae, 0, 0.55, { side: THREE.DoubleSide }),
+  /** Đế bê tông, gạch kê. */
+  plinth: std(0x9a9d98, 0, 0.9),
+  /** Cua. */
+  crab: std(0x6b4a2c, 0, 0.6),
+  /** Ống nước cấp (xanh lam, cùng màu trang Thiết kế). */
+  pipeSupply: std(0x168bdb, 0, 0.55),
+  /** Ống nước hồi, tràn (xanh lục, cùng màu trang Thiết kế). */
+  pipeReturn: std(0x36a461, 0, 0.55),
   /** Ống hoá chất. */
   chemLine: std(0x8a5fc4, 0, 0.6),
   /** Đồng thau (van, đầu nối). */
