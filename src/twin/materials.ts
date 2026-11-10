@@ -27,9 +27,19 @@ export const PBR = {
   /** HDPE đen, cao su. */
   black: std(0x1c2124, 0, 0.75),
   /** FRP xanh nhạt. */
-  frp: std(0x7fb2b5, 0, 0.65),
+  frp: std(0x7fb2b5, 0, 0.65, { side: THREE.DoubleSide }),
   /** Acrylic/kính trong. */
   clear: std(0xd4eef6, 0, 0.08, { transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }),
+  /** Nhựa PE tự nhiên mờ đục (bồn hoá chất, bể kín nhìn được mực nước). */
+  translucent: std(0xe9efe9, 0, 0.5, { transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide }),
+  /** Lưới lọc inox (trống lọc, lưới chắn giá thể). */
+  mesh: std(0x74838a, 0.7, 0.45, { transparent: true, opacity: 0.78, side: THREE.DoubleSide }),
+  /** Giá thể vi sinh đã bám màng (màu sẫm để nổi trên nền bể trắng). */
+  media: std(0x4f5f50, 0, 0.7, { side: THREE.DoubleSide }),
+  /** Lớp đệm tháp khử khí. */
+  packing: std(0x2c3b43, 0, 0.9),
+  /** Ống hoá chất. */
+  chemLine: std(0x8a5fc4, 0, 0.6),
   /** Đồng thau (van, đầu nối). */
   brass: std(0xb8923a, 1, 0.38),
   /** Tay van đỏ. */

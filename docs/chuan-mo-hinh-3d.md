@@ -1,6 +1,6 @@
 # Chuẩn mô hình 3D thiết bị RAS
 
-Áp dụng cho mọi thiết bị dựng trong `src/twin/devices.ts`. Mục tiêu: thiết bị nhìn ra được là thiết bị công nghiệp thật ở mức sơ đồ kỹ thuật, và mọi mô hình theo cùng một bộ quy tắc.
+Áp dụng cho mọi thiết bị dựng trong `src/twin/devices.ts` và `src/twin/devicesProcess.ts`. Mục tiêu: thiết bị nhìn ra được là thiết bị công nghiệp thật ở mức sơ đồ kỹ thuật, và mọi mô hình theo cùng một bộ quy tắc.
 
 Mô hình dựng bằng code three.js, có tham số. Không tải mô hình hay ảnh texture từ bên ngoài, không sao chép mô hình của hãng nào. Kích thước lấy theo cỡ điển hình cho hệ 10–30 m³/giờ và chỉ để minh hoạ.
 
@@ -15,7 +15,7 @@ Mô hình dựng bằng code three.js, có tham số. Không tải mô hình hay
    | Mức | Dùng ở | Trụ | Chi tiết nhỏ | Tam giác | Draw call |
    |---|---|---|---|---|---|
    | `high` | trang thiết bị | 32 cạnh | có bu lông, cánh tản nhiệt | ≤ 40.000 | ≤ 40 |
-   | `low` | cảnh toàn hệ `/quy-trinh` | 16 cạnh | bỏ | ≤ 6.000 | ≤ 14 |
+   | `low` | cảnh toàn hệ `/quy-trinh` | 16 cạnh | bỏ | ≤ 6.000 | ≤ 16 |
 
    `Kit.build()` gộp hình học theo (bộ phận, vật liệu) ở mức cao và theo vật liệu ở mức thấp.
 6. **Ánh sáng.** Dùng `src/twin/stage.ts`: `configureRenderer` (sRGB, ACES, bóng mềm), `createEnvironment` (phản xạ cho kim loại), `addStage` (đèn và sàn).
@@ -26,7 +26,7 @@ Mô hình dựng bằng code three.js, có tham số. Không tải mô hình hay
 
 Mọi chi tiết dựng dọc trục +Y cục bộ, đặt vào thiết bị bằng `orient(vị trí, hướng, phía trên)`.
 
-- Hình cơ bản: `cyl`, `box`, `dome` (đáy/nắp cong), `ring`, `pipe` (ống qua các điểm, bo cong ở góc).
+- Hình cơ bản: `cyl`, `box`, `dome` (đáy/nắp cong), `ring`, `pipe` (ống qua các điểm, bo cong ở góc), `openTank` (bể chữ nhật hở nắp có vành và gân).
 - Đường ống: `flange`, `nozzle`, `unionStub`, `ballValve`, `gateValve`.
 - Đo và điều khiển: `gauge`, `rotameter`, `cabinet`.
 - Máy và kết cấu: `motor`, `leg`, `skid`.
@@ -42,6 +42,6 @@ Mọi chi tiết dựng dọc trục +Y cục bộ, đặt vào thiết bị b�
 
 | Thiết bị | Trạng thái |
 |---|---|
-| Bơm tuần hoàn, tách đạm, đèn UV, côn ôxy | Đã chuẩn hoá (đợt 1) |
-| Lọc trống, MBBR, tháp khử CO₂, máy thổi khí, khử nitrat, bể nuôi | Đợt 2 |
+| Bơm tuần hoàn, tách đạm, đèn UV, côn ôxy (`devices.ts`) | Đã chuẩn hoá (đợt 1) |
+| Lọc trống, MBBR, tháp khử CO₂, máy thổi khí, khử nitrat, bể tròn (`devicesProcess.ts`) | Đã chuẩn hoá (đợt 2) |
 | Hộp nuôi cua và kệ, cảnh `/thiet-ke` | Đợt 3 |

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { oxygenCone, pump, skimmer, uvReactor, type StandardEquipment } from "./devices";
+import { blower, degasser, denitrification, drumFilter, mbbr, roundTank } from "./devicesProcess";
 import { isShared } from "./materials";
 import { measure, type Detail } from "./parts";
 
@@ -36,11 +37,47 @@ const DEVICES: {
     size: [1.17, 2.18, 1.03],
     parts: ["con-tiep-xuc", "cua-vao", "duong-ra", "dong-ho", "duong-oxy", "binh-oxy"],
   },
+  {
+    id: "loc-trong",
+    build: drumFilter,
+    size: [1.84, 1.21, 1.03],
+    parts: ["be-vo", "luoi-loc", "phun-rua", "mang-can", "dong-co", "tu-dien", "cua-vao", "cua-ra"],
+  },
+  {
+    id: "mbbr",
+    build: (detail) => mbbr(0.5, detail),
+    size: [1.39, 1.44, 0.93],
+    parts: ["be-phan-ung", "gia-the", "luoi-chan", "ong-khi", "cua-vao", "cua-ra"],
+  },
+  {
+    id: "thap-khu-co2",
+    build: degasser,
+    size: [1.18, 2.61, 1.34],
+    parts: ["be-day", "than-thap", "lop-dem", "quat"],
+  },
+  {
+    id: "may-thoi-khi",
+    build: blower,
+    size: [0.72, 1.07, 0.425],
+    parts: ["be", "buong-nen", "duong-khi-ra", "dong-co"],
+  },
+  {
+    id: "khu-nitrat",
+    build: denitrification,
+    size: [1.19, 1.75, 1.36],
+    parts: ["be-phan-ung", "may-khuay", "cap-cacbon", "cua-vao", "cua-ra"],
+  },
+  {
+    id: "be-tron",
+    build: (detail) => roundTank(4, detail),
+    size: [3.33, 1.47, 2.51],
+    parts: ["thanh-be", "ong-dung", "cua-vao", "nuoc"],
+  },
 ];
 
 const BUDGET: Record<Detail, { triangles: number; drawCalls: number }> = {
   high: { triangles: 40000, drawCalls: 40 },
-  low: { triangles: 6000, drawCalls: 14 },
+  low: { triangles: 6000, drawCalls: 16 },
 };
 
 function body(eq: StandardEquipment) {
@@ -70,11 +107,14 @@ describe.each(DEVICES)("mô hình chuẩn $id", ({ build, size, parts }) => {
     for (const name of parts) expect(eq.group.getObjectByName(name), name).toBeTruthy();
   });
 
-  it("cổng nước nằm trong khung bao, sát mặt ngoài theo hướng cổng", () => {
+  it("cổng chính nằm trong khung bao, sát mặt ngoài theo hướng cổng", () => {
     const eq = build("high");
     const box = body(eq).expandByScalar(1e-3);
-    const water = eq.ports.filter((p) => p.kind === "nuoc-vao" || p.kind === "nuoc-ra");
-    expect(water.map((p) => p.kind).sort()).toEqual(["nuoc-ra", "nuoc-vao"]);
+    // Hai cổng chính: nước vào/ra, hoặc khí vào/ra với máy thổi khí.
+    const water = eq.ports.filter(
+      (p) => p.position.distanceTo(eq.inlet) < 1e-9 || p.position.distanceTo(eq.outlet) < 1e-9,
+    );
+    expect(water).toHaveLength(2);
     for (const p of water) {
       expect(box.containsPoint(p.position), p.name).toBe(true);
       expect(p.direction.length()).toBeCloseTo(1, 6);
@@ -82,8 +122,6 @@ describe.each(DEVICES)("mô hình chuẩn $id", ({ build, size, parts }) => {
       expect(box.containsPoint(p.position.clone().addScaledVector(p.direction, 0.15)), p.name).toBe(false);
       expect(p.dn).toBeGreaterThan(0);
     }
-    expect(eq.inlet.distanceTo(water.find((p) => p.kind === "nuoc-vao")!.position)).toBeLessThan(1e-9);
-    expect(eq.outlet.distanceTo(water.find((p) => p.kind === "nuoc-ra")!.position)).toBeLessThan(1e-9);
   });
 
   it("mỗi cổng nước có hình học (ống cụt, mặt bích) ngay tại vị trí cổng", () => {

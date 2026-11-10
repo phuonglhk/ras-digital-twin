@@ -8,10 +8,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { Level, Params, Point, UnitId } from "../model/process";
 import type { BbLibrary } from "./bbmodel";
-import { createEnvironment } from "./stage";
+import { PBR } from "./materials";
+import { configureRenderer, createEnvironment } from "./stage";
 import {
   AssetKit,
-  boxTank,
+  denitrification,
   crabBoxes,
   degasser,
   drumFilter,
@@ -139,9 +140,7 @@ export class TwinScene {
     this.kit = new AssetKit(lib);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    configureRenderer(this.renderer);
     this.environment = createEnvironment(this.renderer);
     this.scene.environment = this.environment;
 
@@ -210,10 +209,10 @@ export class TwinScene {
 
     // Tuyến xử lý theo thứ tự iRAS.
     const line: [SceneUnit, Equipment, number][] = [
-      ["rdf", drumFilter(this.kit), 1.4],
+      ["rdf", drumFilter("low"), 0],
       ["skimmer", skimmer("low"), 0],
-      ["biofilter", mbbr(this.kit, p.biofilter.media), 0],
-      ["degasser", degasser(), 1.0],
+      ["biofilter", mbbr(p.biofilter.media, "low"), 0],
+      ["degasser", degasser("low"), 0],
       ["pump", pump("low"), 0],
       ["oxygen", oxygenCone("low"), 0],
       ["uv", uvReactor("low"), 0],
@@ -226,7 +225,7 @@ export class TwinScene {
       this.addUnit(id, eq);
     }
 
-    const denit = boxTank(this.kit, 0.9, 0.9, 0.7);
+    const denit = denitrification("low");
     denit.group.position.set(cultureEnd + 1.1, 0, -2.6);
     this.addUnit("denit", denit);
 
@@ -304,20 +303,20 @@ export class TwinScene {
       }
     } else {
       const n = Math.max(1, p.units);
-      const sample = roundTank(p.unitVolume);
+      const sample = roundTank(p.unitVolume, "low");
       const d = new THREE.Box3().setFromObject(sample.group).getSize(new THREE.Vector3()).x;
       const cols = Math.min(2, n);
       const rows = Math.ceil(n / cols);
       const gap = d + 1.0;
       minX = endX - cols * gap;
       for (let i = 0; i < n; i++) {
-        const t = i === 0 ? sample : roundTank(p.unitVolume);
+        const t = i === 0 ? sample : roundTank(p.unitVolume, "low");
         const c = i % cols;
         const r = Math.floor(i / cols);
         t.group.position.set(endX - gap / 2 - c * gap, 0, (r - (rows - 1) / 2) * gap);
         group.add(t.group);
         if (i === 0) water = t.water;
-        else (t.water!.material as THREE.MeshPhongMaterial).dispose();
+        else (t.water!.material as THREE.MeshPhysicalMaterial).dispose();
         if (i > 0) t.water!.material = sample.water!.material; // tô màu chung
         t.lamp.visible = false;
       }
@@ -419,7 +418,7 @@ export class TwinScene {
     const length = curve.getLength();
     const tube = new THREE.Mesh(
       new THREE.TubeGeometry(curve, Math.max(16, Math.round(length * 12)), radius, 8, false),
-      new THREE.MeshLambertMaterial({ color: main ? 0xd9ded9 : 0xb9c4bf }),
+      main ? PBR.pp : PBR.pvc,
     );
     tube.castShadow = true;
     this.world.add(tube);
@@ -464,7 +463,7 @@ export class TwinScene {
       u.label.draw(TITLES[id], on[id] ? (view.labels[id] ?? "") : "TẮT", accent, view.selected === id);
       if (u.eq.water) {
         const c = WATER_CLEAN.clone().lerp(WATER_TURBID, level === "bad" ? 0.65 : level === "warn" ? 0.3 : 0);
-        (u.eq.water.material as THREE.MeshPhongMaterial).color.copy(c);
+        (u.eq.water.material as THREE.MeshPhysicalMaterial).color.copy(c);
       }
       u.eq.group.userData.running = on[id];
     }

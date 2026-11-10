@@ -62,32 +62,6 @@ function cylinder(rTop: number, rBottom: number, h: number, mat: THREE.Material,
   return m;
 }
 
-/** Bọt khí bốc lên trong một khối hộp. */
-function bubbles(count: number, w: number, h: number, d: number, y0: number) {
-  const pos = new Float32Array(count * 3);
-  const seed = Array.from({ length: count }, () => [
-    Math.random() - 0.5,
-    Math.random(),
-    Math.random() - 0.5,
-    0.4 + Math.random() * 0.8,
-  ]);
-  const pts = new THREE.Points(
-    new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(pos, 3)),
-    new THREE.PointsMaterial({ color: 0xffffff, size: 0.04, transparent: true, opacity: 0.8, depthWrite: false }),
-  );
-  const tick = (time: number, on: boolean) => {
-    pts.visible = on;
-    if (!on) return;
-    seed.forEach(([x, y, z, v], i) => {
-      pos[i * 3] = x * w;
-      pos[i * 3 + 1] = y0 + ((y + time * v * 0.4) % 1) * h;
-      pos[i * 3 + 2] = z * d;
-    });
-    pts.geometry.attributes.position.needsUpdate = true;
-  };
-  return { pts, tick };
-}
-
 /* ---------------- dùng asset ---------------- */
 
 export class AssetKit {
@@ -120,148 +94,6 @@ export class AssetKit {
 }
 
 /* ---------------- thiết bị ---------------- */
-
-export function drumFilter(kit: AssetKit): Equipment {
-  const group = new THREE.Group();
-  const size = new THREE.Vector3(1.4, 1.1, 1.3);
-  group.add(kit.place("drum_filter", size));
-  const drum = cylinder(0.36, 0.36, 0.9, new THREE.MeshLambertMaterial({ color: 0xb7c7c8, wireframe: true }), 12);
-  drum.rotation.z = Math.PI / 2;
-  drum.position.set(0, 0.7, 0);
-  group.add(drum);
-  const spray = bubbles(35, 0.7, 0.3, 0.3, 0.75);
-  group.add(spray.pts);
-  group.add(box(0.85, 0.05, 0.05, MAT.pvc, 0, 1.0, 0));
-  group.add(box(0.8, 0.12, 0.18, MAT.steel, 0, 0.45, 0));
-  group.add(box(0.25, 0.25, 0.25, MAT.dark, 0.7, 0.3, 0));
-  return {
-    animate: (t, on) => {
-      drum.rotation.x = on ? t : 0;
-      spray.tick(t, on);
-    },
-    group,
-    inlet: new THREE.Vector3(-0.7, 0.6, 0),
-    outlet: new THREE.Vector3(0.7, 0.45, 0),
-    height: size.y,
-    lamp: lampAt(group, size.y + 0.3),
-  };
-}
-
-/** Bể chữ nhật từ asset tank, có khối nước bên trong. */
-export function boxTank(kit: AssetKit, w: number, h: number, d: number): Equipment {
-  const group = new THREE.Group();
-  group.add(kit.place("tank", new THREE.Vector3(w, h, d)));
-  const water = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 1, d * 0.9), waterMaterial());
-  water.scale.y = h * 0.82;
-  water.position.y = 0.06 + water.scale.y / 2;
-  group.add(water);
-  return {
-    group,
-    water,
-    inlet: new THREE.Vector3(-w / 2, h * 0.75, 0),
-    outlet: new THREE.Vector3(w / 2, h * 0.5, 0),
-    height: h,
-    lamp: lampAt(group, h + 0.3),
-  };
-}
-
-/** Bể vi sinh MBBR: bể chữ nhật, giá thể trôi và bọt khí. */
-export function mbbr(kit: AssetKit, mediaVolume: number): Equipment {
-  const reactor = Math.max(0.3, mediaVolume / 0.5);
-  const h = 1.2;
-  const w = Math.sqrt((reactor / h) * 1.4);
-  const d = reactor / h / w;
-  const eq = boxTank(kit, w, h, d);
-  const chips = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.03, 0.05), MAT.media, 160);
-  const seeds = Array.from({ length: 160 }, () => [
-    Math.random() * Math.PI * 2,
-    0.15 + Math.random() * 0.8,
-    Math.random() * 0.5 + 0.3,
-    Math.random(),
-  ]);
-  eq.group.add(chips);
-  const air = bubbles(120, w * 0.8, h * 0.75, d * 0.8, 0.08);
-  eq.group.add(air.pts);
-  const m4 = new THREE.Matrix4();
-  eq.animate = (time, on) => {
-    seeds.forEach(([a, y, r, ph], i) => {
-      const ang = a + (on ? time * (0.6 + ph) : 0);
-      m4.makeRotationY(ang * 3).setPosition(
-        Math.cos(ang) * r * w * 0.4,
-        0.1 + y * h * 0.7 + Math.sin(time * 2 + ph * 6) * 0.03,
-        Math.sin(ang) * r * d * 0.4,
-      );
-      chips.setMatrixAt(i, m4);
-    });
-    chips.instanceMatrix.needsUpdate = true;
-    air.tick(time, on);
-  };
-  return eq;
-}
-
-/** Tháp khử CO₂ dạng đệm, quạt hút trên đỉnh, hộc chứa dưới. */
-export function degasser(): Equipment {
-  const group = new THREE.Group();
-  group.add(box(0.95, 0.4, 0.95, MAT.hdpe));
-  group.add(box(0.7, 2.0, 0.7, MAT.pvc, 0, 0.4, 0));
-  for (let i = 0; i < 4; i++) group.add(box(0.72, 0.06, 0.72, MAT.dark, 0, 0.65 + i * 0.45, 0));
-  group.add(box(0.5, 0.22, 0.5, MAT.steel, 0, 2.4, 0));
-  const blades = new THREE.Group();
-  blades.position.set(0, 2.66, 0);
-  for (let i = 0; i < 3; i++) {
-    const b = box(0.42, 0.02, 0.08, MAT.dark);
-    b.rotation.y = (i * Math.PI) / 3;
-    blades.add(b);
-  }
-  group.add(blades);
-  return {
-    group,
-    inlet: new THREE.Vector3(-0.35, 2.1, 0),
-    outlet: new THREE.Vector3(0.48, 0.25, 0),
-    height: 2.7,
-    lamp: lampAt(group, 3.0),
-    animate: (_t, on) => {
-      if (on) blades.rotation.y += 0.35;
-    },
-  };
-}
-
-/** Bể tròn cho cá/tôm. */
-export function roundTank(volume: number): Equipment {
-  const h = volume > 8 ? 1.4 : 1.0;
-  const r = Math.sqrt(volume / (Math.PI * h * 0.85));
-  const group = new THREE.Group();
-  const wall = new THREE.Mesh(
-    new THREE.CylinderGeometry(r, r, h, 28, 1, true),
-    new THREE.MeshLambertMaterial({ color: 0x2f6fae, side: THREE.DoubleSide }),
-  );
-  wall.position.y = h / 2;
-  wall.castShadow = wall.receiveShadow = true;
-  group.add(wall);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(r, 28), MAT.dark);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = 0.02;
-  group.add(floor);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(r, 0.04, 6, 28), MAT.pvc);
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = h;
-  group.add(rim);
-  const water = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.97, r * 0.97, 1, 28), waterMaterial());
-  water.scale.y = h * 0.85;
-  water.position.y = water.scale.y / 2;
-  group.add(water);
-  const stand = cylinder(0.06, 0.06, h + 0.2, MAT.pvc, 8);
-  stand.position.set(0, (h + 0.2) / 2, 0);
-  group.add(stand);
-  return {
-    group,
-    water,
-    inlet: new THREE.Vector3(-r, h, 0),
-    outlet: new THREE.Vector3(r, 0.2, 0),
-    height: h,
-    lamp: lampAt(group, h + 0.5),
-  };
-}
 
 /** Khung kệ thép cho hộp cua. */
 export function rackFrame(length: number, tiers: number, depth: number, tierH: number) {
@@ -319,32 +151,6 @@ export function crabBoxes(kit: AssetKit, positions: THREE.Vector3[], size: THREE
   return { group, lamps };
 }
 
-/** Máy thổi khí dạng khối với rotor quay. */
-export function blower(): Equipment {
-  const group = new THREE.Group();
-  group.add(box(1.1, 0.15, 0.65, MAT.frame));
-  group.add(box(0.5, 0.5, 0.55, MAT.hdpe, -0.25, 0.15));
-  const rotor = new THREE.Group();
-  rotor.position.set(0.3, 0.45, -0.01);
-  for (let i = 0; i < 4; i++) {
-    const blade = box(0.32, 0.06, 0.06, MAT.steel);
-    blade.rotation.z = (i * Math.PI) / 2;
-    rotor.add(blade);
-  }
-  group.add(rotor);
-  group.add(box(0.2, 0.3, 0.2, MAT.pvc, 0.35, 0.65));
-  return {
-    group,
-    inlet: new THREE.Vector3(-0.55, 0.4, 0),
-    outlet: new THREE.Vector3(0.35, 0.95, 0),
-    height: 1,
-    lamp: lampAt(group, 1.2),
-    animate: (t, on) => {
-      rotor.rotation.z = on ? t * 5 : 0;
-    },
-  };
-}
-
 /** Gắn tên bộ phận cho các nhóm hình học được tạo bởi builder. */
 export function labelEquipmentParts(equipment: Equipment, labels: string[], indexes: number[][]): Equipment {
   indexes.forEach((groupIndexes, index) => {
@@ -365,30 +171,6 @@ export function labelEquipmentByName(equipment: Equipment, labels: string[], nam
     }
   });
   return equipment;
-}
-
-/** Bể thiếu khí với máy khuấy và bơm châm methanol. */
-export function denitrification(kit: AssetKit): Equipment {
-  const eq = boxTank(kit, 1.5, 1.2, 1);
-  const mixer = new THREE.Group();
-  mixer.position.set(0, 0.35, 0);
-  mixer.add(box(0.08, 0.7, 0.08, MAT.steel));
-  for (let i = 0; i < 4; i++) {
-    const blade = box(0.5, 0.04, 0.08, MAT.pvc);
-    blade.rotation.y = (i * Math.PI) / 2;
-    mixer.add(blade);
-  }
-  eq.group.add(mixer);
-  const dosing = box(0.25, 0.3, 0.25, MAT.dark, 0.95, 0, 0);
-  eq.group.add(dosing);
-  const drops = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), MAT.hdpe);
-  eq.group.add(drops);
-  eq.animate = (t, on) => {
-    mixer.rotation.y = on ? t * 2 : 0;
-    drops.position.set(0.5, 1.15 - (t % 1) * 0.6, 0);
-    drops.visible = on;
-  };
-  return eq;
 }
 
 /** Kệ hộp với các giọt nước cấp và dòng chảy trong ống tràn. */
@@ -425,3 +207,4 @@ export function crabRack(kit: AssetKit): Equipment {
 
 /* Thiết bị đã dựng theo chuẩn mô hình 3D (docs/chuan-mo-hinh-3d.md). */
 export { oxygenCone, pump, skimmer, uvReactor } from "./devices";
+export { blower, degasser, denitrification, drumFilter, mbbr, roundTank } from "./devicesProcess";

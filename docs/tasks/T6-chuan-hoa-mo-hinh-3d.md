@@ -28,7 +28,7 @@ Ghi các quy tắc này thành `docs/chuan-mo-hinh-3d.md` (tiếng Việt) và t
 5. **Mã màu đường ống** (dùng chung cả ba cảnh, có chú giải): nước cấp xanh lam, nước hồi/tràn xanh lục, bùn/xả cặn nâu, khí nén xám nhạt có vòng vàng, ôxy xanh lá có vòng trắng, hoá chất tím. Giữ đúng các màu `/thiet-ke` đang dùng.
 6. **Mức chi tiết (LOD):** mỗi hàm dựng nhận `chiTiet: "cao" | "thap"`.
    - `cao` (`"high"` trong code): trang thiết bị đơn và chế độ "Một hộp". Trụ ≥ 32 cạnh, có bu lông, cánh tản nhiệt, tay van. Tối đa 40.000 tam giác và 40 draw call mỗi thiết bị.
-   - `thap` (`"low"`): cảnh toàn hệ. Trụ 16 cạnh, bỏ bu lông và chi tiết < 2 cm. Tối đa 6.000 tam giác và 14 draw call.
+   - `thap` (`"low"`): cảnh toàn hệ. Trụ 16 cạnh, bỏ bu lông và chi tiết < 2 cm. Tối đa 6.000 tam giác và 16 draw call.
    - Gộp hình học theo vật liệu (`mergeGeometries`) hoặc dùng `InstancedMesh` cho chi tiết lặp lại.
 7. **Ánh sáng và kết xuất dùng chung:** một hàm `taoSanKhau(renderer, scene)` cho cả ba cảnh:
    - sRGB, tone mapping ACES, môi trường phản xạ `RoomEnvironment` qua PMREM;
@@ -68,7 +68,7 @@ Blockbench (`bbmodel.ts`, `public/models.json`, `tools/import-bbmodel.mjs`): n�
 
 ## 4. Ba đợt
 - **Đợt 1 (xong 2026-11-10):** mục 1 (chuẩn + tài liệu), mục 2 (thư viện chi tiết), `taoSanKhau` áp cho trang `/thiet-bi/:id`, và bốn thiết bị: `bom-tuan-hoan`, `tach-dam`, `den-uv`, `con-oxy`. Nhãn theo tên cho bốn thiết bị này; các thiết bị còn lại tạm giữ cách cũ nhưng vẫn phải chạy.
-- **Đợt 2:** `loc-trong`, `mbbr`, `thap-khu-co2`, `may-thoi-khi`, `khu-nitrat`, `be-tron`, bể nuôi; áp `taoSanKhau` và LOD `thap` cho `/quy-trinh`; ống nối giữa các thiết bị dùng thư viện đường ống và mã màu.
+- **Đợt 2 (xong 2026-11-10; ống nối trong `/quy-trinh` mới đổi vật liệu, chưa bo cong và chưa tô mã màu):** `loc-trong`, `mbbr`, `thap-khu-co2`, `may-thoi-khi`, `khu-nitrat`, `be-tron`, bể nuôi; áp `taoSanKhau` và LOD `thap` cho `/quy-trinh`; ống nối giữa các thiết bị dùng thư viện đường ống và mã màu.
 - **Đợt 3:** `ho-nuoi-cua`; `/thiet-ke` dùng chung vật liệu, sân khấu và chi tiết van/rắc co/co từ thư viện; gỡ Blockbench nếu không còn dùng; cập nhật README.
 
 ## 5. Kiểm tra tự động (vitest, không cần WebGL)

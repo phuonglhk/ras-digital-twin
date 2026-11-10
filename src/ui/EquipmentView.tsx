@@ -25,13 +25,13 @@ import type { Entry } from "./catalog";
 function build(entry: Entry, kit: AssetKit): Equipment {
   switch (entry.id) {
     case "loc-trong":
-      return drumFilter(kit);
+      return drumFilter("high");
     case "tach-dam":
       return skimmer("high");
     case "mbbr":
-      return mbbr(kit, 0.5);
+      return mbbr(0.5, "high");
     case "thap-khu-co2":
-      return degasser();
+      return degasser("high");
     case "bom-tuan-hoan":
       return pump("high");
     case "den-uv":
@@ -39,35 +39,30 @@ function build(entry: Entry, kit: AssetKit): Equipment {
     case "con-oxy":
       return oxygenCone("high");
     case "khu-nitrat":
-      return denitrification(kit);
+      return denitrification("high");
     case "may-thoi-khi":
-      return blower();
+      return blower("high");
     case "ho-nuoi-cua":
       return crabRack(kit);
-    case "be-tron": {
-      const eq = roundTank(4);
-      eq.animate = (t, on) => {
-        if (eq.water) eq.water.position.y = eq.water.scale.y / 2 + (on ? 0.015 * Math.sin(t * 2) : 0);
-      };
-      return eq;
-    }
+    case "be-tron":
+      return roundTank(4, "high");
     default:
       return pump("high");
   }
 }
 function make(entry: Entry, kit: AssetKit): Equipment {
   const indexes: Record<string, number[][]> = {
-    "loc-trong": [[1], [3], [4], [5]],
-    mbbr: [[3], [0, 1], [4]],
-    "thap-khu-co2": [[2, 3, 4, 5], [7], [0]],
-    "khu-nitrat": [[0, 1], [2], [3, 4]],
-    "may-thoi-khi": [[1], [2], [3]],
     "ho-nuoi-cua": [[1], [0], [2]],
-    "be-tron": [[0, 1, 2], [4], [3]],
   };
   // Thiết bị đã chuẩn hoá: nhãn tra theo tên bộ phận (docs/chuan-mo-hinh-3d.md).
   const names: Record<string, string[][]> = {
+    "loc-trong": [["luoi-loc"], ["phun-rua"], ["mang-can"], ["dong-co"]],
     "tach-dam": [["cot-tiep-xuc", "cua-vao", "cua-ra"], ["coc-bot"], ["cap-khi"]],
+    mbbr: [["gia-the"], ["be-phan-ung", "cua-vao", "cua-ra", "luoi-chan"], ["ong-khi"]],
+    "thap-khu-co2": [["lop-dem", "than-thap"], ["quat"], ["be-day"]],
+    "khu-nitrat": [["be-phan-ung", "cua-vao", "cua-ra"], ["may-khuay"], ["cap-cacbon"]],
+    "may-thoi-khi": [["dong-co"], ["buong-nen"], ["duong-khi-ra"]],
+    "be-tron": [["thanh-be", "cua-vao"], ["ong-dung"], ["nuoc"]],
     "bom-tuan-hoan": [["than-bom", "dong-ho"], ["truc-bom"], ["dong-co"]],
     "den-uv": [["buong-chieu"], ["den-uv"], ["tu-dien", "cam-bien"]],
     "con-oxy": [["con-tiep-xuc", "cua-vao", "dong-ho"], ["binh-oxy", "duong-oxy"], ["duong-ra"]],

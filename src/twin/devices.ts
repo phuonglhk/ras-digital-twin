@@ -15,14 +15,20 @@ export interface StandardEquipment extends Equipment {
   size: THREE.Vector3;
 }
 
-const X = v3(1, 0, 0);
-const NX = v3(-1, 0, 0);
-const Y = v3(0, 1, 0);
-const NY = v3(0, -1, 0);
-const Z = v3(0, 0, 1);
-const move = (x: number, y: number, z: number) => new THREE.Matrix4().makeTranslation(x, y, z);
+export const X = v3(1, 0, 0);
+export const NX = v3(-1, 0, 0);
+export const Y = v3(0, 1, 0);
+export const NY = v3(0, -1, 0);
+export const Z = v3(0, 0, 1);
+export const move = (x: number, y: number, z: number) => new THREE.Matrix4().makeTranslation(x, y, z);
 
-const port = (name: string, kind: PortKind, position: THREE.Vector3, direction: THREE.Vector3, dn: number): Port => ({
+export const port = (
+  name: string,
+  kind: PortKind,
+  position: THREE.Vector3,
+  direction: THREE.Vector3,
+  dn: number,
+): Port => ({
   name,
   kind,
   position,
@@ -30,12 +36,16 @@ const port = (name: string, kind: PortKind, position: THREE.Vector3, direction: 
   dn,
 });
 
-/** Đưa tâm đáy về gốc, gắn đèn trạng thái và hoàn thiện giao diện Equipment. */
-function finish(
+/**
+ * Đưa tâm đáy về gốc, gắn đèn trạng thái và hoàn thiện giao diện Equipment.
+ * `main` là tên hai cổng chính (vào, ra) khi thiết bị không có cổng nước, ví dụ máy thổi khí.
+ */
+export function finish(
   root: THREE.Group,
   ports: Port[],
   animate?: (time: number, running: boolean) => void,
   water?: THREE.Mesh,
+  main?: [string, string],
 ): StandardEquipment {
   const bounds = new THREE.Box3().setFromObject(root);
   const size = bounds.getSize(new THREE.Vector3());
@@ -51,13 +61,14 @@ function finish(
   lamp.name = "den-trang-thai";
   lamp.position.set(0, size.y + 0.3, 0);
   group.add(lamp);
-  const find = (kind: PortKind) => ports.find((p) => p.kind === kind)!.position.clone();
+  const find = (kind: PortKind, name?: string) =>
+    ports.find((p) => (name ? p.name === name : p.kind === kind))!.position.clone();
   return {
     group,
     ports,
     size,
-    inlet: find("nuoc-vao"),
-    outlet: find("nuoc-ra"),
+    inlet: find("nuoc-vao", main?.[0]),
+    outlet: find("nuoc-ra", main?.[1]),
     height: size.y,
     lamp,
     water,

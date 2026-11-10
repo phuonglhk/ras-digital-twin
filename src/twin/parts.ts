@@ -122,6 +122,37 @@ export class Kit {
     this.add(new THREE.TubeGeometry(path, Math.min(steps, 160), r, this.high ? 16 : 8, false), material);
   }
 
+  /**
+   * Bể chữ nhật hở nắp, đáy tại gốc: đáy, bốn thành dày t, vành mép và gân tăng cứng.
+   * `front` là vật liệu thành trước (+Z), ví dụ kính quan sát.
+   */
+  openTank(
+    w: number,
+    h: number,
+    d: number,
+    t: number,
+    material: THREE.Material,
+    at = new THREE.Matrix4(),
+    front: THREE.Material = material,
+  ) {
+    const m = (x: number, y: number, z: number) => at.clone().multiply(new THREE.Matrix4().makeTranslation(x, y, z));
+    this.box(w, t, d, material, m(0, 0, 0));
+    this.box(w, h, t, material, m(0, 0, -d / 2 + t / 2));
+    this.box(w, h, t, front, m(0, 0, d / 2 - t / 2));
+    for (const x of [-w / 2 + t / 2, w / 2 - t / 2]) this.box(t, h, d - t * 2, material, m(x, 0, 0));
+    const rim = Math.max(0.03, t * 2.5);
+    for (const z of [-d / 2, d / 2]) this.box(w + rim, 0.02, rim, material, m(0, h - 0.02, z));
+    for (const x of [-w / 2, w / 2]) this.box(rim, 0.02, d + rim, material, m(x, h - 0.02, 0));
+    if (this.high) {
+      const n = Math.max(2, Math.round(w / 0.4));
+      for (let i = 0; i <= n; i++) {
+        const x = -w / 2 + (w * i) / n;
+        this.box(0.025, h - 0.02, 0.02, material, m(x, 0, -d / 2 - 0.01));
+        if (front === material) this.box(0.025, h - 0.02, 0.02, material, m(x, 0, d / 2 + 0.01));
+      }
+    }
+  }
+
   /* ---------------- đường ống ---------------- */
 
   /** Mặt bích có bu lông, mặt dưới tại gốc. Trả về bề dày. */
@@ -303,7 +334,13 @@ export class Kit {
 
 /** Gắn một vật thể có hoạt cảnh vào bộ phận có tên (mức thấp thì gắn thẳng vào gốc). */
 export function attach(root: THREE.Group, part: string, object: THREE.Object3D) {
-  (root.getObjectByName(part) ?? root).add(object);
+  let target = root.getObjectByName(part);
+  if (!target && !root.getObjectByName("tat-ca")) {
+    target = new THREE.Group();
+    target.name = part;
+    root.add(target);
+  }
+  (target ?? root).add(object);
   return object;
 }
 
