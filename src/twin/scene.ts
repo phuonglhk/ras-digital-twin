@@ -8,6 +8,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { Level, Params, Point, UnitId } from "../model/process";
 import type { BbLibrary } from "./bbmodel";
+import { createEnvironment } from "./stage";
 import {
   AssetKit,
   boxTank,
@@ -109,6 +110,7 @@ function polyline(pts: THREE.Vector3[]) {
 
 export class TwinScene {
   private renderer: THREE.WebGLRenderer;
+  private environment: THREE.Texture;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 0.1, 300);
   private controls: OrbitControls;
@@ -140,6 +142,8 @@ export class TwinScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.environment = createEnvironment(this.renderer);
+    this.scene.environment = this.environment;
 
     this.scene.background = new THREE.Color(0x0b1418);
     this.scene.fog = new THREE.Fog(0x0b1418, 35, 80);
@@ -207,12 +211,12 @@ export class TwinScene {
     // Tuyến xử lý theo thứ tự iRAS.
     const line: [SceneUnit, Equipment, number][] = [
       ["rdf", drumFilter(this.kit), 1.4],
-      ["skimmer", skimmer(), 0.8],
+      ["skimmer", skimmer("low"), 0],
       ["biofilter", mbbr(this.kit, p.biofilter.media), 0],
       ["degasser", degasser(), 1.0],
-      ["pump", pump(this.kit), 0.7],
-      ["oxygen", oxygenCone(), 0.8],
-      ["uv", uvReactor(), 1.1],
+      ["pump", pump("low"), 0],
+      ["oxygen", oxygenCone("low"), 0],
+      ["uv", uvReactor("low"), 0],
     ];
     let cursor = 0;
     for (const [id, eq, width] of line) {
@@ -569,6 +573,7 @@ export class TwinScene {
     this.canvas.removeEventListener("pointermove", this.handleMove);
     this.canvas.removeEventListener("pointerleave", this.handleLeave);
     this.controls.dispose();
+    this.environment.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }

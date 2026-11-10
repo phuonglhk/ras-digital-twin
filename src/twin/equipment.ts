@@ -147,33 +147,6 @@ export function drumFilter(kit: AssetKit): Equipment {
   };
 }
 
-export function pump(kit: AssetKit): Equipment {
-  const group = new THREE.Group();
-  const size = new THREE.Vector3(0.7, 0.6, 0.6);
-  group.add(kit.place("pump", size));
-  let spin = 0;
-  const shaft = new THREE.Group();
-  shaft.position.set(0, 0.3, 0);
-  for (let i = 0; i < 4; i++) {
-    const blade = box(0.26, 0.035, 0.035, MAT.steel);
-    blade.rotation.z = (i * Math.PI) / 2;
-    shaft.add(blade);
-  }
-  group.add(shaft);
-  group.add(box(0.2, 0.3, 0.3, MAT.dark, -0.35, 0.1, 0));
-  return {
-    group,
-    inlet: new THREE.Vector3(-0.35, 0.3, 0),
-    outlet: new THREE.Vector3(0.35, 0.3, 0),
-    height: size.y,
-    lamp: lampAt(group, size.y + 0.3),
-    animate: (_t, on) => {
-      if (on) spin += 0.4;
-      shaft.rotation.z = spin;
-    },
-  };
-}
-
 /** Bể chữ nhật từ asset tank, có khối nước bên trong. */
 export function boxTank(kit: AssetKit, w: number, h: number, d: number): Equipment {
   const group = new THREE.Group();
@@ -226,39 +199,6 @@ export function mbbr(kit: AssetKit, mediaVolume: number): Equipment {
   return eq;
 }
 
-/** Tách đạm (protein skimmer): cột phản ứng, cốc gom bọt, hộc chứa dưới. */
-export function skimmer(): Equipment {
-  const group = new THREE.Group();
-  group.add(box(0.7, 0.35, 0.6, MAT.hdpe));
-  const col = cylinder(
-    0.17,
-    0.17,
-    1.5,
-    new THREE.MeshPhongMaterial({ color: 0xbfe6f5, transparent: true, opacity: 0.45, depthWrite: false }),
-  );
-  col.position.set(0, 0.35 + 0.75, 0);
-  group.add(col);
-  const cup = cylinder(0.26, 0.2, 0.3, MAT.pvc);
-  cup.position.set(0, 0.35 + 1.5 + 0.15, 0);
-  group.add(cup);
-  const foam = cylinder(0.22, 0.22, 0.12, MAT.foam);
-  foam.position.set(0, 0.35 + 1.5 + 0.26, 0);
-  group.add(foam);
-  const air = bubbles(70, 0.24, 1.35, 0.24, 0.4);
-  group.add(air.pts);
-  return {
-    group,
-    inlet: new THREE.Vector3(-0.35, 0.25, 0),
-    outlet: new THREE.Vector3(0.35, 0.2, 0),
-    height: 2.2,
-    lamp: lampAt(group, 2.5),
-    animate: (t, on) => {
-      air.tick(t, on);
-      foam.scale.y = on ? 1 + Math.sin(t * 1.3) * 0.2 : 0.5;
-    },
-  };
-}
-
 /** Tháp khử CO₂ dạng đệm, quạt hút trên đỉnh, hộc chứa dưới. */
 export function degasser(): Equipment {
   const group = new THREE.Group();
@@ -283,58 +223,6 @@ export function degasser(): Equipment {
     animate: (_t, on) => {
       if (on) blades.rotation.y += 0.35;
     },
-  };
-}
-
-/** Đèn UV ống ngang trên giá, phát sáng tím khi bật. */
-export function uvReactor(): Equipment {
-  const group = new THREE.Group();
-  group.add(box(0.1, 0.5, 0.1, MAT.frame, -0.4, 0, 0));
-  group.add(box(0.1, 0.5, 0.1, MAT.frame, 0.4, 0, 0));
-  const tube = cylinder(0.12, 0.12, 1.1, MAT.steel);
-  tube.rotation.z = Math.PI / 2;
-  tube.position.set(0, 0.62, 0);
-  group.add(tube);
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0x9b7bff, transparent: true, opacity: 0.0 });
-  const glow = cylinder(0.14, 0.14, 0.9, glowMat);
-  glow.rotation.z = Math.PI / 2;
-  glow.position.set(0, 0.62, 0);
-  group.add(glow);
-  group.add(box(0.3, 0.35, 0.2, MAT.dark, 0, 0, 0.35));
-  return {
-    group,
-    inlet: new THREE.Vector3(-0.55, 0.62, 0),
-    outlet: new THREE.Vector3(0.55, 0.62, 0),
-    height: 0.8,
-    lamp: lampAt(group, 1.1),
-    animate: (t, on) => {
-      glowMat.opacity = on ? 0.35 + Math.sin(t * 8) * 0.08 : 0;
-    },
-  };
-}
-
-/** Côn ôxy (Speece cone) và bình ôxy lỏng. */
-export function oxygenCone(): Equipment {
-  const group = new THREE.Group();
-  const cone = cylinder(0.12, 0.36, 1.3, MAT.steel, 14);
-  cone.position.set(0, 0.25 + 0.65, 0);
-  group.add(cone);
-  group.add(box(0.3, 0.25, 0.3, MAT.frame));
-  const tank = cylinder(0.16, 0.16, 1.2, MAT.o2, 12);
-  tank.position.set(0.15, 0.6, 0.6);
-  group.add(tank);
-  const cap = cylinder(0.08, 0.16, 0.12, MAT.o2, 12);
-  cap.position.set(0.15, 1.26, 0.6);
-  group.add(cap);
-  const air = bubbles(60, 0.3, 1.0, 0.3, 0.35);
-  group.add(air.pts);
-  return {
-    animate: (t, on) => air.tick(t, on),
-    group,
-    inlet: new THREE.Vector3(0, 1.55, 0),
-    outlet: new THREE.Vector3(0.38, 0.3, 0),
-    height: 1.6,
-    lamp: lampAt(group, 1.9),
   };
 }
 
@@ -468,6 +356,17 @@ export function labelEquipmentParts(equipment: Equipment, labels: string[], inde
   return equipment;
 }
 
+/** Gắn nhãn theo tên bộ phận (thiết bị đã chuẩn hoá). Mỗi nhãn ứng với một hoặc nhiều nhóm có tên. */
+export function labelEquipmentByName(equipment: Equipment, labels: string[], names: string[][]): Equipment {
+  names.forEach((group, index) => {
+    for (const name of group) {
+      const part = equipment.group.getObjectByName(name);
+      if (part) part.userData.part = labels[index];
+    }
+  });
+  return equipment;
+}
+
 /** Bể thiếu khí với máy khuấy và bơm châm methanol. */
 export function denitrification(kit: AssetKit): Equipment {
   const eq = boxTank(kit, 1.5, 1.2, 1);
@@ -523,3 +422,6 @@ export function crabRack(kit: AssetKit): Equipment {
     },
   };
 }
+
+/* Thiết bị đã dựng theo chuẩn mô hình 3D (docs/chuan-mo-hinh-3d.md). */
+export { oxygenCone, pump, skimmer, uvReactor } from "./devices";

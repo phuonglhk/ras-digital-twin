@@ -8,6 +8,7 @@ import {
   degasser,
   denitrification,
   drumFilter,
+  labelEquipmentByName,
   labelEquipmentParts,
   mbbr,
   oxygenCone,
@@ -18,6 +19,7 @@ import {
   type Equipment,
 } from "../twin/equipment";
 import type { BbLibrary } from "../twin/bbmodel";
+import { addStage, configureRenderer, createEnvironment } from "../twin/stage";
 import type { Entry } from "./catalog";
 
 function build(entry: Entry, kit: AssetKit): Equipment {
@@ -25,17 +27,17 @@ function build(entry: Entry, kit: AssetKit): Equipment {
     case "loc-trong":
       return drumFilter(kit);
     case "tach-dam":
-      return skimmer();
+      return skimmer("high");
     case "mbbr":
       return mbbr(kit, 0.5);
     case "thap-khu-co2":
       return degasser();
     case "bom-tuan-hoan":
-      return pump(kit);
+      return pump("high");
     case "den-uv":
-      return uvReactor();
+      return uvReactor("high");
     case "con-oxy":
-      return oxygenCone();
+      return oxygenCone("high");
     case "khu-nitrat":
       return denitrification(kit);
     case "may-thoi-khi":
@@ -50,52 +52,65 @@ function build(entry: Entry, kit: AssetKit): Equipment {
       return eq;
     }
     default:
-      return pump(kit);
+      return pump("high");
   }
 }
 function make(entry: Entry, kit: AssetKit): Equipment {
   const indexes: Record<string, number[][]> = {
     "loc-trong": [[1], [3], [4], [5]],
-    "tach-dam": [[1], [2, 3], [0]],
     mbbr: [[3], [0, 1], [4]],
     "thap-khu-co2": [[2, 3, 4, 5], [7], [0]],
-    "bom-tuan-hoan": [[0], [1], [2]],
-    "den-uv": [[2], [3], [4]],
-    "con-oxy": [[0], [2, 3], [1]],
     "khu-nitrat": [[0, 1], [2], [3, 4]],
     "may-thoi-khi": [[1], [2], [3]],
     "ho-nuoi-cua": [[1], [0], [2]],
     "be-tron": [[0, 1, 2], [4], [3]],
   };
-  return labelEquipmentParts(build(entry, kit), entry.parts, indexes[entry.id]);
+  // Thiết bị đã chuẩn hoá: nhãn tra theo tên bộ phận (docs/chuan-mo-hinh-3d.md).
+  const names: Record<string, string[][]> = {
+    "tach-dam": [["cot-tiep-xuc", "cua-vao", "cua-ra"], ["coc-bot"], ["cap-khi"]],
+    "bom-tuan-hoan": [["than-bom", "dong-ho"], ["truc-bom"], ["dong-co"]],
+    "den-uv": [["buong-chieu"], ["den-uv"], ["tu-dien", "cam-bien"]],
+    "con-oxy": [["con-tiep-xuc", "cua-vao", "dong-ho"], ["binh-oxy", "duong-oxy"], ["duong-ra"]],
+  };
+  const eq = build(entry, kit);
+  if (names[entry.id]) return labelEquipmentByName(eq, entry.parts, names[entry.id]);
+  return labelEquipmentParts(eq, entry.parts, indexes[entry.id]);
 }
 function setup(entry: Entry, library: BbLibrary) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x142832);
-  scene.add(new THREE.HemisphereLight(0xdff6ff, 0x4a4b39, 2));
-  const light = new THREE.DirectionalLight(0xffffff, 2);
-  light.position.set(3, 6, 5);
-  scene.add(light);
   const eq = make(entry, new AssetKit(library));
   scene.add(eq.group);
-  eq.lamp.visible = false;
+  eq.lamp.removeFromParent();
   const bounds = new THREE.Box3().setFromObject(eq.group),
     center = bounds.getCenter(new THREE.Vector3()),
-    size = bounds.getSize(new THREE.Vector3());
+    radius = Math.max(bounds.getSize(new THREE.Vector3()).length() / 2, 0.4);
+  addStage(scene, radius);
+  // Camera bao trọn thiết bị: khoảng cách theo bán kính khung bao và góc nhìn.
   const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
-  const distance = Math.max(size.x, size.y, size.z, 1) * 2.6;
-  camera.position.copy(center).add(new THREE.Vector3(distance, distance * 0.7, distance));
+  const distance = (radius / Math.sin(THREE.MathUtils.degToRad(20))) * 1.08;
+  camera.position.copy(center).add(new THREE.Vector3(1, 0.55, 1).normalize().multiplyScalar(distance));
   camera.lookAt(center);
   return { scene, eq, camera, center };
 }
-function dispose(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
-  scene.traverse((o) => {
+function materialsOf(root: THREE.Object3D) {
+  const found = new Set<THREE.Material>();
+  root.traverse((o) => {
     if (o instanceof THREE.Mesh || o instanceof THREE.Points) {
-      o.geometry.dispose();
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      mats.forEach((m) => m.dispose());
+      mats.forEach((m: THREE.Material) => found.add(m));
     }
   });
+  return found;
+}
+function dispose(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+  scene.traverse((o) => {
+    if (o instanceof THREE.Mesh || o instanceof THREE.Points) o.geometry.dispose();
+  });
+  for (const m of materialsOf(scene)) {
+    m.clippingPlanes = null; // vật liệu dùng chung: trả về trạng thái không cắt lớp
+    m.dispose();
+  }
+  scene.environment?.dispose();
   renderer.dispose();
   renderer.forceContextLoss();
 }
@@ -120,6 +135,9 @@ export function EquipmentView({ entry }: { entry: Entry }) {
         const { scene, eq, camera, center } = setup(entry, library);
         const renderer = new THREE.WebGLRenderer({ canvas: el, antialias: true });
         renderer.localClippingEnabled = true;
+        configureRenderer(renderer);
+        scene.environment = createEnvironment(renderer);
+        const materials = materialsOf(eq.group);
         const controls = new OrbitControls(camera, el);
         controls.target.copy(center);
         controls.enableDamping = true;
@@ -131,14 +149,12 @@ export function EquipmentView({ entry }: { entry: Entry }) {
         const highlight = new THREE.Box3Helper(new THREE.Box3(), 0xffbd59);
         scene.add(highlight);
         const select = (name: string) => {
-          let target: THREE.Object3D | undefined;
+          // Một nhãn có thể gồm nhiều bộ phận: khung chọn bao tất cả.
+          highlight.box.makeEmpty();
           eq.group.traverse((object) => {
-            if (!target && object.userData.part === name) target = object;
+            if (object.userData.part === name) highlight.box.union(new THREE.Box3().setFromObject(object));
           });
-          if (target) {
-            highlight.box.setFromObject(target);
-            highlight.visible = true;
-          } else highlight.visible = false;
+          highlight.visible = !highlight.box.isEmpty();
           setPart(name);
         };
         selectRef.current = select;
@@ -169,7 +185,9 @@ export function EquipmentView({ entry }: { entry: Entry }) {
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
           }
-          renderer.clippingPlanes = cutRef.current ? [plane] : [];
+          // Chỉ cắt thiết bị, không cắt sàn.
+          const planes = cutRef.current ? [plane] : null;
+          for (const m of materials) m.clippingPlanes = planes;
           eq.animate?.(t / 1000, true);
           if (!eq.animate) eq.group.rotation.y = 0.12 * Math.sin(t / 1000);
           controls.update();
@@ -243,14 +261,19 @@ export function useThumbnails(entries: Entry[]) {
           const canvas = document.createElement("canvas");
           const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
           renderer.setSize(320, 180);
+          configureRenderer(renderer);
+          const environment = createEnvironment(renderer);
           for (const { entry, scene, eq, camera } of scenes) {
             if (thumbnails.has(entry.id)) continue;
             camera.aspect = 320 / 180;
             camera.updateProjectionMatrix();
             eq.animate?.(1, true);
+            scene.environment = environment;
             renderer.render(scene, camera);
+            scene.environment = null;
             thumbnails.set(entry.id, canvas.toDataURL());
           }
+          environment.dispose();
           renderer.dispose();
           renderer.forceContextLoss();
         }
